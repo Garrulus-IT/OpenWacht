@@ -1,0 +1,64 @@
+# Zentrale von OpenWacht. Installation: apt install ./openwacht-zentrale_<version>_amd64.deb
+# (oder openwacht-zentrale installieren), siehe deploy/linux/README.md.
+# Startoptionen (wenige) in /etc/openwacht/zentrale.env; alles andere in der Oberfläche.
+# Port 443 kommt von openwacht-zentrale.socket (keine Capability nötig). Ältere
+# Installationen hinter Caddy setzen dort -adresse 127.0.0.1:8443; dann ist der
+# Socket aus.
+[Unit]
+Description=OpenWacht-Zentrale (Oberfläche, Agent-Port, Checks, Alarme)
+Documentation=https://github.com/garrulus-it/openwacht
+Wants=network-online.target
+After=network-online.target postgresql.service
+# Migrationen laufen vor jedem Start als eigener Dienst mit der Eigentümer-Rolle.
+Requires=openwacht-migrieren.service
+After=openwacht-migrieren.service openwacht-zentrale.socket
+
+[Service]
+Type=simple
+User=svc_openwacht
+Group=svc_openwacht
+# Anmeldung bei PostgreSQL über den Unix-Socket mit Peer-Authentifizierung:
+# kein Passwort, die Datenbank erkennt den Dienst an seiner Benutzer-ID.
+Environment="OPENWACHT_DB=host=/run/postgresql user=openwacht_zentrale dbname=openwacht"
+EnvironmentFile=-/etc/openwacht/zentrale.env
+ExecStart=/usr/bin/openwacht-zentrale starten -schluessel /etc/openwacht/schluessel $OPENWACHT_ARGS
+Restart=on-failure
+# Für den Audit-Export als Datei (-audit-datei /var/log/openwacht/audit.jsonl,
+# Etappe 31); sonst bleibt der Ordner leer.
+LogsDirectory=openwacht
+LogsDirectoryMode=0750
+RestartSec=10
+TimeoutStopSec=30
+
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+# AF_NETLINK nur zum Lesen der eigenen Adressen (Einrichtungsassistent, vorläufiges Zertifikat).
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
+ProtectProc=invisible
+ProcSubset=pid
+RemoveIPC=yes
+PrivateUsers=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

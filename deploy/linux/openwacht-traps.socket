@@ -1,0 +1,17 @@
+# Trap-Empfang von OpenWacht: systemd öffnet UDP 162 und reicht den Socket an
+# openwacht-traps.service weiter. So braucht der Trap-Dienst keine Capability
+# für Ports unter 1024. Lauscht auf allen Adressen (IPv4 und IPv6); wer Traps
+# schicken darf, entscheidet der Dienst (nur Adressen bekannter SNMP-Geräte
+# mit eingeschalteten Traps). Zusätzlich im LAN per Firewall eingrenzen.
+[Unit]
+Description=OpenWacht-Trap-Empfang (UDP 162)
+Documentation=https://github.com/garrulus-it/openwacht
+
+[Socket]
+ListenDatagram=162
+ReceiveBuffer=1M
+# Ein Socket für einen Dienst, nicht je Paket ein neuer Prozess.
+Accept=no
+
+[Install]
+WantedBy=sockets.target

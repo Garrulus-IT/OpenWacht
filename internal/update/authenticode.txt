@@ -1,0 +1,5 @@
+# SHA-1-Fingerabdrücke (Thumbprint, 40 Hex-Zeichen) der Authenticode-Zertifikate,
+# mit denen der Herausgeber den Windows-Agent signiert. Eine Zeile je Zertifikat,
+# höchstens drei (aktuell, Nachfolger vor dem Ablauf). Leer = Download des
+# Windows-Agents von der Zentrale aus. Änderungen nur per eigenem Pull Request
+# vom Herausgeber (wie schluessel.pub, siehe Handbuch Kapitel 15).

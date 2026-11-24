@@ -1,0 +1,7 @@
+# Öffentlicher Schlüssel für Agent-Updates (Ed25519), Format: ed25519:<base64>
+# Leer = Agent-Updates aus. Den Schlüssel erzeugt der Herausgeber offline mit
+# „go run ./tools/signieren -neu“ (siehe Runbook); der private Schlüssel kommt
+# nie auf die Zentrale oder ins Repository.
+# Erzeugt am 24.11.2026. Kennungen: aktiv b7ba49cf02e0fb6d, reserve dbeb1adf2c56942f.
+ed25519:e1PWfPr2ziPRId0V8zvWQpyhS+1QDeJFjgDy7aH49OE= aktiv
+ed25519:d+Qm86x63o4BxRkwQgF/oiy6pEKTU+xI2kjfAQ0W+Ks= reserve

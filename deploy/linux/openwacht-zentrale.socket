@@ -1,0 +1,16 @@
+# HTTPS-Port der Oberfläche von OpenWacht: systemd öffnet TCP 443 und reicht
+# den Socket an openwacht-zentrale.service weiter. So braucht die Zentrale keine
+# Capability für Ports unter 1024. TLS macht die Zentrale selbst (Zertifikat aus
+# der Einrichtung, Seite Einstellungen → HTTPS).
+[Unit]
+Description=OpenWacht-Oberfläche (HTTPS, TCP 443)
+Documentation=https://github.com/garrulus-it/openwacht
+
+[Socket]
+ListenStream=443
+BindIPv6Only=both
+NoDelay=true
+Accept=no
+
+[Install]
+WantedBy=sockets.target

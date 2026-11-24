@@ -1,0 +1,51 @@
+# Sicherung der Datenbank (pg_dump, Custom-Format). Der Timer läuft stündlich;
+# `openwacht-zentrale sichern` sichert nur zur Uhrzeit aus den Einstellungen
+# (Standard 0 Uhr, Zeitzone der Installation) bzw. nach, wenn die letzte
+# Sicherung älter als 25 Stunden ist, und löscht Sicherungen nach der
+# eingestellten Aufbewahrung (Standard 14 Tage, die neueste bleibt immer).
+# Ergänzt vzdump: Ein Dump lässt sich auch in eine neuere PostgreSQL-Version
+# einspielen. Die Dateien enthalten verschlüsselte Geheimnisse; der
+# Hauptschlüssel liegt getrennt in /etc/openwacht/schluessel.
+[Unit]
+Description=OpenWacht: Datenbank sichern
+Documentation=https://github.com/garrulus-it/openwacht
+After=postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=oneshot
+# Eigentümer-Rolle über Peer-Authentifizierung (wie die Migrationen).
+User=svc_openwacht_db
+Group=svc_openwacht_db
+Environment="OPENWACHT_DB_EIGENTUEMER=host=/run/postgresql user=openwacht_owner dbname=openwacht"
+ExecStart=/usr/bin/openwacht-zentrale sichern -verzeichnis /var/backups/openwacht
+ReadWritePaths=/var/backups/openwacht
+
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
+ProtectProc=invisible
+ProcSubset=pid
+RemoveIPC=yes
+PrivateUsers=yes
+UMask=0077

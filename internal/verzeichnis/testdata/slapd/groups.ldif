@@ -1,0 +1,10 @@
+dn: cn=GG-OpenWacht-Admins,ou=gruppen,dc=firma,dc=test
+objectClass: groupOfNames
+cn: GG-OpenWacht-Admins
+member: cn=Anna Admin,ou=benutzer,dc=firma,dc=test
+member: cn=Gesperrt Gustav,ou=benutzer,dc=firma,dc=test
+
+dn: cn=GG-OpenWacht-Operatoren,ou=gruppen,dc=firma,dc=test
+objectClass: groupOfNames
+cn: GG-OpenWacht-Operatoren
+member: cn=Otto Operator,ou=benutzer,dc=firma,dc=test

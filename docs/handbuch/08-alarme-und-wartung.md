@@ -1,0 +1,155 @@
+# 8. Alarme und Wartung
+
+## Aktive Alarme
+
+![Aktive Alarme](bilder/alarme.webp)
+
+**Alarme → Aktiv** zeigt offene Alarme mit „Bestätigen“ (Operatoren und Admins, mit optionalem Kommentar) und alle
+Sensoren, die nicht OK sind. Bestätigte Alarme erinnern nicht mehr, bleiben aber offen, bis das Problem weg ist.
+
+**Alarme → Protokoll:** alle Alarme der letzten 30 Tage mit Dauer und wer bestätigt hat.
+
+![Alarmprotokoll](bilder/alarme-protokoll.webp)
+
+## Hinweise über den Alarmen
+
+Über „Aktiv“ und „Protokoll“ stehen Hinweise, die kein einzelner Sensor ist:
+
+- **Alarme unterdrückt seit …:** Geräte, die von einem ausgefallenen Elterngerät abhängen (Kapitel 4), melden keine
+  eigenen Alarme. Der Hinweis nennt das Elterngerät, seit wann es ausgefallen ist und welche Geräte ruhen. Hält das
+  **7 Tage** an, geht zusätzlich ein Hinweis an die Alarmkanäle des Mandanten der ruhenden Geräte („Alarme seit 8 Tagen
+  unterdrückt“), damit eine vergessene Abhängigkeit nicht still alle Alarme schluckt. Entwarnung, sobald das Elterngerät
+  wieder erreichbar ist oder die Abhängigkeit entfernt wird.
+- **Zentrale: …** (nur für den Betreiber): Meldungen der Zentrale über sich selbst, siehe „Selbstüberwachung“ unten.
+
+Hinweise kennen kein Bestätigen und keine Wartung: eine Meldung beim Auftreten, eine bei einem Wechsel zwischen Warnung
+und Fehler und eine Entwarnung.
+
+## Alarmkanäle
+
+**Alarme → Kanäle** (Admins des Mandanten):
+
+| Kanal | Hinweis |
+| --- | --- |
+| Mail | über das Relay aus den Einstellungen; Empfänger sind Benutzerkonten (alle oder ausgewählte); jeder kann für sich abbestellen |
+| Webhook | signiert (HMAC), an eigene Systeme; das Ziel muss in den Alarmzielen freigegeben sein |
+| ntfy | eigener ntfy-Server; Push auf iPhones braucht Internet (Apple), Android geht lokal |
+| Teams | Workflow in Microsoft Teams; braucht Internet |
+| SMS (brevis.one) | über ein eigenes SMS-Gateway im Netz; braucht kein Internet, nur Mobilfunk am Gateway; siehe unten |
+
+![Alarmkanäle](bilder/alarme-kanaele.webp)
+
+Ein Kanal kann auch die Alarme aller Untermandanten melden (Schalter je Kanal). Der Zustand wird je Kanal gemerkt: Ist
+ein Kanal gestört, holt er nach, ohne dass andere doppelt melden.
+
+**Bereitschaft und Eskalation** (je Kanal): Wochentage und Uhrzeit, zu denen der Kanal meldet (Zeitzone der
+Installation; außerhalb wird gesammelt und nachgeholt); „unbestätigt nach N Minuten an Kanal X“.
+
+**Monatsbericht** am Mail-Kanal: siehe [Kapitel 9](09-berichte.md).
+
+So sieht eine Alarm-Mail im Betreff aus: `KRIT · drucker-empfang · TCP 9100: Port 9100: keine Route zum Host`.
+
+### SMS über ein brevis.one-Gateway
+
+OpenWacht schickt SMS über die HTTP API eines brevis.one-Gateways (z. B. RX2) im eigenen Netz. Das geht auch ohne
+Internet, solange das Gateway Mobilfunk hat; damit eignet es sich als Alarmweg, wenn Mail oder Teams gerade nicht gehen.
+
+**Auf dem Gateway** (als admin): unter *Konfiguration → Systembenutzer* einen eigenen Benutzer anlegen, z. B.
+`openwacht-api`, und ihm über das Stift-Symbol nur das Recht **„Zugriff auf die HTTP API“** geben. Den Benutzer `admin`
+lehnt OpenWacht ab. Für Gruppen als Empfänger braucht das Gateway das Modul *Empfängergruppen*; die Gruppen-ID steht
+unter *Konfiguration → Gruppen*.
+
+**In OpenWacht:**
+
+1. Der Betreiber gibt das Gateway unter *Einstellungen → Alarmziele* frei, z. B. `https://10.20.0.70`. Ohne diese
+   Freigabe lässt sich kein SMS-Kanal anlegen und nichts senden.
+2. *Alarme → Kanäle → Kanal anlegen → SMS (brevis.one)*: Gateway wählen, API-Benutzer und Passwort eintragen,
+   **Fingerabdruck holen** (TLS-Verbindung ohne Anfrage und ohne Zugangsdaten). Den angezeigten Fingerabdruck mit dem
+   Zertifikat in der Oberfläche des Gateways vergleichen.
+3. Empfänger wählen: **Benutzer** mit Rolle in diesem Mandanten (höchstens 20) oder eine **Gruppe** auf dem Gateway.
+   Freitext mit Telefonnummern gibt es bewusst nicht.
+4. Optional **„Bei neuen kritischen Problemen zusätzlich anrufen“** (Parameter `ring`; laut Hersteller nur Geräte ab
+   2021 und nur mit einer SIM-Karte mit Sprache) und **„Gateway überwachen“**.
+5. **Test senden** schickt eine Test-SMS an alle Empfänger.
+
+![SMS-Kanal anlegen](bilder/alarmkanal-sms.webp)
+
+**Mobilnummer für Alarme:** Jeder trägt seine Nummer selbst oben auf der Seite *Alarme → Kanäle* ein (freiwillig,
+international wie `+49 170 1234567` oder `0170 1234567`). Andere Benutzer und Admins sehen nur, *ob* eine Nummer
+hinterlegt ist, nicht welche; im Audit steht nur „gesetzt“ oder „entfernt“. Wer keine SMS mehr will, löscht seine
+Nummer. Gesperrte Konten bekommen keine SMS.
+
+![Mobilnummer für Alarme](bilder/alarm-mobilnummer.webp)
+
+**Was eine SMS enthält:** Gerät, Sensor, Zustand, bei einem Ereignis auch die Meldung, höchstens 160 Zeichen aus dem
+GSM-7-Zeichensatz (Umlaute gehen; Zeichen wie „…“ ersetzt OpenWacht, damit es genau eine SMS bleibt). Mehrere
+Ereignisse eines Durchlaufs kommen in einer SMS: `OpenWacht: 3 Meldungen. KRIT nas-01 - Platte /; WARN …`.
+
+![Test-SMS gesendet](bilder/alarmkanal-sms-test.webp)
+
+**Sicherheit:**
+- OpenWacht sendet immer per **POST** mit Formular, nie per GET: Das Passwort steht nicht in einer URL und nicht in den
+  Zugriffsprotokollen des Gateways.
+- Statt einer CA prüft OpenWacht den **Fingerabdruck** des Zertifikats, bevor die Anfrage mit dem Passwort hinausgeht.
+  Nach einem neuen Zertifikat auf dem Gateway meldet der Kanal „Zertifikat … passt nicht“; dann den Fingerabdruck neu
+  holen und das Passwort neu eingeben.
+- Das Passwort liegt verschlüsselt in der Datenbank, gebunden an Kanal, Mandant, Gateway, Benutzer und Fingerabdruck.
+  Ändert sich einer davon, muss es neu eingegeben werden; es geht nie an ein anderes Gateway.
+- Weiterleitungen werden nicht verfolgt, Antworten höchstens 4 KiB weit gelesen. Text vom Gateway erscheint nicht in
+  Meldungen, nur der Status.
+
+**Fehlermeldungen am Kanal** (laut Hersteller-Doku kommen Fehler als HTTP-Status):
+
+| Status | Bedeutung | Abhilfe |
+| --- | --- | --- |
+| 400 | Gruppe, Kontakt oder Nummer unbekannt bzw. ungültig, oder Pflichtangabe fehlt | Gruppen-ID bzw. Mobilnummern prüfen, Protokoll des Gateways |
+| 401 | Benutzer oder Passwort falsch | Passwort am Kanal neu eingeben |
+| 403 | Der Benutzer hat nicht das Recht „Zugriff auf die HTTP API“ | Recht auf dem Gateway vergeben |
+| 408 | Zeitüberschreitung beim Versand | Mobilfunk am Gateway prüfen |
+
+Erreicht eine SMS nur einen Teil der Empfänger, gilt sie als gemeldet (sonst bekämen die anderen sie doppelt), und der
+Kanal zeigt „1 von 3 Empfängern nicht erreicht …“.
+
+**Gateway überwachen:** Ist der Schalter an, baut die Zentrale alle fünf Minuten eine TLS-Verbindung zum Gateway auf
+(ohne Anfrage und Zugangsdaten). Klappt das zweimal hintereinander nicht oder passt der Fingerabdruck nicht, geht der
+Hinweis „SMS-Gateway nicht erreichbar“ an die **anderen** Alarmkanäle des Mandanten, mit Entwarnung, sobald es wieder
+antwortet. Deshalb neben SMS mindestens einen zweiten Kanal anlegen.
+
+## Totmannschalter
+
+Fällt die Zentrale selbst aus, kann sie nicht alarmieren. Dafür pingt sie nach jedem erfolgreichen Durchlauf eine
+Adresse (z. B. healthchecks.io oder ein eigener Dienst im Netz), die alarmiert, wenn der Ping ausbleibt
+(Einstellungen → Totmannschalter). Ohne Internet: eigener Healthchecks-Dienst oder Webhook im eigenen Netz.
+
+## Selbstüberwachung
+
+Die Zentrale prüft sich alle fünf Minuten selbst und meldet Probleme an die **Alarmkanäle des Hauptmandanten**. Ohne
+Kanal im Hauptmandanten stehen sie nur auf der Seite Alarme und im Journal; deshalb dort mindestens einen Kanal anlegen.
+
+| Hinweis | Wann |
+| --- | --- |
+| Sicherung fehlgeschlagen / überfällig | letzter Lauf mit Fehler oder letzte erfolgreiche Sicherung älter als 26 Stunden (erst, wenn es überhaupt Sicherungen gibt) |
+| HTTPS-Zertifikat läuft ab | in weniger als 21 Tagen (Fehler unter 7); die eigene CA erneuert 30 Tage vorher, der Hinweis heißt also: Erneuerung hat nicht geklappt oder ein hochgeladenes Zertifikat läuft ab |
+| HTTPS-Wurzel / Agent-CA läuft ab | in weniger als einem Jahr (Fehler unter 90 Tagen) |
+| Platte der Zentrale fast voll | ab 90 % (Fehler ab 95 %) für `/`, `/var/lib/postgresql`, `/var/backups/openwacht`, `/var/log/openwacht` |
+| Audit-Log manipuliert oder beschädigt | die tägliche Prüfung der Hash-Kette ist fehlgeschlagen (Kapitel 13) |
+| Audit-Export fehlgeschlagen | seit mehr als einer Stunde |
+| Programmfehler abgefangen | ein Parser oder eine Abfrage ist abgestürzt und wurde abgefangen; die Überwachung läuft weiter, Details im Journal; bitte melden |
+| Trap-Dienst meldet sich nicht | er lief schon einmal und schweigt seit mehr als 5 Minuten |
+
+`GET /api/v1/gesund` (ohne Anmeldung) liefert `status`, `datenbank`, `planer` und `traps`, je nur als Zustand
+(`ok`, `aus`, `stumm`, `verzoegert`, `gestoert`), und antwortet mit **503**, wenn Datenbank oder Planer gestört sind.
+Das eignet sich für einen Load Balancer oder einen externen Monitor zusätzlich zum Totmannschalter.
+
+## Wartung
+
+**Wartung für einen Host oder Sensor:** Aktionsmenü „Wartung ändern …“, Dauer 30 Minuten bis 7 Tage, optional mit
+Grund. Messungen laufen weiter, Alarme und Erinnerungen bleiben aus. Besteht das Problem nach dem Ende, kommt sofort
+ein Alarm.
+
+**Wartungsfenster** (Einrichten → Wartung, Operatoren und Admins): einmalig, wöchentlich oder monatlich (z. B. „zweiter
+Dienstag“), für Geräte, Sensoren oder Gruppen mit Untergruppen.
+
+![Wartung](bilder/wartung.webp)
+
+Verfügbarkeit im Bericht zählt Wartungszeiten nicht als Ausfall.

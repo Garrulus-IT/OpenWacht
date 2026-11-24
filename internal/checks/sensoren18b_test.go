@@ -1,0 +1,184 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package checks
+
+import (
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/binary"
+	"fmt"
+	"math/big"
+	"net"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestParse18b(t *testing.T) {
+	for kind, raw := range map[string]string{
+		"tcp_banner": `{"host":"127.0.0.1","port":25,"enthaelt":"220"}`,
+		"ntp":        `{"host":"ntp.example.org"}`,
+		"snmp_oid":   `{"oid":".1.3.6.1.4.1.6574.1.2.0","warnung_ueber":60}`,
+		"docker":     `{"name":"webapp_webserver_1"}`,
+		"hyperv":     `{"name":"Büro-PC (alt) #2"}`,
+	} {
+		s, err := Parse(kind, []byte(raw))
+		if err != nil {
+			t.Errorf("%s: %v", kind, err)
+		}
+		if kind == "ntp" && (s.Port != 123 || s.OffsetWarnMS != 100 || s.OffsetCritMS != 1000) {
+			t.Errorf("ntp Standard: %+v", s)
+		}
+		if kind == "snmp_oid" && s.OID != "1.3.6.1.4.1.6574.1.2.0" {
+			t.Errorf("OID nicht bereinigt: %q", s.OID)
+		}
+	}
+	for _, tc := range []struct{ kind, raw, want string }{
+		{"tcp_banner", `{"host":"x"}`, "Port"},
+		{"tcp_banner", `{"host":"x","port":25,"ca_pem":"x"}`, "nur mit TLS"},
+		{"ntp", `{"host":"x","abweichung_warnung_ms":500,"abweichung_kritisch_ms":100}`, "Warnung kleiner"},
+		{"snmp_oid", `{"oid":"1.3.6.1.x"}`, "OID"},
+		{"snmp_oid", `{"oid":"7.1"}`, "OID"},
+		{"snmp_oid", `{"oid":"1.3.06.1"}`, "OID"},
+		{"snmp_oid", `{"oid":"1.3.6","rate":true,"gleich":"x"}`, "Rate"},
+		{"snmp_oid", `{"oid":"1.3.6","host":"x"}`, "passt nicht"},
+		{"snmp_oid", `{"oid":"1.3.6","zusammenfassung":"mittel"}`, "Zusammenfassung der Spalte"},
+		{"snmp_oid", `{"oid":"1.3.6","zusammenfassung":"minimum","rate":true}`, "Spalte"},
+		{"snmp_oid", `{"oid":"1.3.6","zusammenfassung":"minimum","gleich":"1"}`, "Spalte"},
+		{"snmp_oid", `{"oid":"1.3.6","zusammenfassung":"anzahl_gleich"}`, "Vergleichswert"},
+		{"snmp_oid", `{"oid":"1.3.6","zusammenfassung":"minimum","vergleichswert":1}`, "Vergleichswert"},
+		{"snmp_oid", `{"oid":"1.3.6","vergleichswert":1}`, "Vergleichswert"},
+		{"snmp_oid", `{"oid":"1.3.6","zusammenfassung":"anzahl_gleich","vergleichswert":4294967296}`, "32-Bit"},
+		{"leistungsindikator", `{"objekt":"A","indikator":"B","vergleichswert":1}`, "passt nicht"},
+		{"docker", `{"name":"/etc"}`, "Container"},
+		{"docker", `{"name":"a b"}`, "Container"},
+		{"hyperv", `{"name":"-x"}`, "VM"},
+		{"hyperv", `{"name":"a\nb"}`, "VM"},
+		{"hyperv", `{"name":"a;b"}`, "VM"},
+		{"hyperv", `{"name":"$(x)"}`, "VM"},
+		{"hyperv", `{"name":""}`, "VM"},
+		{"hyperv", `{"name":"dc01","pfad":"/x"}`, "passt nicht"},
+	} {
+		if _, err := Parse(tc.kind, []byte(tc.raw)); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s %s: %v", tc.kind, tc.raw, err)
+		}
+	}
+	sp, err := Parse("snmp_oid", []byte(`{"oid":"1.3.6.1","zusammenfassung":" Anzahl_Gleich ","vergleichswert":1,"kritisch_ueber":0}`))
+	if err != nil || sp.Aggregate != "anzahl_gleich" || *sp.Compare != 1 || DefaultName("snmp_oid", sp) != "Spalte 1.3.6.1 anzahl_gleich" {
+		t.Errorf("Spalte: %v %+v", err, sp)
+	}
+	if !IsAgentKind("docker") || !IsAgentKind("hyperv") || IsAgentKind("snmp_oid") || !IsSNMPKind("snmp_oid") {
+		t.Error("Einteilung der Arten")
+	}
+}
+
+func bannerServer(t *testing.T, greeting string, tlsCfg *tls.Config) int {
+	t.Helper()
+	var l net.Listener
+	var err error
+	if tlsCfg != nil {
+		l, err = tls.Listen("tcp", "127.0.0.1:0", tlsCfg)
+	} else {
+		l, err = net.Listen("tcp", "127.0.0.1:0")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { l.Close() })
+	go func() {
+		for {
+			c, err := l.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer c.Close()
+				if greeting != "" {
+					c.Write([]byte(greeting))
+				}
+				time.Sleep(1500 * time.Millisecond)
+			}()
+		}
+	}()
+	return l.Addr().(*net.TCPAddr).Port
+}
+
+func TestBanner(t *testing.T) {
+	r := runner()
+	smtp := bannerServer(t, "220 mail.example ESMTP Postfix geheim\r\n250 more\r\n", nil)
+	b := func(rest string, port int) string { return fmt.Sprintf(`{"host":"127.0.0.1","port":%d%s}`, port, rest) }
+	expect(t, "Banner", run(t, r, "tcp_banner", b(`,"enthaelt":"220"`, smtp)), OK, "Banner erhalten")
+	got := run(t, r, "tcp_banner", b(`,"enthaelt":"IMAP"`, smtp))
+	expect(t, "falscher Text", got, Crit, "ohne erwarteten Text")
+	if strings.Contains(got.Message+got.Metric, "Postfix") {
+		t.Errorf("Banner in der Meldung: %+v", got)
+	}
+	still := bannerServer(t, "", nil)
+	expect(t, "stumm", run(t, r, "tcp_banner", b(`,"timeout_s":1`, still)), Crit, "kein Banner")
+	expect(t, "zu", run(t, r, "tcp_banner", b("", freePort(t))), Crit, "Verbindung abgelehnt")
+	expect(t, "gesperrt", run(t, &Runner{Guard: NewGuard(nil)}, "tcp_banner", b("", smtp)), Unknown, "nicht freigegeben")
+
+	// direktes TLS mit eigener CA
+	p := newPKI(t)
+	now := time.Now()
+	leaf, key := newCert(t, &x509.Certificate{SerialNumber: big.NewInt(99), Subject: pkix.Name{CommonName: "127.0.0.1"},
+		IPAddresses: []net.IP{net.ParseIP("127.0.0.1")}, NotBefore: now.Add(-time.Hour), NotAfter: now.Add(24 * time.Hour),
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}, p.inter, p.interKey)
+	imaps := bannerServer(t, "* OK IMAP4rev1 ready\r\n", &tls.Config{Certificates: []tls.Certificate{{Certificate: [][]byte{leaf.Raw, p.inter.Raw}, PrivateKey: key}}})
+	expect(t, "TLS", run(t, r, "tcp_banner", b(`,"tls":true,"enthaelt":"OK","ca_pem":"`+p.rootPEM+`"`, imaps)), OK, "Banner erhalten")
+	expect(t, "TLS ohne CA", run(t, r, "tcp_banner", b(`,"tls":true`, imaps)), Crit, "TLS")
+}
+
+// fakeNTP antwortet mit einer Uhr, die um skew falsch geht.
+func fakeNTP(t *testing.T, skew time.Duration, stratum byte, li byte, echoOrigin bool) int {
+	t.Helper()
+	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { pc.Close() })
+	go func() {
+		buf := make([]byte, 128)
+		for {
+			n, from, err := pc.ReadFrom(buf)
+			if err != nil {
+				return
+			}
+			if n < 48 {
+				continue
+			}
+			resp := make([]byte, 48)
+			resp[0] = li<<6 | 4<<3 | 4
+			resp[1] = stratum
+			if echoOrigin {
+				copy(resp[24:32], buf[40:48])
+			}
+			now := toNTP(time.Now().Add(skew))
+			binary.BigEndian.PutUint64(resp[32:], now)
+			binary.BigEndian.PutUint64(resp[40:], now)
+			pc.WriteTo(resp, from)
+		}
+	}()
+	return pc.LocalAddr().(*net.UDPAddr).Port
+}
+
+func TestNTP(t *testing.T) {
+	r := runner()
+	n := func(port int, rest string) string { return fmt.Sprintf(`{"host":"127.0.0.1","port":%d%s}`, port, rest) }
+	expect(t, "gut", run(t, r, "ntp", n(fakeNTP(t, 0, 2, 0, true), "")), OK, "Zeit stimmt")
+	expect(t, "Warnung", run(t, r, "ntp", n(fakeNTP(t, 300*time.Millisecond, 2, 0, true), "")), Warn, "über 100 ms")
+	got := run(t, r, "ntp", n(fakeNTP(t, -3*time.Second, 2, 0, true), ""))
+	expect(t, "kritisch", got, Crit, "über 1000 ms")
+	if !strings.HasPrefix(got.Metric, "−") || !strings.Contains(got.Metric, "Stratum 2") {
+		t.Errorf("Messwert %q", got.Metric)
+	}
+	expect(t, "Stratum 16", run(t, r, "ntp", n(fakeNTP(t, 0, 16, 3, true), "")), Warn, "nicht synchron")
+	expect(t, "KoD", run(t, r, "ntp", n(fakeNTP(t, 0, 0, 3, true), "")), Crit, "Kiss")
+	// Antwort ohne unseren Zeitstempel wird verworfen: Zeitüberschreitung
+	expect(t, "fremd", run(t, r, "ntp", n(fakeNTP(t, 0, 2, 0, false), `,"timeout_s":1`)), Crit, "Zeitüberschreitung")
+	expect(t, "gesperrt", run(t, &Runner{Guard: NewGuard(nil)}, "ntp", n(123, "")), Unknown, "nicht freigegeben")
+	if tt := fromNTP(toNTP(time.Unix(1700000000, 500000000))); tt.Sub(time.Unix(1700000000, 500000000)).Abs() > time.Microsecond {
+		t.Errorf("NTP-Zeit: %v", tt)
+	}
+}

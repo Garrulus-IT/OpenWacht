@@ -1,0 +1,187 @@
+# Prüfungen für jeden Pull Request und jeden Stand auf main.
+# Actions sind per Commit-SHA gepinnt (Lieferkette), Rechte minimal.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "26"
+          package-manager-cache: false
+      - name: "Web-Oberfläche: Abhängigkeiten prüfen"
+        working-directory: web
+        run: |
+          npm ci --no-audit
+          npm audit --audit-level=high
+      - name: Formatierung (gofmt)
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - name: go vet
+        run: go vet ./...
+      - name: Shell-Skripte prüfen (shellcheck)
+        run: |
+          command -v shellcheck >/dev/null || { sudo apt-get update -q && sudo apt-get install -y --no-install-recommends shellcheck; }
+          shellcheck -s sh deploy/offline/*.sh
+      # Ping-Checks benutzen ICMP-Datagram-Sockets ohne Root; der Runner sperrt sie standardmäßig.
+      - name: Ping ohne Root erlauben
+        run: sudo sysctl -w net.ipv4.ping_group_range="0 2147483647"
+      # Gegenstelle für die SNMP-Tests: Net-SNMP aus Ubuntu, nur auf Loopback,
+      # mit v3-Benutzern (Testpasswörter, nur für die CI). snmptrap/snmpinform
+      # (Paket snmp) senden Traps an den Trap-Dienst der Tests.
+      - name: snmpd als Gegenstelle starten
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends snmpd snmp
+          printf '%s\n' 'agentAddress udp:127.0.0.1:16161' 'rocommunity geheim-test 127.0.0.1' 'sysName ci-snmpd' \
+            'createUser wtest SHA-256 "auth-pass-123" AES "priv-pass-123"' \
+            'createUser wsha1 SHA "auth-pass-123" AES "priv-pass-123"' \
+            'createUser w256 SHA-512 "auth-pass-123" AES-256 "priv-pass-123"' \
+            'rouser wtest priv' 'rouser wsha1 priv' 'rouser w256 priv' > "$RUNNER_TEMP/snmpd.conf"
+          sudo /usr/sbin/snmpd -C -c "$RUNNER_TEMP/snmpd.conf" -Lf "$RUNNER_TEMP/snmpd.log" -p "$RUNNER_TEMP/snmpd.pid"
+          # warten, bis snmpd antwortet (sonst gelegentlich „keine Antwort“ im ersten Test)
+          for i in $(seq 1 30); do
+            snmpget -v2c -c geheim-test -t 1 -r 0 127.0.0.1:16161 1.3.6.1.2.1.1.5.0 >/dev/null 2>&1 && break
+            sleep 1
+          done
+          snmpget -v3 -l authPriv -u wtest -a SHA-256 -A auth-pass-123 -x AES -X priv-pass-123 127.0.0.1:16161 1.3.6.1.2.1.1.5.0
+      # OpenLDAP mit AD-ähnlichem Schema für die Anmeldung über AD (Etappe 22a),
+      # nur Testdaten. AppArmor erlaubt slapd sonst keine Dateien außerhalb /etc/ldap.
+      - name: slapd als Gegenstelle starten
+        run: |
+          echo 'slapd slapd/no_configuration boolean true' | sudo debconf-set-selections
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends slapd ldap-utils
+          sudo apparmor_parser -R /etc/apparmor.d/usr.sbin.slapd 2>/dev/null || true
+          sudo sh internal/verzeichnis/testdata/slapd/start.sh "$RUNNER_TEMP/ldap"
+      - name: Tests
+        run: go test -race ./...
+        env:
+          OPENWACHT_TEST_SNMPD: 127.0.0.1:16161
+          OPENWACHT_REQUIRE_SNMPD: "1"
+          OPENWACHT_TEST_LDAPS: ldaps://127.0.0.1:16636
+          OPENWACHT_TEST_LDAP_CA: ${{ runner.temp }}/ldap/tls/ca.pem
+          OPENWACHT_REQUIRE_LDAP: "1"
+      - name: Bekannte Schwachstellen (govulncheck)
+        run: go tool govulncheck ./...
+      # Windows-Code (x/sys/windows) prüft govulncheck nur mit GOOS=windows.
+      # Das Werkzeug selbst muss dafür für Linux gebaut sein.
+      - name: Bekannte Schwachstellen im Windows-Code
+        run: |
+          go build -o "$RUNNER_TEMP/govulncheck" golang.org/x/vuln/cmd/govulncheck
+          GOOS=windows "$RUNNER_TEMP/govulncheck" ./...
+      - name: go vet für Windows
+        run: GOOS=windows go vet ./...
+      - name: Bauen für alle Zielplattformen
+        run: go run ./tools/build -ziele alle
+      # Die Binaries für die Inbetriebnahme. Der Build ist reproduzierbar: Wer denselben
+      # Commit selbst baut, muss dieselben Prüfsummen (dist/SHA256SUMS) erhalten.
+      - name: Binaries als Artefakt ablegen
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: openwacht-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+  # Pflicht-Tests zur Mandantentrennung gegen echtes PostgreSQL.
+  # Images per Digest gepinnt (Lieferkette).
+  datenbank:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pg: "16"
+            image: postgres@sha256:dd2bf3ce2dc83a81674cf7f217fcfd8a5009a4b325dda5b843bfee82a06cff6f
+          - pg: "17"
+            image: postgres@sha256:0d938e975177bef9f1f61f3f9dbcf2e0aa0a139568f66d3415ed8892eb97f6ac
+    name: datenbank (PostgreSQL ${{ matrix.pg }})
+    services:
+      postgres:
+        image: ${{ matrix.image }}
+        env:
+          POSTGRES_PASSWORD: nur-fuer-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      OPENWACHT_TEST_DSN: host=127.0.0.1 port=5432 user=postgres password=nur-fuer-ci dbname=postgres sslmode=disable
+      OPENWACHT_REQUIRE_DB: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      # Ping-Checks benutzen ICMP-Datagram-Sockets ohne Root; der Runner sperrt sie standardmäßig.
+      - name: Ping ohne Root erlauben
+        run: sudo sysctl -w net.ipv4.ping_group_range="0 2147483647"
+      - name: Datenbank- und Integrationstests
+        run: go test -race -count=1 -v ./...
+
+  # Fuzz-Ziele für Parser und Abfragen (Befund M3): jedes Ziel 30 Sekunden.
+  # Ein Fund bricht den Lauf ab; die Eingabe steht dann im Log (testdata/fuzz/…).
+  # PostgreSQL braucht nur das Paket zentrale (TestMain).
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres@sha256:dd2bf3ce2dc83a81674cf7f217fcfd8a5009a4b325dda5b843bfee82a06cff6f
+        env:
+          POSTGRES_PASSWORD: nur-fuer-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      OPENWACHT_TEST_DSN: host=127.0.0.1 port=5432 user=postgres password=nur-fuer-ci dbname=postgres sslmode=disable
+      OPENWACHT_REQUIRE_DB: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Fuzzing (je Ziel 30 s)
+        run: |
+          set -eu
+          n=0
+          for pkg in $(go list ./internal/...); do
+            for target in $(go test -list '^Fuzz' "$pkg" | grep '^Fuzz' || true); do
+              echo "::group::$pkg $target"
+              go test -run '^$' -fuzz "^${target}\$" -fuzztime 30s -fuzzminimizetime 1s "$pkg"
+              echo "::endgroup::"
+              n=$((n + 1))
+            done
+          done
+          echo "$n Fuzz-Ziele geprüft"
+          test "$n" -ge 17

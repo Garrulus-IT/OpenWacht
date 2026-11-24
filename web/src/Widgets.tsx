@@ -1,0 +1,567 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Inhalte der Dashboard-Widgets (Etappe 17). Jedes Widget bekommt seinen
+// Bereich (fester Mandant oder der aus der Seitenleiste) und grenzt die Daten
+// darauf ein; die Zentrale liefert ohnehin nur, was der Benutzer sehen darf.
+// Alle Texte von Agents und Geräten erscheinen nur als Text (React escapt).
+
+import { useId, type ReactNode } from "react";
+import type { Agent, Alarm, AnzeigeKnoten, AnzeigeStatus, Geraet, Gruppe as GeraeteGruppe, Mandant, Sensor, Snmp } from "./api";
+import { kinderVon, mandantName, type Bereich } from "./bereich";
+import { AlarmeJeTag, mitFilter, Verfuegbarkeit, VollstePlatten, type FlottenVerlauf, type Kennzahlen } from "./Dashboard";
+import { BaldVoll, bereichFilter, type PrognoseAntwort } from "./Prognose";
+import { Graph } from "./Verlauf";
+import { Pegel } from "./Pegel";
+import { Sonne } from "./Sonne";
+import { kennStil, kennTitel, type Kennfarbe } from "./kennfarbe";
+import { gruppe, gruppen, rang, sensorTitel, statusText, type Gruppe } from "./AlarmeSeite";
+import { useQuelle } from "./quelle";
+import { vor } from "./zeit";
+import type { Ort } from "./navigation";
+import type { Widget } from "./widgets";
+
+export const Q = {
+  sensoren: "/api/v1/sensoren",
+  alarme: "/api/v1/alarme?limit=500",
+  agents: "/api/v1/agents",
+  geraete: "/api/v1/geraete",
+  gruppen: "/api/v1/gruppen",
+  snmp: "/api/v1/snmp",
+};
+
+export interface WidgetProps {
+  w: Widget;
+  bereich: Bereich;
+  mandanten: Mandant[];
+  gehe: (o: Partial<Ort>) => void;
+}
+
+function Laedt({ fehler }: { fehler: string }) {
+  if (fehler) return <p className="meldung meldung-fehler">{fehler}</p>;
+  return (
+    <p className="klein" aria-busy="true">
+      Lädt …
+    </p>
+  );
+}
+
+function useSensoren(b: Bereich) {
+  const q = useQuelle<{ sensoren: Sensor[] }>(Q.sensoren, 15_000);
+  return { liste: q.daten ? q.daten.sensoren.filter((s) => b.ids.has(s.mandant_id)) : null, fehler: q.fehler };
+}
+
+function zumGeraet(gehe: WidgetProps["gehe"], mandant: string, geraet: string) {
+  gehe({ reiter: "hosts", mandant, mitUnter: false, geraet });
+}
+
+// Kürzel für die vollflächigen Zustandszellen (Entwurf A)
+const kurz: Record<string, string> = {
+  crit: "Kritisch",
+  warn: "Warnung",
+  unknown: "Unbekannt",
+  neu: "Neu",
+  ok: "OK",
+  pause: "Pausiert",
+  wartung: "Wartung",
+};
+
+export function Zustandszelle({ status, bestaetigt, kennfarbe }: { status: string; bestaetigt?: boolean; kennfarbe?: Kennfarbe | null }) {
+  const k = kennStil(kennfarbe, status);
+  const titel = (bestaetigt ? "bestätigt" : "") + kennTitel(kennfarbe, status);
+  return (
+    <span
+      className={`zst zst-${status}${bestaetigt ? " zst-bestaetigt" : ""}${k.className}`}
+      style={k.style}
+      title={titel.replace(/^ · /, "") || undefined}
+    >
+      {kurz[status] ?? status}
+      {bestaetigt && <span className="sr-only"> bestätigt</span>}
+    </span>
+  );
+}
+
+// --- Zustand: Sechsecke mit Legende ------------------------------------------------
+
+const reihenfolge: Gruppe[] = ["crit", "warn", "unknown", "ok", "wartung", "pause"];
+const farbe: Record<Gruppe, string> = {
+  crit: "var(--krit)",
+  warn: "var(--warn)",
+  unknown: "var(--leise)",
+  ok: "var(--ok)",
+  wartung: "var(--wartung)",
+  pause: "var(--linie)",
+};
+
+// Sechseck, von oben nach unten anteilig in den Farben der Zustände gefüllt.
+function Sechseck({ zahl, titel }: { zahl: Record<Gruppe, number>; titel: string }) {
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const gesamt = reihenfolge.reduce((n, g) => n + zahl[g], 0);
+  const punkte = "50,3 91,26.5 91,73.5 50,97 9,73.5 9,26.5";
+  let y = 3;
+  const baender = gesamt
+    ? reihenfolge.map((g) => {
+        const h = (zahl[g] / gesamt) * 94;
+        const r = <rect key={g} x="0" y={y} width="100" height={h} fill={farbe[g]} />;
+        y += h;
+        return zahl[g] ? r : null;
+      })
+    : [];
+  return (
+    <svg className="sechseck" viewBox="0 0 100 100" role="img" aria-label={titel}>
+      <defs>
+        <clipPath id={id}>
+          <polygon points={punkte} />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${id})`}>{baender}</g>
+      <polygon points={punkte} fill="none" stroke="var(--linie)" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function Legende({ zahl, gesamt }: { zahl: Record<Gruppe, number>; gesamt: string }) {
+  const summe = reihenfolge.reduce((n, g) => n + zahl[g], 0);
+  return (
+    <ul className="legende">
+      {gruppen.map((g) => (
+        <li key={g.id} className={zahl[g.id] ? undefined : "legende-null"}>
+          <span className="legende-zahl">{zahl[g.id]}</span>
+          <span className="legende-farbe" style={{ background: farbe[g.id] }} aria-hidden="true" />
+          {g.text}
+        </li>
+      ))}
+      <li className="legende-gesamt">
+        <span className="legende-zahl">{summe}</span>
+        <span className="legende-farbe" aria-hidden="true" />
+        {gesamt}
+      </li>
+    </ul>
+  );
+}
+
+function leer(): Record<Gruppe, number> {
+  return { crit: 0, warn: 0, unknown: 0, ok: 0, wartung: 0, pause: 0 };
+}
+
+function ZustandWidget({ bereich, gehe }: WidgetProps) {
+  const s = useSensoren(bereich);
+  if (!s.liste) return <Laedt fehler={s.fehler} />;
+  const sensoren = leer();
+  const jeGeraet = new Map<string, Gruppe>();
+  for (const x of s.liste) {
+    const g = gruppe(x);
+    sensoren[g]++;
+    const alt = jeGeraet.get(x.geraet_id);
+    if (alt === undefined || rang[g] < rang[alt]) jeGeraet.set(x.geraet_id, g);
+  }
+  const geraete = leer();
+  for (const g of jeGeraet.values()) geraete[g]++;
+  return (
+    <div className="zustand">
+      <button type="button" className="zustand-teil" onClick={() => gehe({ reiter: "alarme", alarm: "aktiv" })} title="Zu den Alarmen">
+        <Sechseck zahl={sensoren} titel="Sensoren nach Zustand" />
+        <Legende zahl={sensoren} gesamt="Sensoren" />
+      </button>
+      <button type="button" className="zustand-teil" onClick={() => gehe({ reiter: "hosts" })} title="Zu den Hosts">
+        <Sechseck zahl={geraete} titel="Geräte nach ihrem schlimmsten Sensor" />
+        <Legende zahl={geraete} gesamt="Geräte" />
+      </button>
+    </div>
+  );
+}
+
+// --- Aktive Alarme: Tabelle mit farbigen Zustandszellen ----------------------------------
+
+function AlarmeWidget({ bereich, gehe }: WidgetProps) {
+  const s = useSensoren(bereich);
+  if (!s.liste) return <Laedt fehler={s.fehler} />;
+  const jetzt = Date.now();
+  const offen = s.liste
+    .filter((x) => x.alarm && !x.alarm.ende)
+    .sort(
+      (a, b) =>
+        Number(!!a.alarm!.bestaetigt_am) - Number(!!b.alarm!.bestaetigt_am) ||
+        rang[gruppe(a)] - rang[gruppe(b)] ||
+        Date.parse(b.alarm!.beginn) - Date.parse(a.alarm!.beginn),
+    );
+  if (offen.length === 0) return <p className="leer">Keine aktiven Alarme.</p>;
+  return (
+    <table className="tabelle tabelle-kompakt widget-tabelle">
+      <thead>
+        <tr>
+          <th scope="col">Zustand</th>
+          <th scope="col">Host</th>
+          <th scope="col">Sensor</th>
+          <th scope="col" className="nur-breit">
+            Meldung
+          </th>
+          <th scope="col">seit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {offen.map((x) => (
+          <tr key={x.schluessel}>
+            <td className="zelle-zst">
+              <Zustandszelle status={x.wartung ? "wartung" : x.status} bestaetigt={!!x.alarm!.bestaetigt_am} kennfarbe={x.kennfarbe} />
+            </td>
+            <td>
+              <button className="knopf-text" onClick={() => zumGeraet(gehe, x.mandant_id, x.geraet_id)}>
+                {x.host ?? "–"}
+              </button>
+              {bereich.mehrere && <span className="mandant-marke">{mandantName(bereich, x.mandant_id)}</span>}
+            </td>
+            <td>{x.name}</td>
+            <td className="nur-breit klein">{x.meldung}</td>
+            <td className="klein nowrap">{vor(x.alarm!.beginn, jetzt)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// --- Sensoren nicht OK ------------------------------------------------------------------
+
+function SensorenWidget({ bereich, gehe }: WidgetProps) {
+  const s = useSensoren(bereich);
+  if (!s.liste) return <Laedt fehler={s.fehler} />;
+  const liste = s.liste
+    .filter((x) => !["ok", "pause", "wartung"].includes(gruppe(x)))
+    .sort((a, b) => rang[gruppe(a)] - rang[gruppe(b)] || sensorTitel(a).localeCompare(sensorTitel(b), "de"));
+  if (liste.length === 0) return <p className="leer">Alle Sensoren sind OK.</p>;
+  return (
+    <ul className="kurzliste">
+      {liste.map((x) => (
+        <li key={x.schluessel}>
+          <span
+            className={`signal signal-${x.status}${kennStil(x.kennfarbe, x.status).className}`}
+            style={kennStil(x.kennfarbe, x.status).style}
+            aria-hidden="true"
+          />
+          <span className="sr-only">{statusText[x.status]}: </span>
+          <button className="knopf-text kurzliste-name" onClick={() => zumGeraet(gehe, x.mandant_id, x.geraet_id)}>
+            {x.host ?? x.name}
+          </button>
+          <span className="klein kurzliste-text" title={x.meldung}>
+            {x.host ? x.name : x.meldung}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// --- CPU und RAM: aktuelle Werte als Balken --------------------------------------------
+
+const prozent = (teil: number, ganz: number) => (ganz > 0 ? (teil / ganz) * 100 : 0);
+
+function AuslastungWidget({ bereich, gehe }: WidgetProps) {
+  const a = useQuelle<{ agents: Agent[]; intervall_sekunden: number }>(Q.agents, 30_000);
+  const q = useQuelle<{ snmp: Snmp[] }>(Q.snmp, 60_000);
+  const g = useQuelle<{ geraete: Geraet[] }>(Q.geraete, 60_000);
+  if (!a.daten || !g.daten) return <Laedt fehler={a.fehler || g.fehler} />;
+  const jetzt = Date.now();
+  const frisch = (t: string | null | undefined, intervall: number) => !!t && jetzt - Date.parse(t) < Math.max(3 * intervall, 180) * 1000;
+  const namen = new Map(g.daten.geraete.map((x) => [x.id, x.name]));
+  const zeilen: { geraet: string; mandant: string; name: string; cpu: number | null; ram: number | null }[] = [];
+  for (const x of a.daten.agents) {
+    if (x.gesperrt || !bereich.ids.has(x.mandant_id) || !x.messwerte || !frisch(x.zuletzt_gesehen, a.daten.intervall_sekunden)) continue;
+    const m = x.messwerte;
+    zeilen.push({
+      geraet: x.geraet_id,
+      mandant: x.mandant_id,
+      name: namen.get(x.geraet_id) ?? x.hostname,
+      cpu: m.cpu.auslastung_prozent,
+      ram: prozent(m.speicher.gesamt - m.speicher.verfuegbar, m.speicher.gesamt),
+    });
+  }
+  const mitAgent = new Set(zeilen.map((z) => z.geraet));
+  for (const s of q.daten?.snmp ?? []) {
+    const m = s.messwerte;
+    if (!bereich.ids.has(s.mandant_id) || !m || mitAgent.has(s.geraet_id) || !frisch(m.erfasst, s.intervall_sekunden)) continue;
+    if (!m.cpu && !(m.speicher && m.speicher.gesamt > 0)) continue;
+    zeilen.push({
+      geraet: s.geraet_id,
+      mandant: s.mandant_id,
+      name: namen.get(s.geraet_id) ?? s.adresse,
+      cpu: m.cpu ? m.cpu.auslastung_prozent : null,
+      ram: m.speicher && m.speicher.gesamt > 0 ? prozent(m.speicher.gesamt - m.speicher.verfuegbar, m.speicher.gesamt) : null,
+    });
+  }
+  if (zeilen.length === 0) return <p className="leer">Keine aktuellen Messwerte im Bereich.</p>;
+  const teil = (titel: string, wert: "cpu" | "ram") => {
+    const liste = zeilen
+      .filter((z) => z[wert] !== null)
+      .sort((x, y) => y[wert]! - x[wert]! || x.name.localeCompare(y.name, "de"))
+      .slice(0, 8);
+    return (
+      <div className="auslastung-teil">
+        <h3 className="widget-untertitel">{titel}</h3>
+        <ul className="balkenliste">
+          {liste.map((z) => (
+            <li key={z.geraet}>
+              <button className="knopf-text balkenliste-name" onClick={() => zumGeraet(gehe, z.mandant, z.geraet)} title={z.name}>
+                {z.name}
+              </button>
+              <Pegel wert={z[wert]!} titel={`${titel} ${z.name}`} />
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
+  return (
+    <div className="auslastung">
+      {teil("CPU", "cpu")}
+      {teil("RAM", "ram")}
+    </div>
+  );
+}
+
+// --- Platten ------------------------------------------------------------------------------
+
+function usePrognose(b: Bereich) {
+  const q = useQuelle<PrognoseAntwort>(`/api/v1/prognose/platten${bereichFilter(b)}`, 300_000);
+  return { liste: q.daten ? q.daten.platten.filter((p) => b.ids.has(p.mandant_id)) : null, fehler: q.fehler };
+}
+
+function PlattenWidget({ bereich, gehe }: WidgetProps) {
+  const p = usePrognose(bereich);
+  if (!p.liste) return <Laedt fehler={p.fehler} />;
+  return <VollstePlatten liste={p.liste} bereich={bereich} onGeraet={(m, g) => zumGeraet(gehe, m, g)} />;
+}
+
+function PrognoseWidget({ bereich, gehe }: WidgetProps) {
+  const p = usePrognose(bereich);
+  if (!p.liste) return <Laedt fehler={p.fehler} />;
+  return <BaldVoll liste={p.liste} bereich={bereich} onAnzeigen={(x) => zumGeraet(gehe, x.mandant_id, x.geraet_id)} />;
+}
+
+// --- Kennzahlen -----------------------------------------------------------------------------
+
+function useKennzahlen(b: Bereich) {
+  return useQuelle<Kennzahlen>(mitFilter("/api/v1/dashboard/kennzahlen", b), 300_000);
+}
+
+function AlarmeJeTagWidget({ bereich }: WidgetProps) {
+  const k = useKennzahlen(bereich);
+  if (!k.daten) return <Laedt fehler={k.fehler} />;
+  return <AlarmeJeTag stunden={k.daten.alarme_je_stunde} />;
+}
+
+function VerfuegbarkeitWidget({ bereich, gehe }: WidgetProps) {
+  const k = useKennzahlen(bereich);
+  if (!k.daten) return <Laedt fehler={k.fehler} />;
+  return <Verfuegbarkeit k={k.daten} bereich={bereich} onGeraet={(m, g) => zumGeraet(gehe, m, g)} />;
+}
+
+// --- Graph ------------------------------------------------------------------------------------
+
+interface HostVerlauf {
+  spanne_s: number;
+  schritt_s: number;
+  reihen: { name: string; punkte: [number, number, number, number][] }[];
+}
+
+export function graphTitel(w: Widget, geraete: Geraet[] | null) {
+  const was = w.wert === "speicher" ? "RAM" : "CPU";
+  if (!w.geraet_id) return `${was}: die höchsten`;
+  return `${was}: ${geraete?.find((g) => g.id === w.geraet_id)?.name ?? "Gerät"}`;
+}
+
+function GraphWidget({ w, bereich }: WidgetProps) {
+  const zeitraum = w.zeitraum ?? "24h";
+  const wert = w.wert ?? "cpu";
+  const g = useQuelle<{ geraete: Geraet[] }>(Q.geraete, 60_000);
+  const a = useQuelle<{ agents: Agent[] }>(w.geraet_id ? Q.agents : null, 30_000);
+  const geraet = w.geraet_id ? g.daten?.geraete.find((x) => x.id === w.geraet_id) : undefined;
+  const agent = w.geraet_id ? a.daten?.agents.find((x) => x.geraet_id === w.geraet_id && !x.gesperrt) : undefined;
+  const pfad = !w.geraet_id
+    ? mitFilter(`/api/v1/dashboard/verlauf?zeitraum=${zeitraum}`, bereich)
+    : agent
+      ? `/api/v1/agents/${agent.id}/verlauf?zeitraum=${zeitraum}`
+      : geraet?.snmp_id && a.daten
+        ? `/api/v1/snmp/${geraet.snmp_id}/verlauf?zeitraum=${zeitraum}`
+        : null;
+  const v = useQuelle<FlottenVerlauf | HostVerlauf>(pfad, 60_000);
+  if (w.geraet_id && g.daten && a.daten && !pfad) {
+    return <p className="leer">{geraet ? "Dieses Gerät hat keine Messwerte (kein Agent, kein SNMP)." : "Gerät nicht mehr vorhanden."}</p>;
+  }
+  if (!v.daten) return <Laedt fehler={v.fehler || g.fehler || a.fehler} />;
+  let linien: { name: string; punkte: [number, number, number, number][] }[];
+  if ("reihen" in v.daten) {
+    linien = [{ name: wert === "cpu" ? "CPU" : "Arbeitsspeicher", punkte: v.daten.reihen.find((r) => r.name === wert)?.punkte ?? [] }];
+  } else {
+    const teil = wert === "cpu" ? v.daten.cpu : v.daten.speicher;
+    linien = teil.linien
+      .filter((l) => bereich.ids.has(l.mandant_id))
+      .map((l) => ({ name: bereich.mehrere ? `${l.geraet} (${mandantName(bereich, l.mandant_id)})` : l.geraet, punkte: l.punkte }));
+  }
+  return <Graph titel="" linien={linien} spanne={v.daten.spanne_s} schritt={v.daten.schritt_s} einheit="%" prozent />;
+}
+
+// --- Sonnendiagramm ------------------------------------------------------------------------------
+
+const anzeigeRang: Record<AnzeigeStatus, number> = { wartung: 0, ok: 1, warn: 2, unknown: 3, quittiert: 4, crit: 5 };
+
+function anzeigeStatus(s: Sensor): AnzeigeStatus {
+  if (s.status === "pause" || s.wartung) return "wartung";
+  if (s.status === "neu" || s.status === "unknown") return "unknown";
+  if (s.status === "crit") return s.alarm?.bestaetigt_am ? "quittiert" : "crit";
+  return s.status === "warn" ? "warn" : "ok";
+}
+
+// Baum wie die Wandanzeige: Mandant, Untermandanten, Gruppen, Geräte.
+function sonnenBaum(b: Bereich, mandanten: Mandant[], geraete: Geraet[], gruppenListe: GeraeteGruppe[], sensoren: Sensor[]): AnzeigeKnoten {
+  const kinder = kinderVon(mandanten);
+  const status = new Map<string, AnzeigeStatus>();
+  for (const s of sensoren) {
+    const st = anzeigeStatus(s);
+    const alt = status.get(s.geraet_id);
+    if (!alt || anzeigeRang[st] > anzeigeRang[alt]) status.set(s.geraet_id, st);
+  }
+  const knoten = (m: Mandant): AnzeigeKnoten => {
+    const eigene = gruppenListe.filter((g) => g.mandant_id === m.id);
+    const gruppe = (eltern: string | null, tiefe: number): AnzeigeKnoten[] =>
+      eigene
+        .filter((g) => g.eltern_id === eltern)
+        .sort((x, y) => x.position - y.position)
+        .map((g) => ({
+          name: g.name,
+          art: "gruppe" as const,
+          status: "unknown" as AnzeigeStatus,
+          kinder: [
+            ...(tiefe < 4 ? gruppe(g.id, tiefe + 1) : []),
+            ...geraete.filter((d) => d.gruppe_id === g.id).map((d) => geraetKnoten(d)),
+          ],
+        }))
+        .filter((k) => k.kinder.length > 0);
+    const geraetKnoten = (d: Geraet): AnzeigeKnoten => ({ name: d.name, art: "geraet", status: status.get(d.id) ?? "unknown" });
+    return {
+      name: m.name,
+      art: "mandant",
+      status: "unknown",
+      kinder: [
+        ...(kinder.get(m.id) ?? []).filter((k) => b.ids.has(k.id)).map(knoten),
+        ...gruppe(null, 1),
+        ...geraete.filter((d) => d.mandant_id === m.id && !d.gruppe_id).map(geraetKnoten),
+      ],
+    };
+  };
+  const schlimmster = (k: AnzeigeKnoten): AnzeigeStatus => {
+    if (!k.kinder || k.kinder.length === 0) return k.status;
+    let st: AnzeigeStatus = "wartung";
+    for (const c of k.kinder) {
+      const x = schlimmster(c);
+      if (anzeigeRang[x] > anzeigeRang[st]) st = x;
+    }
+    k.status = st;
+    return st;
+  };
+  const wurzel = knoten(b.mandant);
+  if (!wurzel.kinder?.length) wurzel.status = "unknown";
+  else schlimmster(wurzel);
+  return wurzel;
+}
+
+function SonneWidget({ bereich, mandanten }: WidgetProps) {
+  const g = useQuelle<{ geraete: Geraet[] }>(Q.geraete, 60_000);
+  const gr = useQuelle<{ gruppen: GeraeteGruppe[] }>(Q.gruppen, 60_000);
+  const s = useSensoren(bereich);
+  if (!g.daten || !gr.daten || !s.liste) return <Laedt fehler={g.fehler || gr.fehler || s.fehler} />;
+  const drin = (x: { mandant_id: string }) => bereich.ids.has(x.mandant_id);
+  const baum = sonnenBaum(bereich, mandanten, g.daten.geraete.filter(drin), gr.daten.gruppen.filter(drin), s.liste);
+  return (
+    <div className="sonne-widget">
+      <Sonne baum={baum} neu={new Set()} titel={`Zustand von ${bereich.mandant.name}`} />
+    </div>
+  );
+}
+
+// --- Ereignisse der letzten 4 Stunden ------------------------------------------------------------
+
+interface Ereignis {
+  zeit: number;
+  status: string;
+  text: string;
+  a: Alarm;
+}
+
+const wechselText: Record<string, string> = { crit: "Kritisch", warn: "Warnung", unknown: "Unbekannt" };
+
+function EreignisseWidget({ bereich }: WidgetProps) {
+  const q = useQuelle<{ alarme: Alarm[] }>(Q.alarme, 30_000);
+  if (!q.daten) return <Laedt fehler={q.fehler} />;
+  const jetzt = Date.now();
+  const ab = jetzt - 4 * 3600_000;
+  const liste: Ereignis[] = [];
+  for (const a of q.daten.alarme) {
+    if (!bereich.ids.has(a.mandant_id)) continue;
+    const beginn = Date.parse(a.beginn);
+    if (beginn >= ab) liste.push({ zeit: beginn, status: a.schlimmster, text: `→ ${wechselText[a.schlimmster] ?? a.schlimmster}`, a });
+    if (a.ende && Date.parse(a.ende) >= ab) liste.push({ zeit: Date.parse(a.ende), status: "ok", text: "→ OK", a });
+    if (a.bestaetigt_am && Date.parse(a.bestaetigt_am) >= ab) {
+      liste.push({
+        zeit: Date.parse(a.bestaetigt_am),
+        status: "bestaetigt",
+        text: `bestätigt${a.bestaetigt_von ? ` von ${a.bestaetigt_von}` : ""}`,
+        a,
+      });
+    }
+  }
+  liste.sort((x, y) => y.zeit - x.zeit);
+  if (liste.length === 0) return <p className="leer">Keine Ereignisse in den letzten 4 Stunden.</p>;
+  return (
+    <table className="tabelle tabelle-kompakt widget-tabelle">
+      <tbody>
+        {liste.slice(0, 100).map((e, i) => (
+          <tr key={`${e.a.id}-${e.status}-${i}`}>
+            <td className="zelle-punkt">
+              <span
+                className={`signal signal-${e.status === "bestaetigt" ? "pause" : e.status}${kennStil(e.a.kennfarbe, e.status === "bestaetigt" ? "" : e.status).className}`}
+                style={kennStil(e.a.kennfarbe, e.status === "bestaetigt" ? "" : e.status).style}
+                aria-hidden="true"
+              />
+            </td>
+            <td className="klein nowrap">
+              <time dateTime={new Date(e.zeit).toISOString()}>{vor(new Date(e.zeit).toISOString(), jetzt)}</time>
+            </td>
+            <td>
+              {e.a.name} <span className="klein">{e.text}</span>
+              {bereich.mehrere && <span className="mandant-marke">{mandantName(bereich, e.a.mandant_id)}</span>}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// --- Verteiler ---------------------------------------------------------------------------------------
+
+export function WidgetInhalt(props: WidgetProps): ReactNode {
+  switch (props.w.typ) {
+    case "zustand":
+      return <ZustandWidget {...props} />;
+    case "alarme":
+      return <AlarmeWidget {...props} />;
+    case "sensoren":
+      return <SensorenWidget {...props} />;
+    case "auslastung":
+      return <AuslastungWidget {...props} />;
+    case "platten":
+      return <PlattenWidget {...props} />;
+    case "prognose":
+      return <PrognoseWidget {...props} />;
+    case "alarme_je_tag":
+      return <AlarmeJeTagWidget {...props} />;
+    case "verfuegbarkeit":
+      return <VerfuegbarkeitWidget {...props} />;
+    case "graph":
+      return <GraphWidget {...props} />;
+    case "sonne":
+      return <SonneWidget {...props} />;
+    case "ereignisse":
+      return <EreignisseWidget {...props} />;
+  }
+}

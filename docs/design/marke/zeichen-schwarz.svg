@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="OpenWacht"><title>OpenWacht einfarbig</title>
+<path d="M2 32 C14 12 50 12 62 32 C50 52 14 52 2 32 Z" fill="#000000"/>
+<circle cx="32" cy="32" r="16.5" fill="none" stroke="#ffffff" stroke-width="2.2"/>
+<circle cx="32" cy="32" r="10" fill="none" stroke="#ffffff" stroke-width="2.2"/>
+<circle cx="32" cy="32" r="3.5" fill="#ffffff"/>
+<path d="M32 32 L44.6 21.4" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,263 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+package zentrale
+
+// Sensor „SNMP eigene OID“ (Etappe 18b). Die OIDs laufen mit der normalen
+// Abfrage des Geräts (Zentrale oder Sammler); nach jedem gespeicherten
+// Ergebnis bewertet die Zentrale die Sensoren des Geräts. Raten rechnet sie
+// aus ihren eigenen gespeicherten Werten, Texte vergleicht sie nur als Hash.
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"math"
+	"strconv"
+	"strings"
+
+	"github.com/garrulus-it/openwacht/internal/checks"
+	"github.com/garrulus-it/openwacht/internal/snmp"
+)
+
+type oidCheck struct {
+	id, source string
+	revision   int
+	spec       checks.Spec
+}
+
+// oidChecks: aktive OID-Sensoren der Geräte dieser Quellen (ohne Benutzer-
+// kontext, SECURITY DEFINER). Gespeicherte Ziele werden erneut geprüft.
+func (s *Server) oidChecks(ctx context.Context, sources []string) (map[string][]oidCheck, error) {
+	out := map[string][]oidCheck{}
+	if len(sources) == 0 {
+		return out, nil
+	}
+	rows, err := s.pool.Query(ctx, `SELECT source_id::text, id::text, revision, target FROM openwacht.snmp_oid_checks($1::uuid[])`, sources)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var c oidCheck
+		var target []byte
+		if err := rows.Scan(&c.source, &c.id, &c.revision, &target); err != nil {
+			return nil, err
+		}
+		if c.spec, err = checks.Parse("snmp_oid", target); err != nil {
+			slog.Warn("SNMP-OID: gespeichertes Ziel ungültig", "sensor", c.id, "fehler", err)
+			continue
+		}
+		if len(out[c.source]) < snmp.MaxExtraOIDs {
+			out[c.source] = append(out[c.source], c)
+		}
+	}
+	return out, rows.Err()
+}
+
+// extraOIDs: die OIDs, die eine Abfrage zusätzlich lesen soll (ohne Doppel).
+func extraOIDs(list []oidCheck) []string { return oidList(list, false) }
+
+// extraColumns: die Tabellenspalten, die eine Abfrage zusammenfassen soll.
+func extraColumns(list []oidCheck) []string { return oidList(list, true) }
+
+func oidList(list []oidCheck, columns bool) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, c := range list {
+		if (c.spec.Aggregate != "") == columns && !seen[c.spec.OID] {
+			seen[c.spec.OID] = true
+			out = append(out, c.spec.OID)
+		}
+	}
+	return out
+}
+
+func findColumn(snap *snmp.Snapshot, oid string) *snmp.ColumnValue {
+	if snap == nil {
+		return nil
+	}
+	for i := range snap.Columns {
+		if snap.Columns[i].OID == oid {
+			return &snap.Columns[i]
+		}
+	}
+	return nil
+}
+
+// columnNumber: die Kennzahl einer Spalte, die der Sensor bewertet.
+// ok=false mit Meldung: keine Aussage über Schwellen möglich.
+func columnNumber(sp checks.Spec, c *snmp.ColumnValue) (x float64, msg string, ok bool) {
+	switch sp.Aggregate {
+	case "anzahl":
+		return float64(c.Rows), "", true
+	case "anzahl_gleich", "anzahl_ungleich":
+		if c.Values == nil && c.Numbers > 0 {
+			return 0, "Spalte hat zu viele verschiedene Werte zum Zählen", false
+		}
+		n := c.Values[strconv.FormatInt(*sp.Compare, 10)]
+		if sp.Aggregate == "anzahl_ungleich" {
+			n = c.Rows - n
+		}
+		return float64(n), "", true
+	}
+	if c.Rows == 0 {
+		return 0, "Tabelle ohne Zeilen", false
+	}
+	if c.Numbers == 0 {
+		return 0, "Spalte enthält keine Zahlen", false
+	}
+	switch sp.Aggregate {
+	case "minimum":
+		return *c.Min, "", true
+	case "maximum":
+		return *c.Max, "", true
+	}
+	return *c.Sum, "", true
+}
+
+// evalColumn bewertet einen Sensor über eine Tabellenspalte.
+func evalColumn(sp checks.Spec, cur *snmp.Snapshot) (checks.Result, bool) {
+	c := findColumn(cur, sp.OID)
+	if c == nil {
+		return checks.Result{}, false
+	}
+	x, msg, ok := columnNumber(sp, c)
+	if !ok {
+		return checks.Result{Status: checks.Unknown, Message: msg}, true
+	}
+	res := judgeThresholds(sp, x, numText(x))
+	if c.Truncated {
+		res.Message += fmt.Sprintf(" (nur die ersten %d Zeilen)", snmp.MaxColumnRows)
+	}
+	return res, true
+}
+
+func findExtra(snap *snmp.Snapshot, oid string) *snmp.ExtraValue {
+	if snap == nil {
+		return nil
+	}
+	for i := range snap.Extra {
+		if snap.Extra[i].OID == oid {
+			return &snap.Extra[i]
+		}
+	}
+	return nil
+}
+
+func numText(v float64) string {
+	return strings.Replace(strconv.FormatFloat(math.Round(v*1000)/1000, 'f', -1, 64), ".", ",", 1)
+}
+
+// evalOID bewertet einen OID-Sensor. record=false: noch keine Aussage
+// möglich (OID nicht gelesen, Rate ohne vorigen Wert, Neustart des Geräts).
+func evalOID(sp checks.Spec, cur, prev *snmp.Snapshot, rebooted bool) (res checks.Result, record bool) {
+	if sp.Aggregate != "" {
+		return evalColumn(sp, cur)
+	}
+	e := findExtra(cur, sp.OID)
+	if e == nil {
+		return res, false
+	}
+	if e.Missing {
+		return checks.Result{Status: checks.Unknown, Message: "OID fehlt am Gerät"}, true
+	}
+	var num *float64
+	switch {
+	case e.Number != nil:
+		num = e.Number
+	case e.Counter != nil:
+		f := float64(*e.Counter)
+		num = &f
+	}
+	metric := ""
+	if sp.Rate {
+		p := findExtra(prev, sp.OID)
+		if p == nil || num == nil || rebooted || prev.Counters == nil || cur.Counters == nil {
+			return res, false
+		}
+		dt := cur.Counters.At.Sub(prev.Counters.At).Seconds()
+		if dt <= 0 {
+			return res, false
+		}
+		var diff float64
+		switch {
+		case e.Counter != nil && p.Counter != nil:
+			d := *e.Counter - *p.Counter
+			if *e.Counter < *p.Counter { // Überlauf
+				if e.Bits == 32 {
+					d = *e.Counter + (1<<32 - *p.Counter)
+				} else {
+					return res, false
+				}
+			}
+			diff = float64(d)
+		case e.Number != nil && p.Number != nil:
+			diff = *e.Number - *p.Number
+		default:
+			return res, false
+		}
+		rate := diff / dt
+		num = &rate
+		metric = numText(rate) + "/s"
+	} else if num != nil {
+		metric = numText(*num)
+	}
+	if utf := []rune(metric); len(utf) > 50 {
+		metric = string(utf[:50])
+	}
+	if sp.Equals != nil {
+		ok := false
+		switch {
+		case e.TextHash != "":
+			ok = e.TextHash == snmp.TextHash(*sp.Equals)
+		case num != nil:
+			if f, err := strconv.ParseFloat(strings.Replace(strings.TrimSpace(*sp.Equals), ",", ".", 1), 64); err == nil {
+				ok = f == *num
+			}
+		}
+		if !ok {
+			return checks.Result{Status: checks.Crit, Message: "Wert weicht vom erwarteten ab", Metric: metric}, true
+		}
+		return checks.Result{Status: checks.OK, Message: "Wert wie erwartet", Metric: metric}, true
+	}
+	if sp.WarnAbove == nil && sp.CritAbove == nil && sp.WarnBelow == nil && sp.CritBelow == nil {
+		return checks.Result{Status: checks.OK, Message: "Wert vorhanden", Metric: metric}, true
+	}
+	if num == nil {
+		return checks.Result{Status: checks.Unknown, Message: "Wert ist keine Zahl"}, true
+	}
+	return judgeThresholds(sp, *num, metric), true
+}
+
+// judgeThresholds: Schwellen „über“ und „unter“; ohne Schwellen nur Anzeige.
+func judgeThresholds(sp checks.Spec, x float64, metric string) checks.Result {
+	if sp.WarnAbove == nil && sp.CritAbove == nil && sp.WarnBelow == nil && sp.CritBelow == nil {
+		return checks.Result{Status: checks.OK, Message: "Wert vorhanden", Metric: metric}
+	}
+	switch {
+	case sp.CritAbove != nil && x > *sp.CritAbove:
+		return checks.Result{Status: checks.Crit, Message: "Wert über " + numText(*sp.CritAbove) + " (kritisch)", Metric: metric}
+	case sp.CritBelow != nil && x < *sp.CritBelow:
+		return checks.Result{Status: checks.Crit, Message: "Wert unter " + numText(*sp.CritBelow) + " (kritisch)", Metric: metric}
+	case sp.WarnAbove != nil && x > *sp.WarnAbove:
+		return checks.Result{Status: checks.Warn, Message: "Wert über " + numText(*sp.WarnAbove) + " (Warnung)", Metric: metric}
+	case sp.WarnBelow != nil && x < *sp.WarnBelow:
+		return checks.Result{Status: checks.Warn, Message: "Wert unter " + numText(*sp.WarnBelow) + " (Warnung)", Metric: metric}
+	}
+	return checks.Result{Status: checks.OK, Message: "Wert im Rahmen", Metric: metric}
+}
+
+// recordOIDs speichert die Ergebnisse der OID-Sensoren einer Quelle.
+func (s *Server) recordOIDs(ctx context.Context, list []oidCheck, cur, prev *snmp.Snapshot, rebooted bool) {
+	for _, c := range list {
+		res, ok := evalOID(c.spec, cur, prev, rebooted)
+		if !ok {
+			continue
+		}
+		var stored bool
+		if err := s.pool.QueryRow(context.WithoutCancel(ctx), `SELECT openwacht.check_record($1, $2, $3, $4, $5, NULL)`,
+			c.id, c.revision, res.Status, clipRunes(res.Message, 300), clipRunes(res.Metric, 50)).Scan(&stored); err != nil {
+			slog.Warn("SNMP-OID: Ergebnis nicht gespeichert", "sensor", c.id, "fehler", fmt.Sprint(err))
+		}
+	}
+}

@@ -1,0 +1,113 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/*
+ * OpenWacht – Design-Tokens (Corporate Design, Stand 22.11.2026)
+ *
+ * Einzige Quelle für Farben, Schrift, Abstände und Radien. Wird in Schritt D4a
+ * nach web/src übernommen; Mail (internal/alarm/report.go) und PNG-Graph
+ * (internal/alarm/chart.go) nutzen dieselben Werte (helle Spalte).
+ * Regeln und Begründungen: docs/design/README.md
+ */
+
+:root {
+  /* Marke */
+  --marke: #0b6a8a;          /* Akzent: Knöpfe, Links, aktiver Menüpunkt, Panel-Oberkante */
+  --marke-tief: #0a4f68;     /* Text in Markenfarbe */
+  --marke-hauch: #dcedf3;    /* Hinweisflächen */
+  --auf-marke: #ffffff;      /* Text auf Markenfarbe */
+
+  /* Seitenleiste, Kopf, Befehlsblöcke */
+  --nacht: #102238;
+  --nacht-tinte: #e4edf6;
+  --nacht-leise: #8ea3ba;
+
+  /* Flächen und Text */
+  --grund: #eef2f6;
+  --flaeche: #ffffff;
+  --zart: #f5f8fa;
+  --tinte: #14202e;
+  --leise: #526172;
+  --linie: #c9d3de;
+
+  /* Zustände – nur für Zustände verwenden, immer mit Form */
+  --ok: #2c7a57;        --ok-hauch: #e1f1e9;      --text-ok: #1f6446;
+  --warn: #b07c12;      --warn-hauch: #f8efd9;    --text-warn: #7d5600;   /* --warn nie als Textfarbe */
+  --krit: #b3362f;      --krit-hauch: #f7e2e0;    --text-krit: #9c2a24;   --auf-krit: #ffffff;
+  --unbek: #7b8590;     --unbek-hauch: #eceef1;
+  --wartung: #6b4f8f;   --wartung-hauch: #ece6f4;
+
+  /* Graphenreihen: 4 Farben, Reihe 5–8 dieselben Farben gestrichelt (--reihe-strich).
+     Validiert mit dem Dataviz-Prüfskript (Helligkeit, Buntheit, Farbfehlsichtigkeit, Kontrast ≥ 3:1).
+     Keine Zustandsfarbe: kein Grün, Gelb, Rot, Violett. */
+  --reihe-1: #2a78d6;  /* Blau */
+  --reihe-2: #d6457f;  /* Magenta */
+  --reihe-3: #0a97b0;  /* Cyan */
+  --reihe-4: #5a63d8;  /* Indigo */
+  --reihe-strich: 6 4; /* stroke-dasharray für Reihe 5–8 */
+
+  /* Bildzeichen (fest, unabhängig vom Modus) */
+  --logo-grund: #102238;
+  --logo-karte: #3a6c9c;
+  --logo-signal: #45c3e6;
+
+  /* Schrift */
+  --schrift: "D-DIN", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --s-1: 0.8125rem;  /* 13 px  Tabellen, Nebentext, Marken */
+  --s0: 1rem;        /* 16 px  Fließtext */
+  --s1: 1.25rem;     /* 20 px  Seitentitel */
+  --s2: 1.5625rem;   /* 25 px  Abschnittstitel */
+  --s3: 1.9375rem;   /* 31 px  Zahlen in Kacheln */
+  --s4: 2.4375rem;   /* 39 px  Startseite, Wandanzeige */
+
+  /* Abstände */
+  --a1: 4px; --a2: 8px; --a3: 12px; --a4: 16px; --a5: 24px; --a6: 32px; --a7: 48px;
+
+  /* Radien und Linien */
+  --r: 3px;          /* Bedienelemente, Marken, Felder */
+  --r-gross: 6px;    /* Panels, Karten */
+  --oberkante: 3px;  /* Panel-Oberkante in --marke */
+
+  color-scheme: light;
+}
+
+:root[data-thema="dunkel"] {
+  --marke: #45c3e6;
+  --marke-tief: #86d9f0;
+  --marke-hauch: #123447;
+  --auf-marke: #04161e;
+
+  --nacht: #060c14;
+  --nacht-tinte: #dfe8f2;
+  --nacht-leise: #7d92a9;
+
+  --grund: #0a121c;
+  --flaeche: #111c29;
+  --zart: #172435;
+  --tinte: #dfe8f2;
+  --leise: #94a6ba;
+  --linie: #2a3a4d;
+
+  --ok: #5cb88b;        --ok-hauch: #173126;      --text-ok: #7fd0a6;
+  --warn: #dba843;      --warn-hauch: #33291a;    --text-warn: #e6b85c;
+  --krit: #e8685d;      --krit-hauch: #3a201e;    --text-krit: #f08a80;   --auf-krit: #1a0b0a;
+  --unbek: #8a95a1;     --unbek-hauch: #252b32;
+  --wartung: #b49ad8;   --wartung-hauch: #2c2440;
+
+  --reihe-1: #3987e5;
+  --reihe-2: #d9488a;
+  --reihe-3: #0e98ae;
+  --reihe-4: #8188f2;
+
+  color-scheme: dark;
+}
+
+/* Wandanzeige: immer dunkel, eigene leuchtendere Zustandsfarben */
+.wand {
+  --wand-ok: #3fae78;
+  --wand-warn: #e0b041;
+  --wand-krit: #e5534b;
+  --wand-best: #a8615c;
+  --wand-unbek: #6c7682;
+  --wand-wartung: #9a7fd0;
+}

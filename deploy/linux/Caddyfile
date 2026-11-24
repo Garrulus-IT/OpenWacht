@@ -1,0 +1,23 @@
+# /etc/caddy/Caddyfile – Beispiel für ntfy (Port 2587). Die Zentrale macht HTTPS
+# selbst (Port 443); den Block „Oberfläche“ nur nutzen, wenn sie mit
+# -adresse 127.0.0.1:8443 hinter einem Reverse Proxy läuft (Handbuch Kapitel 17).
+# Zertifikate aus Caddys eigener CA („tls internal“). Deren Wurzelzertifikat
+# (/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt) muss auf PC
+# und Handy als vertrauenswürdig installiert werden.
+# Der Agent-Port 8444 läuft NICHT über Caddy: Die Zentrale prüft die
+# Client-Zertifikate der Agents selbst.
+{
+	skip_install_trust
+}
+
+# Oberfläche
+openwacht.example.org {
+	tls internal
+	reverse_proxy 127.0.0.1:8443
+}
+
+# ntfy für die App auf dem Handy und im Browser
+openwacht.example.org:2587 {
+	tls internal
+	reverse_proxy 127.0.0.1:2586
+}

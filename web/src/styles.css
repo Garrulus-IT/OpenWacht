@@ -1,0 +1,4540 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/* OpenWacht – Gestaltung
+   Leitstelle statt Baukasten: kühler Grund, Schiefer als Schrift, ein ruhiges
+   Blau für Aktionen. Signalfarben (Grün, Bernstein, Rot) sind für Zustände
+   reserviert und werden nicht dekorativ verwendet. Das prägende Element ist
+   der Mandantenbaum mit seinen Verbindungslinien. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--grund);
+  color: var(--tinte);
+  font-family: var(--schrift);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--marke);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+/* --- Wortmarke ------------------------------------------------------------ */
+
+.wortmarke {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  font-family: var(--schrift-anzeige);
+  font-size: var(--s3);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+/* Das Bildzeichen ist breiter als hoch (16:9); die Farben stehen im Zeichen selbst. */
+.wortmarke .zeichen {
+  width: 3.4rem;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  flex: none;
+}
+
+.wortmarke-rest,
+.leiste-marke .wortmarke-rest {
+  font-weight: 400;
+}
+
+.wortmarke-klein {
+  font-size: var(--s1);
+}
+
+.wortmarke-klein .zeichen {
+  width: 2.2rem;
+}
+
+/* --- Seiten ohne Anmeldung -------------------------------------------------- */
+
+.seite-mittig {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--a6) var(--a4);
+}
+
+/* Hintergrund der Anmeldung: das Raster einer Lagekarte, sehr zurückhaltend. */
+.anmeldung {
+  background-image:
+    linear-gradient(var(--linie-zart) 1px, transparent 1px),
+    linear-gradient(90deg, var(--linie-zart) 1px, transparent 1px);
+  background-size: 48px 48px;
+  background-position: center;
+  align-content: center;
+}
+
+.tafel {
+  width: min(100%, 24rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--a4);
+  padding: var(--a6) var(--a6) var(--a6);
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-top: 4px solid var(--tinte);
+  border-radius: var(--r-gross);
+}
+
+.tafel .wortmarke {
+  margin-bottom: var(--a3);
+}
+
+/* Herkunftssiegel unter der Anmeldung (Corporate Design, Abschnitt Siegel). */
+.siegel-reihe {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--a2);
+  margin-top: var(--a5);
+  width: min(100%, 24rem);
+}
+
+.siegel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--a2);
+  padding: var(--a1) var(--a2);
+  border: 1px solid var(--linie);
+  border-radius: 999px;
+  background: var(--flaeche);
+  color: var(--leise);
+  font-size: var(--s-1);
+  line-height: 1.2;
+}
+
+.siegel svg {
+  width: 0.85rem;
+  height: 1rem;
+  flex: none;
+}
+
+.tafel-breit {
+  width: min(100%, 36rem);
+}
+
+.titel {
+  margin: 0;
+  font-family: var(--schrift-anzeige);
+  font-size: var(--s1);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.hinweis {
+  margin: 0;
+  color: var(--leise);
+  max-width: 62ch;
+}
+
+/* --- Formularelemente ------------------------------------------------------- */
+
+.feld {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a1);
+}
+
+.feld > span {
+  font-size: var(--s-1);
+  font-weight: 700;
+  color: var(--leise);
+}
+
+input,
+select,
+textarea {
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  background: var(--flaeche);
+  padding: var(--a2) var(--a3);
+  min-height: 2.5rem;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline-offset: 0;
+  border-color: var(--marke);
+}
+
+.code-eingabe {
+  font-family: var(--mono);
+  font-size: var(--s1);
+  letter-spacing: 0.35em;
+  text-align: center;
+}
+
+.mono {
+  font-family: var(--mono);
+}
+
+.knopf {
+  border: 1px solid var(--linie);
+  background: var(--flaeche);
+  border-radius: var(--r);
+  padding: var(--a2) var(--a4);
+  min-height: 2.25rem;
+  cursor: pointer;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.knopf:hover:not(:disabled) {
+  border-color: var(--leise);
+}
+
+.knopf:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.knopf-haupt {
+  background: var(--marke);
+  border-color: var(--marke);
+  color: var(--auf-marke);
+}
+
+.knopf-haupt:hover:not(:disabled) {
+  background: var(--marke-tief);
+  border-color: var(--marke-tief);
+}
+
+.tafel .knopf-haupt {
+  min-height: 2.75rem;
+  margin-top: var(--a1);
+}
+
+.knopf-gefahr {
+  color: var(--text-krit);
+  border-color: color-mix(in srgb, var(--krit) 45%, var(--linie));
+}
+
+.knopf-gefahr:hover:not(:disabled) {
+  background: var(--krit-hauch);
+  border-color: var(--krit);
+}
+
+.knopf-text {
+  border: 0;
+  background: none;
+  padding: var(--a1) 0;
+  color: var(--marke);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  align-self: center;
+}
+
+.meldung {
+  margin: 0;
+  padding: var(--a3) var(--a3);
+  border-left: 4px solid;
+  border-radius: var(--r);
+}
+
+.meldung-fehler {
+  border-color: var(--krit);
+  background: var(--krit-hauch);
+}
+
+.klein {
+  font-size: var(--s-1);
+  color: var(--leise);
+  margin: 0;
+}
+
+.leer {
+  color: var(--leise);
+  margin: var(--a2) 0;
+}
+
+/* --- 2FA-Einrichtung ------------------------------------------------------------ */
+
+.zweifa-reihe {
+  display: flex;
+  gap: var(--a5);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.qr-rahmen {
+  padding: var(--a2);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  background: var(--qr-hell);
+}
+
+.qr {
+  display: block;
+  width: 11rem;
+  height: 11rem;
+}
+
+.qr-leer {
+  background: var(--linie-zart);
+}
+
+.zweifa-text {
+  flex: 1 1 14rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--a2);
+}
+
+.zweifa-text p {
+  margin: 0;
+}
+
+.schluessel {
+  font-family: var(--mono);
+  font-size: var(--s0);
+  letter-spacing: 0.08em;
+  word-spacing: 0.3em;
+  padding: var(--a2) var(--a3);
+  background: var(--grund);
+  border-radius: var(--r);
+  user-select: all;
+}
+
+/* --- Hauptansicht ------------------------------------------------------------ */
+
+.schalter-feld {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--a2);
+  cursor: pointer;
+}
+
+.schalter-feld input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--marke);
+}
+
+.mandant-marke {
+  display: inline-block;
+  margin-right: var(--a2);
+  padding: 0 var(--a2);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  color: var(--leise);
+  font-size: var(--s-1);
+  line-height: 1.35rem;
+  vertical-align: 1px;
+}
+
+.titel-zusatz {
+  font-size: var(--s0);
+  font-weight: 400;
+  color: var(--leise);
+  letter-spacing: 0;
+}
+
+.unterreiter {
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+/* Vier Unterreiter passen bei 390 px nicht mit vollem Innenabstand. */
+@media (max-width: 440px) {
+  .unterreiter .umschalter-knopf {
+    padding: var(--a1) var(--a2);
+  }
+}
+
+.mandanten-raster .ansicht-kopf {
+  border-bottom: 0;
+  padding-top: var(--a3);
+}
+
+.mandanten-raster {
+  display: grid;
+  grid-template-columns: minmax(14rem, 18rem) 1fr;
+  gap: var(--a5);
+  align-items: start;
+}
+
+.baum-spalte {
+  padding: var(--a3) var(--a4) var(--a4) 0;
+  border-right: 1px solid var(--linie);
+  background: var(--grund);
+}
+
+.spalten-titel {
+  margin: 0 0 var(--a3);
+  font-size: var(--s-1);
+  font-weight: 700;
+  color: var(--leise);
+}
+
+/* Der Mandantenbaum als Organigramm: Jede Ebene hängt an einer Linie, jeder
+   Knoten an einem kurzen Querstrich. */
+.baum,
+.baum ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.baum ul {
+  margin-left: var(--a3);
+  padding-left: var(--a3);
+  border-left: 1.5px solid var(--linie);
+}
+
+.baum ul > li {
+  position: relative;
+}
+
+.baum ul > li::before {
+  content: "";
+  position: absolute;
+  left: -0.85rem;
+  top: 1.15rem;
+  width: 0.7rem;
+  border-top: 1.5px solid var(--linie);
+}
+
+/* Die Linie endet am letzten Kind statt bis zum Listenende zu laufen. */
+.baum ul > li:last-child::after {
+  content: "";
+  position: absolute;
+  left: calc(-0.85rem - 1.5px);
+  top: 1.2rem;
+  bottom: 0;
+  border-left: 1.5px solid var(--grund);
+}
+
+.knoten {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--a2);
+  width: 100%;
+  margin: 0.15rem 0;
+  padding: var(--a2) var(--a2);
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.knoten:hover {
+  background: var(--flaeche);
+  border-color: var(--linie-zart);
+}
+
+.knoten-aktiv,
+.knoten-aktiv:hover {
+  background: var(--flaeche);
+  border-color: var(--linie);
+  box-shadow: inset 3px 0 0 var(--marke);
+}
+
+.knoten-name {
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.rolle {
+  flex-shrink: 0;
+  font-size: var(--s-1);
+  padding: 0.05rem var(--a2);
+  border-radius: 999px;
+  border: 1px solid var(--linie);
+  color: var(--leise);
+}
+
+.rolle-admin {
+  border-color: var(--marke);
+  color: var(--marke);
+}
+
+.inhalt {
+  padding: var(--a5) clamp(1rem, 2.5vw, 2rem) var(--a7);
+  width: 100%;
+  max-width: 110rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--a4);
+}
+
+.ansicht {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a3);
+}
+
+.ansicht-kopf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a2);
+  padding-bottom: var(--a5);
+  border-bottom: 1px solid var(--linie);
+}
+
+.pfad {
+  margin: 0;
+  color: var(--leise);
+  font-size: var(--s-1);
+}
+
+.titel-gross {
+  margin: 0;
+  font-family: var(--schrift-anzeige);
+  font-size: var(--s2);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+
+.abschnitt {
+  margin: var(--a3) 0 0;
+  font-size: var(--s1);
+  font-weight: 700;
+}
+
+.aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a2);
+  align-items: center;
+}
+
+.formular {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--a4) var(--a4);
+  padding: var(--a4);
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+}
+
+.formular .aktionen {
+  grid-column: 1 / -1;
+}
+
+.formular-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a2);
+  align-items: flex-end;
+}
+
+.feld-breit {
+  flex: 1 1 16rem;
+}
+
+.bestaetigung {
+  padding: var(--a4) var(--a4);
+  background: var(--krit-hauch);
+  border-left: 4px solid var(--krit);
+  display: flex;
+  flex-direction: column;
+  gap: var(--a3);
+}
+
+.bestaetigung p {
+  margin: 0;
+  max-width: 70ch;
+}
+
+/* --- Tabelle --------------------------------------------------------------- */
+
+.tabelle {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+}
+
+.tabelle th {
+  text-align: left;
+  font-size: var(--s-1);
+  font-weight: 700;
+  color: var(--leise);
+  padding: var(--a2) var(--a3);
+  border-bottom: 1px solid var(--linie);
+  background: var(--zart);
+}
+
+.tabelle td {
+  padding: var(--a3) var(--a3);
+  border-bottom: 1px solid var(--linie-zart);
+  vertical-align: middle;
+}
+
+.tabelle tr:last-child td {
+  border-bottom: 0;
+}
+
+.tabelle .name {
+  font-weight: 400;
+}
+
+.tabelle select {
+  min-height: 2.1rem;
+  padding: var(--a1) var(--a2);
+}
+
+.zeile-aus td {
+  color: var(--leise);
+}
+
+.zeile-aus .name {
+  text-decoration: line-through;
+}
+
+/* --- Schmale Bildschirme ------------------------------------------------------------ */
+
+@media (max-width: 760px) {
+  .reiter {
+    gap: 0;
+    margin-left: calc(-1 * var(--a2));
+    margin-right: calc(-1 * var(--a2));
+  }
+
+  .reiter-knopf {
+    padding: var(--a2) var(--a2) var(--a2);
+    font-size: var(--s-1);
+  }
+
+  .mandanten-raster {
+    grid-template-columns: 1fr;
+  }
+
+  .baum-spalte {
+    padding-right: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--linie);
+  }
+
+  .tabelle thead {
+    display: none;
+  }
+
+  .tabelle tr {
+    display: block;
+    border-bottom: 1px solid var(--linie);
+  }
+
+  .tabelle td {
+    display: block;
+    border: 0;
+    padding: var(--a2) var(--a3);
+  }
+}
+
+/* --- Hosts ---------------------------------------------------------------------
+   Hier bekommen die Signalfarben ihre Aufgabe: Sie zeigen nur Zustände. */
+
+.hosts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a3);
+}
+
+.abschnitt-kopf {
+  display: flex;
+  align-items: baseline;
+  gap: var(--a4);
+  flex-wrap: wrap;
+}
+
+.abschnitt-kopf .knopf {
+  margin-left: auto;
+}
+
+.host-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+}
+
+.host + .host {
+  border-top: 1px solid var(--linie-zart);
+}
+
+.host-kopf {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.2fr) 2fr;
+  gap: var(--a4);
+  align-items: center;
+  width: 100%;
+  padding: var(--a3) var(--a4);
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.host-kopf:hover {
+  background: var(--zart);
+}
+
+.host-name {
+  display: flex;
+  gap: var(--a3);
+  align-items: flex-start;
+}
+
+.host-name > span:last-child {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Signal: ein Punkt in der Zustandsfarbe; "still" mit Ring, damit der
+   Unterschied nicht nur an der Farbe hängt. */
+/* Zustandsformen nach Verkehrszeichen (docs/design, Abschnitt 6): die Form
+   trägt den Zustand, die Farbe verstärkt ihn. Die Formen liegen als SVG im
+   16er-Raster unter /formen und werden als Maske eingefärbt (keine data:-URLs,
+   passt zur CSP). Kreis = OK, Dreieck = Warnung, Achteck = kritisch,
+   gestricheltes Quadrat = unbekannt, Achteck mit Haken = bestätigt,
+   Kreisring = ohne Wertung (pausiert, neu, gesperrt). */
+.signal {
+  --form: url("/formen/kreis-umriss.svg");
+  flex-shrink: 0;
+  width: var(--a3);
+  height: var(--a3);
+  margin-top: 0.4rem;
+  background: var(--linie);
+  mask: var(--form) center / contain no-repeat;
+}
+
+.signal-online {
+  --form: url("/formen/kreis.svg");
+  background: var(--ok);
+}
+
+.signal-still {
+  --form: url("/formen/achteck.svg");
+  background: var(--krit);
+}
+
+.signal-neu {
+  background: var(--warn);
+}
+
+.signal-gesperrt {
+  background: var(--leise);
+}
+
+.host-gesperrt .name {
+  text-decoration: line-through;
+  color: var(--leise);
+}
+
+/* Gerät meldet sich nicht: statt alter Pegel nur das Alter der Werte */
+.host-werte-alt {
+  align-self: center;
+  justify-self: end;
+  color: var(--leise);
+}
+
+.host-werte {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--a4);
+  min-width: 0;
+}
+
+.wert {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a1);
+}
+
+.wert-titel {
+  font-size: var(--s-1);
+  color: var(--leise);
+}
+
+.pegel {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+}
+
+.pegel-spur {
+  flex: 1;
+  height: 0.4rem;
+  background: var(--linie-zart);
+  border-radius: 999px;
+  overflow: hidden;
+  min-width: 3rem;
+}
+
+.pegel-fuellung {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.pegel-ok {
+  background: var(--ok);
+}
+
+.pegel-mittel {
+  background: var(--warn);
+}
+
+.pegel-hoch {
+  background: var(--krit);
+}
+
+.pegel-zahl {
+  font-family: var(--mono); /* D-DIN hat keine Tabellenziffern */
+  font-variant-numeric: tabular-nums;
+  font-size: var(--s-1);
+  min-width: 3.4rem;
+  text-align: right;
+}
+
+.host-detail {
+  padding: var(--a1) var(--a4) var(--a4) var(--a6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--a4);
+}
+
+.eckdaten {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--a2) var(--a5);
+  margin: 0;
+}
+
+.eckdaten dt {
+  font-size: var(--s-1);
+  color: var(--leise);
+}
+
+.eckdaten dd {
+  margin: 0;
+}
+
+.tabelle-kompakt td,
+.tabelle-kompakt th {
+  padding: var(--a2) var(--a3);
+}
+
+.einschub {
+  padding: var(--a4);
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-left: 4px solid var(--marke);
+  display: flex;
+  flex-direction: column;
+  gap: var(--a3);
+}
+
+.einschub-titel {
+  margin: 0;
+  font-size: var(--s0);
+  font-weight: 700;
+}
+
+.formular-flach {
+  padding: 0;
+  border: 0;
+}
+
+.formular-voll {
+  grid-column: 1 / -1;
+}
+
+.formular-flach .einschub-titel {
+  grid-column: 1 / -1;
+}
+
+.umschalter {
+  display: inline-flex;
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  overflow: hidden;
+  align-self: flex-start;
+}
+
+.umschalter-knopf {
+  font: inherit;
+  font-size: var(--s-1);
+  padding: var(--a1) var(--a4);
+  border: 0;
+  background: transparent;
+  color: var(--leise);
+  cursor: pointer;
+}
+
+.umschalter-knopf + .umschalter-knopf {
+  border-left: 1px solid var(--linie);
+}
+
+.umschalter-knopf[aria-pressed="true"] {
+  background: var(--tinte);
+  color: var(--flaeche);
+}
+
+.umschalter-knopf:focus-visible {
+  outline: 2px solid var(--marke);
+  outline-offset: -2px;
+}
+
+.befehl {
+  margin: 0;
+  padding: var(--a3) var(--a4);
+  background: var(--nacht);
+  color: var(--nacht-tinte);
+  font-family: var(--mono);
+  font-size: var(--s-1);
+  border-radius: var(--r);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.meldung-warnung {
+  border-color: var(--warn);
+  background: var(--warn-hauch);
+}
+
+.offene-tokens ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.offene-tokens li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--a4);
+  padding: var(--a1) 0;
+  border-top: 1px solid var(--linie-zart);
+  font-size: var(--s-1);
+}
+
+.klein-titel {
+  margin: 0 0 var(--a1);
+  font-size: var(--s-1);
+  font-weight: 700;
+  color: var(--leise);
+}
+
+@media (max-width: 760px) {
+  .host-kopf {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Drei Pegel nebeneinander passen bei 390 px nur ohne Mindestbreiten. */
+  .host-werte {
+    gap: var(--a2);
+  }
+
+  .pegel-spur {
+    min-width: 1.25rem;
+  }
+
+  .pegel-zahl {
+    min-width: 0;
+  }
+
+  .host-detail {
+    padding-left: var(--a4);
+  }
+}
+
+/* Werte eines stillen Hosts sind veraltet: abgeblasst statt scheinbar aktuell. */
+.host-still .host-werte {
+  opacity: 0.4;
+}
+
+/* --- Checks --------------------------------------------------------------------- */
+
+.check-stand {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.check-meldung {
+  overflow-wrap: anywhere;
+}
+
+.check-crit .check-meldung {
+  color: var(--text-krit);
+  font-weight: 700;
+}
+
+/* Gleiche Formensprache wie bei Hosts: Fehler mit Ring, unklare Zustände hohl,
+   damit nichts nur an der Farbe hängt. */
+.signal-ok {
+  --form: url("/formen/kreis.svg");
+  background: var(--ok);
+}
+
+.signal-warn {
+  --form: url("/formen/dreieck.svg");
+  background: var(--warn);
+}
+
+.signal-crit {
+  --form: url("/formen/achteck.svg");
+  background: var(--krit);
+}
+
+.signal-unknown {
+  --form: url("/formen/quadrat-gestrichelt.svg");
+  background: var(--leise);
+}
+
+.signal-wartung {
+  --form: url("/formen/raute.svg");
+  background: var(--wartung);
+}
+
+.signal-pause {
+  background: var(--leise);
+}
+
+.alarm-bestaetigt .signal {
+  --form: url("/formen/achteck-haken.svg");
+}
+
+.check-pause .name,
+.check-pause .check-meldung {
+  color: var(--leise);
+}
+
+.umbruch {
+  overflow-wrap: anywhere;
+}
+
+.erweitert summary {
+  cursor: pointer;
+  font-size: var(--s-1);
+  font-weight: 700;
+  color: var(--leise);
+  margin-bottom: var(--a2);
+}
+
+.erweitert textarea {
+  font-family: var(--mono);
+  font-size: var(--s-1);
+  resize: vertical;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- Alarme ----------------------------------------------------------------- */
+
+.meldung-erfolg {
+  border-color: var(--ok);
+  background: var(--ok-hauch);
+}
+
+.haken {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  cursor: pointer;
+}
+
+.haken input {
+  min-height: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  accent-color: var(--marke);
+}
+
+.regeln {
+  margin-top: var(--a5);
+}
+
+.regeln ul {
+  margin: 0 0 var(--a2);
+  padding-left: var(--a4);
+}
+
+.regeln li + li {
+  margin-top: var(--a1);
+}
+
+/* --- Verlauf (Graphen) --------------------------------------------------------- */
+
+.verlauf {
+  margin-top: var(--a5);
+  padding-top: var(--a4);
+  border-top: 1px solid var(--linie-zart);
+}
+
+.verlauf-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--a2) var(--a4);
+  margin-bottom: var(--a3);
+}
+
+.verlauf-titel {
+  margin: 0;
+  font-size: var(--s0);
+  font-weight: 700;
+}
+
+.graphen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--a4) var(--a5);
+}
+
+.graph {
+  margin: 0;
+  min-width: 0;
+}
+
+.graph-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 var(--a3);
+  margin-bottom: var(--a1);
+}
+
+.graph-titel {
+  margin: 0;
+  font-size: var(--s-1);
+  font-weight: 700;
+  color: var(--tinte);
+}
+
+.graph-wert {
+  font-size: var(--s-1);
+  color: var(--leise);
+  font-family: var(--mono); /* D-DIN hat keine Tabellenziffern */
+  font-variant-numeric: tabular-nums;
+}
+
+.graph-flaeche {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--flaeche);
+  border: 1px solid var(--linie-zart);
+  border-radius: var(--r);
+  touch-action: pan-y;
+}
+
+.graph-gitter {
+  stroke: var(--linie-zart);
+  stroke-width: 1;
+}
+
+.graph-achse {
+  font-size: 11px;
+  fill: var(--leise);
+  font-family: var(--mono); /* D-DIN hat keine Tabellenziffern */
+  font-variant-numeric: tabular-nums;
+}
+
+.graph-linie {
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.graph-band {
+  fill: var(--marke-hauch);
+  stroke: none;
+}
+
+.graph-zeiger {
+  stroke: var(--leise);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.graph-leer {
+  margin: 0;
+  padding: var(--a5) var(--a3);
+  border: 1px dashed var(--linie);
+  border-radius: var(--r);
+  text-align: center;
+}
+
+.graph-legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a1) var(--a4);
+  margin: var(--a1) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--s-1);
+}
+
+.graph-legende li {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--a1);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.graph-legende .mono {
+  overflow-wrap: anywhere;
+}
+
+.graph-farbe {
+  width: 0.75rem;
+  height: 3px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+/* Reihe 5–8: dieselben Farben gestrichelt wie die Linie (6/4). */
+.graph-farbe-strich {
+  width: 1rem;
+  border-radius: 0;
+  background: repeating-linear-gradient(90deg, currentColor 0 6px, transparent 6px 10px);
+}
+
+.graph-streifen {
+  display: block;
+  width: 100%;
+  height: 14px;
+  background: var(--linie-zart);
+  border-radius: 2px;
+}
+
+.streifen-ok {
+  fill: var(--ok);
+}
+.streifen-warn {
+  fill: var(--warn);
+}
+.streifen-crit {
+  fill: var(--krit);
+}
+.streifen-unknown {
+  fill: var(--leise);
+}
+
+.wechsel-liste {
+  margin: var(--a1) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--s-1);
+}
+
+.wechsel-liste li {
+  display: grid;
+  grid-template-columns: 9.5rem 1fr;
+  gap: var(--a3);
+  padding: var(--a1) 0;
+  border-bottom: 1px solid var(--linie-zart);
+}
+
+/* --- Übersicht --------------------------------------------------------------------
+   Kacheln zählen die Sensoren je Zustand und filtern die Liste darunter. Die
+   Signalfarbe steckt im breiten linken Rand; gefüllt sind nur Kacheln mit
+   Problemen, damit „0 Alarm“ nicht rot leuchtet. */
+
+.kachel-reihe {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--a2);
+}
+
+.kachel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  padding: var(--a3) var(--a4);
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-left: 6px solid var(--linie);
+  border-radius: var(--r);
+  text-align: left;
+  cursor: pointer;
+}
+
+.kachel-text {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--a2);
+}
+
+.kachel-text::before {
+  content: "";
+  width: var(--a3);
+  height: var(--a3);
+  background: var(--form-farbe, currentColor);
+  mask: var(--form, url("/formen/kreis-umriss.svg")) center / contain no-repeat;
+}
+
+.kachel-ok {
+  --form: url("/formen/kreis.svg");
+  --form-farbe: var(--ok);
+}
+.kachel-warn {
+  --form: url("/formen/dreieck.svg");
+  --form-farbe: var(--warn);
+}
+.kachel-crit {
+  --form: url("/formen/achteck.svg");
+  --form-farbe: var(--krit);
+}
+.kachel-unknown {
+  --form: url("/formen/quadrat-gestrichelt.svg");
+  --form-farbe: var(--leise);
+}
+.kachel-wartung {
+  --form: url("/formen/raute.svg");
+  --form-farbe: var(--wartung);
+}
+
+.kachel:hover {
+  border-color: var(--leise);
+}
+
+.kachel[aria-pressed="true"] {
+  outline: 2px solid var(--marke);
+  outline-offset: 1px;
+}
+
+.kachel-ok {
+  border-left-color: var(--ok);
+}
+
+.kachel-warn {
+  border-left-color: var(--warn);
+}
+
+.kachel-crit {
+  border-left-color: var(--krit);
+}
+
+.kachel-unknown {
+  border-left-color: var(--leise);
+}
+
+.kachel-wartung {
+  border-left-color: var(--wartung);
+}
+
+.kachel-crit:not(.kachel-null) {
+  background: var(--krit-hauch);
+}
+
+.kachel-warn:not(.kachel-null) {
+  background: var(--warn-hauch);
+}
+
+.kachel-null .kachel-zahl {
+  color: var(--leise);
+}
+
+.kachel-zahl {
+  font-family: var(--schrift-anzeige);
+  font-size: var(--s2);
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.kachel-text {
+  color: var(--leise);
+  font-size: var(--s-1);
+  font-weight: 400;
+}
+
+.alarm-liste,
+.sensor-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+}
+
+.alarm,
+.sensor {
+  display: flex;
+  align-items: center;
+  gap: var(--a3);
+  padding: var(--a3) var(--a4);
+}
+
+.alarm + .alarm,
+.sensor + .sensor {
+  border-top: 1px solid var(--linie-zart);
+}
+
+.alarm-crit {
+  box-shadow: inset 4px 0 0 var(--krit);
+}
+
+.alarm-warn {
+  box-shadow: inset 4px 0 0 var(--warn);
+}
+
+.alarm-unknown {
+  box-shadow: inset 4px 0 0 var(--leise);
+}
+
+/* Bestätigt: bleibt sichtbar, tritt aber zurück. */
+.alarm-bestaetigt {
+  box-shadow: inset 4px 0 0 var(--linie);
+  background: var(--zart);
+}
+
+.alarm-text,
+.sensor-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.alarm-text .klein,
+.sensor-text .klein {
+  overflow-wrap: anywhere;
+}
+
+.alarm-quittung {
+  color: var(--tinte);
+}
+
+.alarm-formular {
+  margin-top: var(--a2);
+}
+
+.marke {
+  display: inline-block;
+  padding: 0 var(--a2);
+  border-radius: var(--r);
+  font-size: var(--s-1);
+  font-weight: 700;
+  line-height: 1.4rem;
+  white-space: nowrap;
+}
+
+.marke-crit {
+  background: var(--krit);
+  color: var(--auf-krit);
+}
+
+.marke-warn {
+  background: var(--warn);
+  color: var(--auf-warn);
+}
+
+.marke-unknown {
+  border: 1px dashed var(--leise);
+}
+
+.marke-ok {
+  border: 1px solid var(--ok);
+  color: var(--text-ok);
+}
+
+.marke-ende {
+  border: 1px solid var(--linie);
+  color: var(--leise);
+}
+
+/* Wartung: geplant, nicht bedrohlich. */
+.marke-wartung {
+  background: var(--wartung-hauch);
+  color: var(--text-wartung);
+}
+
+.meldung-wartung {
+  background: var(--wartung-hauch);
+  border-left: 4px solid var(--wartung);
+  color: var(--tinte);
+}
+
+.sensor-wartung {
+  box-shadow: inset 4px 0 0 var(--wartung);
+}
+
+.wartung-formular {
+  flex-basis: 100%;
+}
+
+.protokoll td {
+  vertical-align: top;
+}
+
+.protokoll-mehr {
+  align-self: flex-start;
+}
+
+@media (max-width: 760px) {
+  .kachel-reihe {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .kachel {
+    padding: var(--a2) var(--a2);
+  }
+
+  .alarm {
+    flex-wrap: wrap;
+  }
+}
+
+.graph-bezug {
+  stroke: var(--leise);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.graph-kennwerte {
+  margin-left: var(--a2);
+}
+
+/* --- Geräte (Etappe 8) ------------------------------------------------------------ */
+
+/* Checks eines Geräts: eingerückte Liste in der Detailansicht. */
+.geraet-checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a2);
+}
+
+.unterliste {
+  border-color: var(--linie-zart);
+}
+
+.unterliste .host-kopf {
+  padding: var(--a2) var(--a3);
+}
+
+.geraet-agent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a4);
+}
+
+.geraet-gesperrt p {
+  margin: 0;
+}
+
+/* Vorschlag der Zentrale: Hinweis, keine Warnung. */
+.marke-vorschlag {
+  border: 1px solid var(--marke);
+  color: var(--marke-tief);
+}
+
+.meldung-vorschlag {
+  border-left: 4px solid var(--marke);
+  background: var(--flaeche);
+}
+
+.meldung-vorschlag p {
+  margin: 0;
+}
+
+.meldung-vorschlag .aktionen {
+  margin-top: var(--a2);
+  align-items: center;
+}
+
+.auswahl {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--a2);
+}
+
+.auswahl legend {
+  padding: 0;
+  margin-bottom: var(--a1);
+}
+
+.auswahl label {
+  display: flex;
+  gap: var(--a2);
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.auswahl input {
+  margin-top: var(--a1);
+}
+
+/* Ein Gerät ohne Überwachung: blass. */
+.geraet-leer .name {
+  color: var(--leise);
+}
+
+/* --- SNMP ------------------------------------------------------------------- */
+
+.geraet-snmp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a4);
+  border-top: 1px solid var(--linie-zart);
+  padding-top: var(--a4);
+}
+
+.geraet-snmp .klein-titel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--a2);
+}
+
+.text-crit {
+  color: var(--text-krit);
+  font-weight: 700;
+}
+
+.meldung-ok {
+  border-color: var(--ok);
+  background: var(--ok-hauch);
+}
+
+/* breite Tabellen (Schnittstellen) auf dem Handy waagerecht scrollen */
+.tabelle-rahmen {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.tabelle-rahmen caption {
+  text-align: left;
+  padding-bottom: var(--a1);
+}
+
+.auswahl-reihe {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--a2) var(--a4);
+}
+
+.feld-schmal input,
+.feld-schmal select {
+  max-width: 10rem;
+}
+
+.tabelle input[type="checkbox"] {
+  padding: 0;
+  margin: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  vertical-align: middle;
+}
+
+.auswahl-reihe label {
+  align-items: center;
+}
+
+/* Prognose der Platten: nur Anzeige, kein Alarm */
+.prognose-bald {
+  color: var(--text-warn);
+  font-weight: 700;
+}
+
+/* Sensoren eines Geräts mit Sparkline (24 Stunden); Klick öffnet den Verlauf */
+.geraet-sensoren {
+  margin-bottom: var(--a4);
+}
+
+.sparkliste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--linie);
+  border-radius: var(--r-gross);
+  background: var(--flaeche);
+}
+
+.sparkzeile + .sparkzeile {
+  border-top: 1px solid var(--linie-zart);
+}
+
+.sparkzeile-knopf {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--a2);
+  width: 100%;
+  padding: var(--a2) var(--a2);
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+button.sparkzeile-knopf {
+  cursor: pointer;
+}
+
+button.sparkzeile-knopf:hover,
+.sparkzeile-offen > .sparkzeile-knopf {
+  background: var(--linie-zart);
+}
+
+.sparkzeile-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.sparkzeile-text .name,
+.sparkzeile-text .klein {
+  overflow-wrap: anywhere;
+}
+
+.sparkzeile > .verlauf {
+  padding: 0 var(--a2) var(--a2);
+}
+
+.sparkline {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 96px;
+  height: 24px;
+  align-self: center;
+}
+
+.sparkline-leer {
+  border-bottom: 1px dashed var(--linie);
+  height: 12px;
+}
+
+.sparkline-linie {
+  fill: none;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.sparkline-grund {
+  stroke: var(--linie);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.sparkline-knopf {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.zeile-verlauf > td {
+  background: var(--flaeche);
+}
+
+@media (max-width: 480px) {
+  .sparkline {
+    width: 64px;
+  }
+}
+
+/* Lange Einhängepunkte umbrechen statt die Seite zu verbreitern */
+.tabelle-kompakt td.mono {
+  overflow-wrap: anywhere;
+}
+
+/* Beschriftung, die nur auf schmalen Bildschirmen den Tabellenkopf ersetzt */
+.nur-schmal {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .nur-schmal {
+    display: inline;
+  }
+}
+
+.text-warn {
+  color: var(--text-warn);
+  font-weight: 700;
+}
+
+.dashboard-graphen {
+  margin-bottom: var(--a4);
+}
+
+/* --- Wandanzeige (/anzeige) ----------------------------------------------
+   Dunkler Grund wie in einer Leitstelle, damit die Zustandsfarben tragen.
+   Grün = OK, Gelb = Warnung, Rot = Alarm, Hellrot = Alarm bestätigt,
+   Grau = unbekannt, Blau = Wartung oder pausiert. */
+
+.wand {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  background: radial-gradient(ellipse at 38% 50%, #0d1826 0%, var(--wand-grund) 62%);
+  color: var(--wand-tinte);
+  color-scheme: dark;
+  overflow: hidden;
+}
+
+.wand-mittig {
+  align-items: center;
+  justify-content: center;
+}
+
+.wand-fehler {
+  max-width: 36rem;
+  padding: var(--a5) var(--a6);
+  border-left: 4px solid var(--wand-stoerung);
+  background: var(--wand-flaeche);
+  font-size: var(--s1);
+}
+
+.wand-flaeche {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--a5);
+}
+
+/* Seitenleiste: Name, Uhr, Zahlen, aktuelle Probleme, Kennfarben */
+.wand-seite {
+  flex: 0 0 clamp(20rem, 27vw, 34rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--a5);
+  min-height: 0;
+  padding: var(--a6) var(--a6) var(--a5);
+  border-left: 1px solid #1d2b3b;
+  background: rgb(17 28 41 / 72%);
+  overflow: hidden;
+}
+
+.wand-kopf {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--a4);
+}
+
+.wand-kopf p {
+  margin: 0;
+}
+
+.wand-name {
+  font-size: var(--s2);
+  font-weight: 700;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.wand-datum,
+.wand-stand {
+  color: var(--wand-leise);
+  font-size: var(--s-1);
+  letter-spacing: 0.02em;
+}
+
+.wand-uhr-block {
+  text-align: right;
+}
+
+.wand-uhr-sek {
+  margin-left: var(--a1);
+  color: var(--wand-leise);
+  font-size: var(--s1);
+}
+
+.wand-uhr {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--s4);
+  line-height: 1;
+}
+
+.wand-stoerung {
+  margin: 0;
+  padding: var(--a2) var(--a3);
+  background: var(--wand-stoerung);
+  color: var(--wand-auf-signal);
+  font-weight: 700;
+}
+
+/* Zahlen je Zustand */
+.wand-zaehler {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--a2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wand-zahl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: var(--a2);
+  padding: var(--a2) var(--a3);
+  border-radius: var(--r-gross);
+  background: rgb(6 12 20 / 55%);
+  border: 1px solid #1d2b3b;
+}
+
+.wand-zahl .signal {
+  width: var(--a4);
+  height: var(--a4);
+  margin-top: 0;
+}
+
+.wand-zahl-wert {
+  font-family: var(--mono);
+  font-size: var(--s3);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.wand-zahl-text {
+  grid-column: 1 / -1;
+  color: var(--wand-leise);
+  font-size: var(--s-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wand-zahl-crit {
+  border-color: var(--wand-krit);
+  background: color-mix(in srgb, var(--wand-krit) 16%, var(--wand-grund));
+}
+
+.wand-zahl-warn {
+  border-color: color-mix(in srgb, var(--wand-warn) 60%, #1d2b3b);
+}
+
+.wand-zahl-leer {
+  opacity: 0.4;
+}
+
+/* Abschnitte der Seitenleiste */
+.wand-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a2);
+  min-height: 0;
+}
+
+.wand-block:has(.wand-probleme) {
+  flex: 1 1 auto;
+}
+
+.wand-block-titel {
+  margin: 0;
+  color: var(--wand-leise);
+  font-size: var(--s-1);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.wand-alles-ok {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  margin: 0;
+  font-size: var(--s1);
+}
+
+.wand-alles-ok .signal {
+  width: var(--a4);
+  height: var(--a4);
+  margin-top: 0;
+}
+
+.wand-probleme {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a1);
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+}
+
+.wand-problem {
+  --rand: var(--wand-unbek);
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--a3);
+  padding: var(--a1) var(--a3);
+  min-height: var(--a6);
+  border-left: 4px solid var(--rand);
+  border-radius: 0 var(--r) var(--r) 0;
+  background: rgb(6 12 20 / 55%);
+}
+
+.wand-problem-crit {
+  --rand: var(--wand-krit);
+}
+.wand-problem-quittiert {
+  --rand: var(--wand-best);
+}
+.wand-problem-warn {
+  --rand: var(--wand-warn);
+}
+.wand-problem.kenn {
+  --rand: var(--kenn);
+}
+
+.wand-problem .signal {
+  width: var(--a4);
+  height: var(--a4);
+  margin-top: 0;
+}
+
+.wand-problem-text {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: var(--a3);
+  min-width: 0;
+}
+
+.wand-problem-name {
+  flex-shrink: 0;
+  max-width: 70%;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wand-problem-pfad {
+  flex: 1;
+  min-width: 0;
+  color: var(--wand-leise);
+  font-size: var(--s-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wand-problem-mehr,
+.wand-neu {
+  margin: 0;
+  padding-left: var(--a3);
+  color: var(--wand-leise);
+  font-size: var(--s-1);
+}
+
+.wand-neu {
+  color: var(--wand-puls);
+  font-weight: 700;
+}
+
+/* Legende der Kennfarben */
+.wand-kennfarben {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--a2) var(--a3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wand-kennfarben li {
+  display: contents;
+}
+
+.wand-kenn-feld {
+  width: var(--a4);
+  height: var(--a4);
+  border-radius: var(--r);
+  background: var(--kenn);
+}
+
+.wand-kenn-zahl {
+  font-family: var(--mono);
+  font-weight: 700;
+}
+
+.wand-kenn-leer > * {
+  opacity: 0.45;
+}
+
+.wand-signal-ok {
+  --form: url("/formen/kreis.svg");
+  background: var(--wand-ok);
+}
+.wand-signal-warn {
+  --form: url("/formen/dreieck.svg");
+  background: var(--wand-warn);
+}
+.wand-signal-crit {
+  --form: url("/formen/achteck.svg");
+  background: var(--wand-krit);
+}
+.wand-signal-quittiert {
+  --form: url("/formen/achteck-haken.svg");
+  background: var(--wand-best);
+}
+.wand-signal-unknown {
+  --form: url("/formen/quadrat-gestrichelt.svg");
+  background: var(--wand-unbek);
+}
+.wand-signal-wartung {
+  --form: url("/formen/raute.svg");
+  background: var(--wand-wartung);
+}
+.signal.kenn[class*="wand-signal-"] {
+  background: var(--kenn);
+}
+
+/* Hochkant (z. B. gedrehter Bildschirm): Leiste unter das Diagramm */
+@media (max-aspect-ratio: 5/4) {
+  .wand {
+    flex-direction: column;
+  }
+  .wand-seite {
+    flex: 0 0 auto;
+    max-height: 45vh;
+    border-left: 0;
+    border-top: 1px solid #1d2b3b;
+  }
+}
+
+.sonne {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  font-family: var(--schrift);
+}
+
+.wand-veraltet .sonne {
+  filter: grayscale(0.85) brightness(0.6);
+}
+
+.sonne-seg {
+  stroke: var(--wand-fuge);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+
+.sonne-ok {
+  fill: var(--wand-ok);
+}
+.sonne-warn {
+  fill: var(--wand-warn);
+}
+.sonne-crit {
+  fill: var(--wand-krit);
+}
+.sonne-quittiert {
+  fill: var(--wand-best);
+}
+.sonne-unknown {
+  fill: var(--wand-unbek);
+}
+.sonne-wartung {
+  fill: var(--wand-wartung);
+}
+
+.wand .sonne-seg {
+  stroke-width: 2;
+}
+
+.sonne-seg.kenn {
+  fill: var(--kenn);
+}
+.sonne-seg.sonne-quittiert.kenn {
+  fill: color-mix(in srgb, var(--kenn) 55%, var(--wand-grund));
+}
+
+.sonne-texte {
+  pointer-events: none;
+}
+
+.sonne-text {
+  fill: var(--wand-text-dunkel);
+}
+.sonne-text-quittiert,
+.sonne-text-unknown {
+  fill: var(--wand-auf-signal);
+}
+.sonne-text.kenn {
+  fill: var(--auf-kenn);
+}
+.sonne-text.sonne-text-quittiert.kenn {
+  fill: var(--wand-auf-signal);
+}
+
+.sonne-mitte {
+  fill: var(--wand-mitte);
+  font-size: 26px;
+  font-weight: 700;
+}
+
+/* Wortmarke in der Mitte der Wandanzeige: „Open“ fett, „Wacht“ normal. */
+.sonne-wortmarke {
+  font-size: 22px;
+  font-weight: 400;
+}
+
+.sonne-wortmarke-open {
+  font-weight: 700;
+}
+
+/* Neuer Alarm: eine Minute lang pulsierend hervorgehoben */
+.sonne-neu {
+  animation: sonne-puls 1.2s ease-in-out infinite alternate;
+}
+
+.sonne-neu.kenn {
+  animation-name: sonne-puls-kenn;
+}
+
+@keyframes sonne-puls-kenn {
+  from {
+    fill: var(--kenn);
+  }
+  to {
+    fill: color-mix(in srgb, var(--kenn) 60%, #ffffff);
+  }
+}
+
+@keyframes sonne-puls {
+  from {
+    fill: var(--wand-krit);
+  }
+  to {
+    fill: var(--wand-puls);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sonne-neu {
+    animation: none;
+    stroke: var(--wand-auf-signal);
+    stroke-width: 4;
+  }
+}
+
+/* --- Gruppenbaum (Etappe 13) -------------------------------------------------
+   Gruppen als aufklappbare Ebenen in der Hosts-Liste; Einrückung mit einer
+   zarten Linie wie im Mandantenbaum. */
+
+.abschnitt-kopf .kopf-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a2);
+  margin-left: auto;
+}
+
+.abschnitt-kopf .kopf-knoepfe .knopf {
+  margin-left: 0;
+}
+
+.host-baum > .gruppe + .host,
+.host-baum > .gruppe + .gruppe,
+.gruppe-inhalt > .gruppe + .host,
+.gruppe-inhalt > .gruppe + .gruppe,
+.gruppe-inhalt > .host + .gruppe {
+  border-top: 1px solid var(--linie-zart);
+}
+
+.gruppe-kopf {
+  display: flex;
+  gap: var(--a2);
+  align-items: baseline;
+  width: 100%;
+  padding: var(--a2) var(--a4);
+  border: 0;
+  background: var(--zart);
+  text-align: left;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.gruppe-kopf:hover {
+  background: var(--marke-hauch);
+}
+
+.gruppe-kopf .signal {
+  align-self: center;
+  margin-top: 0;
+}
+
+.gruppe-kopf .klein {
+  margin-left: auto;
+  font-weight: 400;
+  color: var(--leise);
+  text-align: right;
+}
+
+.gruppe-pfeil {
+  width: 0.8rem;
+  color: var(--leise);
+}
+
+.gruppe-inhalt {
+  margin: 0 0 0 var(--a4);
+  border: 0;
+  border-left: 2px solid var(--linie-zart);
+}
+
+.gruppe-ohne {
+  padding: var(--a2) var(--a4) var(--a1);
+  border-top: 1px solid var(--linie);
+  background: var(--grund);
+}
+
+/* Gruppen ordnen */
+
+.ordnen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a4);
+}
+
+.ordnen-mandant {
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+}
+
+.ordnen-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 var(--a4);
+}
+
+.ordnen-mandant > .ordnen-liste {
+  padding: var(--a1) var(--a2) var(--a2);
+}
+
+.ordnen-gruppe > .ordnen-liste {
+  border-left: 2px solid var(--linie-zart);
+  margin-left: var(--a2);
+}
+
+.ordnen-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a1) var(--a3);
+  align-items: center;
+  padding: var(--a2) var(--a2);
+  border-top: 2px solid transparent;
+  border-radius: var(--r);
+}
+
+.ordnen-gruppe > .ordnen-kopf {
+  background: var(--zart);
+  margin-top: var(--a1);
+  cursor: grab;
+  font-weight: 700;
+}
+
+.ordnen-oben {
+  border-bottom: 1px solid var(--linie-zart);
+  font-weight: 700;
+}
+
+.ordnen-kopf .klein {
+  font-weight: 400;
+  color: var(--leise);
+}
+
+.ordnen-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a1);
+  margin-left: auto;
+}
+
+.ordnen-griff {
+  color: var(--leise);
+}
+
+.knopf-klein {
+  min-height: 1.9rem;
+  padding: var(--a1) var(--a2);
+  font-size: var(--s-1);
+  font-weight: 400;
+}
+
+/* Ziel beim Ziehen: hinein = Fläche, davor = Linie oben. */
+.ziel-hinein {
+  outline: 2px solid var(--marke);
+  background: var(--marke-hauch) !important;
+}
+
+.ziel-davor {
+  border-top-color: var(--marke);
+}
+
+.ordnen-geraet label {
+  display: flex;
+  gap: var(--a2);
+  align-items: center;
+  padding: var(--a1) var(--a2);
+  cursor: grab;
+}
+
+.ordnen-geraet .signal {
+  margin-top: 0;
+}
+
+.ordnen-geraet.markiert label {
+  background: var(--marke-hauch);
+}
+
+.ordnen-geraet input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--marke);
+}
+
+.ordnen-leiste {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a2) var(--a3);
+  align-items: center;
+  padding: var(--a3) var(--a4);
+  background: var(--flaeche);
+  border: 1px solid var(--marke);
+  box-shadow: 0 -2px 8px var(--schatten);
+}
+
+.feld-inline {
+  display: flex;
+  gap: var(--a2);
+  align-items: center;
+}
+
+.feld-inline select {
+  max-width: 16rem;
+}
+
+@media (max-width: 760px) {
+  .gruppe-inhalt,
+  .ordnen-liste {
+    margin-left: var(--a2);
+    padding-left: var(--a2);
+  }
+
+  .ordnen-knoepfe {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .feld-inline {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .feld-inline select {
+    max-width: none;
+  }
+}
+
+/* --- Traps (Etappe 14) ------------------------------------------------------------ */
+
+.trap-teil {
+  margin-top: var(--a3);
+}
+
+.trap-werte {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--s-1);
+}
+
+.trap-werte li {
+  overflow-wrap: anywhere;
+}
+
+.trap-regeln .regel-zeile td {
+  vertical-align: top;
+}
+
+.trap-regeln .regel-aus {
+  color: var(--leise);
+}
+
+.engine-id {
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.regel-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a1) var(--a3);
+}
+
+.trap-regeln {
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  padding: var(--a3) var(--a4);
+}
+
+.trap-regeln .regel-mandant + .regel-mandant {
+  margin-top: var(--a4);
+}
+
+/* --- Rahmen ab Etappe 17: Seitenleiste (Entwurf B) ---------------------------
+   Breite Leiste mit Gruppen, Mandantenwahl oben, Person und Darstellung
+   unten. Unter 820 px wird sie zum Menü hinter dem Hamburger-Knopf; dann ist
+   sie zugeklappt unsichtbar (auch für Tastatur und Vorleser). */
+
+.app {
+  display: flex;
+  min-height: 100vh;
+}
+
+.leiste {
+  position: sticky;
+  top: 0;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--a1);
+  width: 17rem;
+  height: 100vh;
+  overflow-y: auto;
+  padding: var(--a3) var(--a2);
+  background: var(--flaeche);
+  border-right: 1px solid var(--linie);
+}
+
+.leiste-marke {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  padding: var(--a1) var(--a2) var(--a2);
+  font-family: var(--schrift-anzeige);
+  font-size: var(--s1);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.leiste-marke .zeichen {
+  width: 2.4rem;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  flex: none;
+}
+
+.leiste-mandant {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a2);
+  padding: 0 var(--a2) var(--a2);
+  border-bottom: 1px solid var(--linie-zart);
+}
+
+.leiste-feld {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a1);
+  font-size: var(--s-1);
+  color: var(--leise);
+}
+
+.leiste-feld select {
+  width: 100%;
+  min-height: 2.25rem;
+  padding: var(--a1) var(--a2);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  background: var(--grund);
+  color: var(--tinte);
+  font-size: var(--s-1);
+}
+
+.leiste-schalter {
+  font-size: var(--s-1);
+  color: var(--leise);
+}
+
+.nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-titel {
+  margin: 0;
+  padding: var(--a3) var(--a3) var(--a1);
+  font-size: var(--s-1);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--leise);
+}
+
+.nav-punkt {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  min-height: 2.3rem;
+  padding: var(--a1) var(--a2);
+  border-radius: var(--r-gross);
+  color: var(--tinte);
+  text-decoration: none;
+  font-size: var(--s0);
+  font-weight: 400;
+}
+
+a.nav-punkt:hover {
+  background: var(--zart);
+}
+
+.nav-punkt[aria-current="page"] {
+  background: var(--marke-hauch);
+  color: var(--marke-tief);
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--marke);
+}
+
+.nav-bald {
+  color: var(--leise);
+  cursor: default;
+}
+
+.nav-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.symbol {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: butt; /* eckige Enden (Aicher) */
+  stroke-linejoin: miter;
+}
+
+.bald {
+  flex: none;
+  margin-left: auto;
+  padding: 0 var(--a2);
+  border: 1px solid var(--linie);
+  border-radius: 999px;
+  color: var(--leise);
+  font-size: var(--s-1);
+  font-weight: 400;
+  line-height: 1.3rem;
+  white-space: nowrap;
+}
+
+.leiste-fuss {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a2);
+  margin-top: auto;
+  padding: var(--a2) var(--a2) 0;
+  border-top: 1px solid var(--linie-zart);
+}
+
+.leiste-person {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  min-width: 0;
+  font-weight: 400;
+}
+
+.leiste-abmelden {
+  align-self: flex-start;
+}
+
+.leiste-version {
+  margin: 0;
+  color: var(--leise);
+  font-size: var(--s-1);
+}
+
+/* Lizenz und Quellcode (AGPL § 13), in der Seitenleiste und unter der Anmeldung */
+.lizenz-hinweis {
+  margin: 0;
+  color: var(--leise);
+  font-size: var(--s-1);
+}
+
+.anmeldung .lizenz-hinweis {
+  margin-top: var(--a3);
+  text-align: center;
+}
+
+.haupt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.kopf {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--a3);
+  min-height: 3.25rem;
+  padding: var(--a2) clamp(1rem, 2.5vw, 2rem);
+  background: var(--flaeche);
+  border-bottom: 1px solid var(--linie);
+}
+
+.burger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 1px solid var(--linie);
+  border-radius: var(--r-gross);
+  background: none;
+  cursor: pointer;
+}
+
+.krumen {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--leise);
+}
+
+.krumen a {
+  color: var(--leise);
+}
+
+.krume-aktuell {
+  color: var(--tinte);
+  font-weight: 700;
+}
+
+.kopf-rechts {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  margin-left: auto;
+  flex: none;
+}
+
+.schleier {
+  display: none;
+}
+
+@media (max-width: 820px) {
+  .leiste {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    width: min(18rem, 86vw);
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition:
+      transform 0.2s,
+      visibility 0.2s;
+    box-shadow: 0 0 24px var(--schatten);
+  }
+
+  /* Sichtbarkeit beim Öffnen sofort, damit der Fokus in die Leiste kann */
+  .menue-offen .leiste {
+    transform: none;
+    visibility: visible;
+    transition:
+      transform 0.2s,
+      visibility 0s;
+  }
+
+  .menue-offen .schleier {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgb(0 0 0 / 45%);
+  }
+
+  .burger {
+    display: inline-flex;
+  }
+
+  .kopf {
+    padding: var(--a2) var(--a3);
+  }
+
+  .inhalt {
+    padding: var(--a4) var(--a3) var(--a7);
+  }
+}
+
+/* --- Panels (Entwurf A): dichter Kopfbalken, Inhalt darunter ------------------ */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+}
+
+.panel-kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  min-height: 2rem;
+  padding: var(--a1) var(--a2);
+  background: var(--zart);
+  border-bottom: 1px solid var(--linie-zart);
+}
+
+.panel-titel {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--s-1);
+  font-weight: 700;
+  text-align: center;
+}
+
+.panel-kopf .mandant-marke {
+  margin: 0;
+  flex: none;
+}
+
+.panel-inhalt {
+  flex: 1;
+  min-height: 0;
+  padding: var(--a2) var(--a3);
+  overflow: auto;
+}
+
+.panel-inhalt > p:first-child {
+  margin-top: 0;
+}
+
+.platzhalter {
+  padding: var(--a5) var(--a4);
+  color: var(--leise);
+  text-align: center;
+}
+
+/* --- Raster der Startseite: 12 Spalten, drei Größen ---------------------------- */
+
+.raster {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: 13.5rem;
+  grid-auto-flow: dense;
+  gap: var(--a2);
+}
+
+.widget {
+  grid-column: span 4;
+  overflow: hidden;
+}
+
+.widget-breit {
+  grid-column: span 8;
+}
+
+.widget-hoch {
+  grid-row: span 2;
+}
+
+@media (max-width: 1100px) {
+  .widget,
+  .widget-hoch {
+    grid-column: span 6;
+  }
+
+  .widget-breit {
+    grid-column: span 12;
+  }
+}
+
+@media (max-width: 820px) {
+  .raster {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: auto;
+  }
+
+  .widget,
+  .widget-breit,
+  .widget-hoch {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .widget .panel-inhalt {
+    max-height: 22rem;
+  }
+
+  .widget-hoch .panel-inhalt {
+    max-height: 30rem;
+  }
+
+  .griff {
+    display: none;
+  }
+}
+
+.raster-bearbeiten .widget {
+  outline: 2px dashed var(--marke);
+  outline-offset: -2px;
+}
+
+.raster-bearbeiten .panel-titel {
+  text-align: left;
+}
+
+.widget-ziel {
+  box-shadow: 0 0 0 3px var(--marke);
+}
+
+.widget-zieht {
+  opacity: 0.5;
+}
+
+.werkzeug {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.werkzeug-gruppe {
+  display: inline-flex;
+  gap: 0.15rem;
+}
+
+.werkzeug-knopf {
+  min-width: 1.7rem;
+  height: 1.7rem;
+  padding: 0 var(--a1);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  background: var(--flaeche);
+  font-size: var(--s-1);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.werkzeug-knopf:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.werkzeug-knopf[aria-pressed="true"] {
+  background: var(--marke);
+  border-color: var(--marke);
+  color: var(--auf-marke);
+}
+
+.griff {
+  cursor: grab;
+  font-size: var(--s0);
+}
+
+.widget-neu {
+  grid-column: span 4;
+  border: 2px dashed var(--linie);
+  border-radius: var(--r);
+  background: none;
+  color: var(--leise);
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 6rem;
+}
+
+@media (max-width: 820px) {
+  .widget-neu {
+    grid-column: auto;
+  }
+
+  .werkzeug-knopf {
+    min-width: 2rem;
+    height: 2rem;
+  }
+}
+
+.anpassen-leiste {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--a2) var(--a3);
+  padding: var(--a2) var(--a3);
+  border: 1px dashed var(--marke);
+  border-radius: var(--r);
+  background: var(--flaeche);
+}
+
+.anpassen-knoepfe {
+  display: flex;
+  gap: var(--a2);
+  margin-left: auto;
+}
+
+/* --- Inhalte der Widgets -------------------------------------------------------- */
+
+.zustand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-around;
+  gap: var(--a3);
+  height: 100%;
+}
+
+.zustand-teil {
+  display: flex;
+  align-items: center;
+  gap: var(--a4);
+  padding: var(--a1) var(--a2);
+  border: 0;
+  border-radius: var(--r);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.zustand-teil:hover {
+  background: var(--zart);
+}
+
+.sechseck {
+  width: 7.5rem;
+  height: 7.5rem;
+  flex: none;
+}
+
+.legende {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--s-1);
+  line-height: 1.45;
+}
+
+.legende li {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+}
+
+.legende-null {
+  color: var(--leise);
+}
+
+.legende-zahl {
+  min-width: 1.75rem;
+  text-align: right;
+  font-family: var(--mono); /* D-DIN hat keine Tabellenziffern */
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.legende-farbe {
+  width: 4px;
+  height: 0.8rem;
+  flex: none;
+  background: var(--tinte);
+}
+
+.legende-gesamt {
+  margin-top: 0.15rem;
+  border-top: 1px solid var(--linie-zart);
+}
+
+/* Vollflächige Zustandszellen wie im Leitstand */
+.zst {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--a1);
+  min-width: 3.4rem;
+  padding: var(--a1) var(--a1);
+  border-radius: var(--r);
+  font-size: var(--s-1);
+  font-weight: 700;
+  /* Versalien nur für Zustandsmarken und Tabellenköpfe (Corporate Design) */
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.zst::before {
+  content: "";
+  width: var(--a3);
+  height: var(--a3);
+  background: currentColor;
+  mask: var(--form, url("/formen/kreis-umriss.svg")) center / contain no-repeat;
+}
+
+.zst-ok {
+  --form: url("/formen/kreis.svg");
+}
+.zst-warn {
+  --form: url("/formen/dreieck.svg");
+}
+.zst-crit {
+  --form: url("/formen/achteck.svg");
+}
+.zst-unknown,
+.zst-neu {
+  --form: url("/formen/quadrat-gestrichelt.svg");
+}
+.zst-wartung {
+  --form: url("/formen/raute.svg");
+}
+.zst-bestaetigt {
+  --form: url("/formen/achteck-haken.svg");
+}
+
+.zst-crit {
+  background: var(--krit);
+  color: var(--auf-krit);
+}
+
+.zst-crit.zst-bestaetigt {
+  background: var(--krit-hauch);
+  color: var(--text-krit);
+}
+
+.zst-warn {
+  background: var(--warn);
+  color: var(--auf-warn);
+}
+
+.zst-unknown,
+.zst-neu {
+  background: var(--leise);
+  color: var(--flaeche);
+}
+
+.zst-ok {
+  background: var(--ok);
+  color: var(--flaeche);
+}
+
+.zst-wartung,
+.zst-pause {
+  background: var(--wartung);
+  color: var(--auf-wartung);
+}
+
+.widget-tabelle {
+  width: 100%;
+  font-size: var(--s-1);
+}
+
+.widget-tabelle td {
+  vertical-align: middle;
+}
+
+.zelle-zst {
+  width: 1%;
+  padding-right: var(--a2);
+}
+
+.zelle-punkt {
+  width: 1%;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .widget:not(.widget-breit) .nur-breit {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .nur-breit {
+    display: none;
+  }
+}
+
+.kurzliste,
+.balkenliste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.kurzliste li {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  min-width: 0;
+  padding: 0.15rem 0;
+  font-size: var(--s-1);
+}
+
+.kurzliste .signal {
+  flex: none;
+}
+
+.kurzliste-name {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.kurzliste-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auslastung {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a2);
+}
+
+.widget-untertitel {
+  margin: 0 0 0.15rem;
+  font-size: var(--s-1);
+  font-weight: 700;
+  color: var(--leise);
+}
+
+.balkenliste li {
+  display: grid;
+  grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--a2);
+  padding: 0.1rem 0;
+  font-size: var(--s-1);
+}
+
+.balkenliste-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.widget .graph {
+  margin: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+}
+
+.widget .graph-titel:empty {
+  display: none;
+}
+
+.sonne-widget {
+  display: flex;
+  justify-content: center;
+  height: 100%;
+}
+
+.sonne-widget .sonne {
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+@media (max-width: 820px) {
+  .sonne-widget .sonne {
+    height: auto;
+    width: min(100%, 20rem);
+  }
+}
+
+/* --- Dialoge -------------------------------------------------------------------- */
+
+.dialog {
+  width: min(44rem, 94vw);
+  max-height: 86vh;
+  padding: 0;
+  border: 1px solid var(--linie);
+  border-radius: var(--r-gross);
+  background: var(--flaeche);
+  color: var(--tinte);
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 50%);
+}
+
+.dialog-kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  padding: var(--a2) var(--a4);
+  border-bottom: 1px solid var(--linie);
+}
+
+.dialog-kopf .panel-titel {
+  text-align: left;
+  font-size: var(--s0);
+}
+
+.dialog-inhalt {
+  padding: var(--a4);
+  overflow: auto;
+}
+
+.katalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: var(--a2);
+}
+
+.katalog-karte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a1);
+  padding: var(--a2) var(--a3);
+  border: 1px solid var(--linie);
+  border-radius: var(--r-gross);
+  background: var(--zart);
+  text-align: left;
+  cursor: pointer;
+}
+
+.katalog-karte:hover:not(:disabled) {
+  border-color: var(--marke);
+}
+
+.katalog-karte:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.einstellungen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a3);
+}
+
+/* --- Hosts: Liste links, Gerät als Karte rechts ---------------------------------- */
+
+.hosts-geteilt {
+  display: grid;
+  grid-template-columns: minmax(15rem, 20rem) minmax(0, 1fr);
+  gap: var(--a3);
+  align-items: start;
+}
+
+.hosts-geteilt .hosts-liste {
+  position: sticky;
+  top: 3.75rem;
+  max-height: calc(100vh - 4.5rem);
+  overflow-y: auto;
+}
+
+.hosts-geteilt .hosts-liste .host-werte,
+.hosts-geteilt .hosts-liste .host-werte-alt,
+.hosts-geteilt .hosts-liste .check-stand {
+  display: none;
+}
+
+.hosts-geteilt .hosts-liste .host-kopf .klein {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.host-aktiv > .host-kopf {
+  background: var(--marke-hauch);
+  box-shadow: inset 3px 0 0 var(--marke);
+}
+
+.geraet-karte-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--a2) var(--a4);
+  padding: var(--a3) var(--a4) var(--a2);
+}
+
+.geraet-karte-titel {
+  flex: 1 1 16rem;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--s0);
+  font-weight: 400;
+}
+
+.geraet-karte-titel .name {
+  font-family: var(--schrift-anzeige);
+  font-size: var(--s1);
+  font-weight: 700;
+}
+
+.zurueck-liste {
+  display: none;
+  flex-basis: 100%;
+  text-align: left;
+}
+
+.geraet-reiter {
+  display: flex;
+  gap: 0.1rem;
+  padding: 0 var(--a2);
+  border-bottom: 1px solid var(--linie);
+  overflow-x: auto;
+}
+
+.geraet-reiter-knopf {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--a2);
+  padding: var(--a2) var(--a3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.geraet-reiter-knopf[aria-selected="true"] {
+  border-bottom-color: var(--marke);
+  color: var(--marke-tief);
+  font-weight: 700;
+}
+
+.geraet-karte > .host-detail {
+  padding: var(--a3) var(--a4) var(--a4);
+  border-top: 0;
+}
+
+@media (max-width: 820px) {
+  .hosts-geteilt {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hosts-geteilt .hosts-liste {
+    display: none;
+  }
+
+  .zurueck-liste {
+    display: block;
+  }
+}
+
+/* Dichte wie im Leitstand: kleinere Schrift und Abstände in Widgets */
+.widget .panel-inhalt {
+  font-size: var(--s-1);
+  line-height: 1.4;
+}
+
+.widget .tabelle {
+  border: 0;
+}
+
+.widget .tabelle th,
+.widget .tabelle td {
+  padding: var(--a1) var(--a2);
+}
+
+.widget .tabelle th {
+  position: sticky;
+  top: -0.5rem;
+  z-index: 1;
+  font-size: var(--s-1);
+}
+
+.widget .mandant-marke {
+  margin: 0 0 0 var(--a1);
+  padding: 0 var(--a1);
+  font-size: var(--s-1);
+  line-height: 1.1rem;
+}
+
+.widget .leer {
+  margin: 0;
+  padding: var(--a2) 0;
+  font-size: var(--s-1);
+}
+
+.widget .sensor-liste .sensor {
+  padding: var(--a1) 0;
+}
+
+.widget:not(.widget-breit) .top-platten th:nth-child(3),
+.widget:not(.widget-breit) .top-platten td:nth-child(3) {
+  display: none;
+}
+
+.widget .graph-legende {
+  font-size: var(--s-1);
+}
+
+.widget .knopf-text {
+  font-size: inherit;
+}
+
+/* Im Bearbeiten-Modus stehen die Knöpfe kleiner Widgets in einer zweiten Zeile. */
+.raster-bearbeiten .panel-kopf {
+  flex-wrap: wrap;
+}
+
+.raster-bearbeiten .widget:not(.widget-breit) .werkzeug {
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.zelle-punkt .signal {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* --- Sensoren und Vorlagen (Etappe 18) ------------------------------------------ */
+
+.sensoren-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--a2);
+  margin-bottom: var(--a2);
+}
+
+.sensoren-tabelle .name .klein,
+.tabelle .name .klein {
+  display: block;
+}
+
+.marke-vorlage {
+  background: var(--marke-hauch);
+  color: var(--marke-tief);
+}
+
+.marke-alt {
+  border: 1px dashed var(--leise);
+  color: var(--leise);
+}
+
+.klein .marke {
+  margin-left: var(--a1);
+}
+
+.aktionen-zelle {
+  white-space: nowrap;
+}
+
+.aktionen-zelle .knopf + .knopf {
+  margin-left: var(--a1);
+}
+
+.wahl-gruppe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a4);
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.geraete-wahl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--a1) var(--a4);
+  max-height: 16rem;
+  overflow-y: auto;
+  padding: var(--a2);
+  border: 1px solid var(--linie);
+  border-radius: var(--r-gross);
+}
+
+@media (max-width: 640px) {
+  .aktionen-zelle {
+    white-space: normal;
+  }
+  .aktionen-zelle .knopf {
+    margin: 0.15rem var(--a1) 0.15rem 0;
+  }
+}
+
+.panel-inhalt > .klein-titel {
+  margin-top: var(--a4);
+}
+
+.sensoren-tabelle .signal {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: var(--a1);
+}
+
+.sensoren-tabelle td .klein {
+  display: block;
+}
+
+.sensoren-tabelle .marke {
+  white-space: normal;
+}
+
+.versteckt {
+  display: none !important;
+}
+
+.sensoren-tabelle td.name {
+  overflow-wrap: anywhere;
+  min-width: 9rem;
+}
+
+/* --- Etappe 19: Aktionsmenü, Löschen mit Inhalt, Schwellen, Einstellungen --- */
+
+.aktionsmenue {
+  position: relative;
+  display: inline-block;
+}
+
+.aktionsmenue-liste {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  min-width: 15rem;
+  max-width: min(22rem, 90vw);
+  padding: var(--a1) 0;
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  box-shadow: 0 6px 20px var(--schatten);
+}
+
+.aktionsmenue-titel,
+.aktionsmenue-abbrechen {
+  display: none;
+}
+
+.aktionsmenue-gruppe {
+  display: flex;
+  flex-direction: column;
+  padding: var(--a1) 0;
+}
+
+.aktionsmenue-gruppe + .aktionsmenue-gruppe {
+  border-top: 1px solid var(--linie-zart);
+}
+
+.aktionsmenue-gefahr {
+  margin-top: 0.15rem;
+  border-top: 1px solid var(--linie) !important;
+}
+
+.aktionsmenue-liste [role="menuitem"] {
+  display: block;
+  width: 100%;
+  padding: var(--a2) var(--a4);
+  background: none;
+  border: 0;
+  color: var(--tinte);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.aktionsmenue-liste [role="menuitem"]:hover,
+.aktionsmenue-liste [role="menuitem"]:focus-visible {
+  background: var(--marke-hauch);
+  outline: none;
+}
+
+.aktionsmenue-liste [role="menuitem"].gefahr {
+  color: var(--text-krit);
+}
+
+.aktionsmenue-liste [role="menuitem"].gefahr:hover,
+.aktionsmenue-liste [role="menuitem"].gefahr:focus-visible {
+  background: var(--krit-hauch);
+}
+
+.aktionsmenue-schleier {
+  display: none;
+}
+
+/* Am Handy: Liste von unten */
+@media (max-width: 600px) {
+  .aktionsmenue-schleier {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    background: rgb(0 0 0 / 35%);
+  }
+
+  .aktionsmenue-liste {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-width: none;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: var(--a2) 0 calc(var(--a2) + env(safe-area-inset-bottom));
+    border-radius: 8px 8px 0 0;
+  }
+
+  .aktionsmenue-titel {
+    display: block;
+    margin: 0;
+    padding: var(--a2) var(--a4) var(--a2);
+    color: var(--leise);
+    font-size: var(--s-1);
+    font-weight: 700;
+  }
+
+  .aktionsmenue-liste [role="menuitem"] {
+    padding: var(--a3) var(--a4);
+  }
+
+  .aktionsmenue-abbrechen {
+    display: block;
+    width: calc(100% - 2rem);
+    margin: var(--a2) var(--a4) 0;
+    padding: var(--a2);
+    background: var(--zart);
+    border: 1px solid var(--linie);
+    border-radius: var(--r);
+    color: var(--tinte);
+    font: inherit;
+  }
+}
+
+.geraet-loeschen .loeschen-liste {
+  margin: 0;
+  padding-left: var(--a4);
+}
+
+.geraet-loeschen .feld {
+  max-width: 24rem;
+}
+
+.schwellen-felder {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: var(--a2) var(--a3);
+}
+
+.schwellen-formular .hinweis,
+.schwellen-formular .klein-titel {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.einstellungen-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  gap: var(--a4);
+  margin-bottom: var(--a4);
+}
+
+.einstellungen-panel .panel-titel {
+  text-align: left;
+}
+
+.einstellungen-panel .formular {
+  padding: var(--a2) 0;
+  border: 0;
+}
+
+.einstellungen-liste {
+  margin: var(--a2) 0 var(--a2);
+  padding-left: var(--a4);
+}
+
+.einstellungen textarea {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: var(--s-1);
+}
+
+.code-feld input {
+  max-width: 9rem;
+  font-family: var(--mono);
+  letter-spacing: 0.15em;
+}
+
+.quelle-startoption {
+  background: var(--marke-hauch);
+  color: var(--marke-tief);
+}
+
+.quelle-einstellung {
+  background: var(--ok-hauch);
+  color: var(--text-ok);
+}
+
+.quelle-standard {
+  background: var(--zart);
+  color: var(--leise);
+}
+
+.einstellungen-mandanten td,
+.einstellungen-mandanten th {
+  vertical-align: top;
+}
+
+.mandant-formular-zeile > td {
+  background: var(--zart);
+}
+
+@media (max-width: 760px) {
+  .einstellungen-mandanten thead {
+    display: none;
+  }
+
+  .einstellungen-mandanten tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+  }
+
+  .einstellungen-mandanten td.klein {
+    grid-column: 1 / -1;
+    padding-top: 0;
+  }
+
+  .einstellungen-mandanten .mandant-formular-zeile > td {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Schwellen bleiben auch am Handy eine kleine Tabelle */
+@media (max-width: 760px) {
+  .schwellen-tabelle,
+  .schwellen-tabelle tbody {
+    display: table;
+    width: 100%;
+  }
+
+  .schwellen-tabelle tbody {
+    display: table-row-group;
+  }
+
+  .schwellen-tabelle tr {
+    display: table-row;
+  }
+
+  .schwellen-tabelle th,
+  .schwellen-tabelle td {
+    display: table-cell;
+    padding: var(--a1) var(--a2);
+  }
+}
+
+/* Etappe 20a: Alarmwege */
+.meine-mails {
+  margin: 0 0 var(--a3);
+}
+/* 0.43.0: eigene Mobilnummer für SMS-Alarme */
+.meine-mobilnummer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--a2) var(--a3);
+  margin: 0 0 var(--a4);
+}
+.meine-mobilnummer .feld {
+  flex: 1 1 18rem;
+  margin: 0;
+}
+/* Eingabe mit Knopf daneben (Fingerabdruck holen) */
+.zeile-knopf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a2);
+}
+.zeile-knopf input {
+  flex: 1 1 20rem;
+  min-width: 0;
+  font-family: var(--mono);
+}
+.kanal-art {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a1) var(--a5);
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.kanal-art legend,
+.empfaenger legend {
+  font-weight: 700;
+  margin-bottom: var(--a1);
+}
+.empfaenger {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.auswahl-liste {
+  list-style: none;
+  margin: var(--a1) 0 0;
+  padding: 0;
+  max-height: 16rem;
+  overflow-y: auto;
+  border: 1px solid var(--linie);
+  border-radius: var(--r-gross);
+}
+.auswahl-liste li {
+  padding: var(--a1) var(--a2);
+  border-bottom: 1px solid var(--linie);
+}
+.auswahl-liste li:last-child {
+  border-bottom: 0;
+}
+.geheimnis .befehl {
+  user-select: all;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.einstellungen-panel textarea {
+  font-family: var(--mono);
+  font-size: var(--s-1);
+}
+.einstellungen-panel .eckdaten {
+  margin-top: var(--a2);
+}
+
+/* Etappe 20b: Seite Wartung */
+.wartung-seite {
+  display: grid;
+  gap: var(--a4);
+}
+.wartung-tabelle td .mandant-marke {
+  margin-left: var(--a2);
+}
+.fenster-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.fenster-liste li {
+  padding: var(--a2) 0;
+  border-bottom: 1px solid var(--linie-zart);
+}
+.fenster-liste li:last-child {
+  border-bottom: 0;
+}
+.fenster-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a2);
+  align-items: center;
+}
+.fenster-kopf .name {
+  font-weight: 700;
+}
+.fenster-pause .fenster-kopf .name {
+  color: var(--leise);
+}
+.fenster-liste .aktionen {
+  margin-top: var(--a2);
+}
+@media (max-width: 600px) {
+  .wartung-tabelle thead {
+    display: none;
+  }
+  .wartung-tabelle tr {
+    display: block;
+    padding: var(--a2) 0;
+    border-bottom: 1px solid var(--linie-zart);
+  }
+  .wartung-tabelle td {
+    display: block;
+    border: 0;
+    padding: 0.1rem 0;
+  }
+  .wartung-tabelle td[data-titel]::before {
+    content: attr(data-titel) ": ";
+    color: var(--leise);
+  }
+}
+
+/* --- Einrichtungsassistent (Etappe 21a) ------------------------------------- */
+
+.assistent {
+  width: min(100%, 44rem);
+}
+
+.assistent .untertitel {
+  margin: 0;
+  font-size: var(--s0);
+  font-weight: 700;
+}
+
+.schritte {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a1) var(--a4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--s-1);
+  color: var(--leise);
+}
+
+.schritte li {
+  display: flex;
+  align-items: center;
+  gap: var(--a1);
+}
+
+.schritte .nr {
+  display: inline-grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border: 1px solid var(--linie);
+  border-radius: 50%;
+  font-variant-numeric: tabular-nums;
+}
+
+.schritte .aktiv {
+  color: var(--tinte);
+  font-weight: 700;
+}
+
+.schritte .aktiv .nr {
+  border-color: var(--tinte);
+  background: var(--tinte);
+  color: var(--flaeche);
+}
+
+.schritte .erledigt .nr {
+  border-color: var(--leise);
+}
+
+.knopf-reihe {
+  display: flex;
+  gap: var(--a2);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.feld-gruppe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.feld-gruppe legend {
+  margin-bottom: var(--a2);
+  font-size: var(--s-1);
+  font-weight: 700;
+  color: var(--leise);
+}
+
+.staerke {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+}
+
+.staerke-balken {
+  flex: 1;
+  height: 0.4rem;
+  border-radius: 2px;
+  background: var(--linie);
+  overflow: hidden;
+}
+
+.staerke-balken > span {
+  display: block;
+  height: 100%;
+  background: var(--leise);
+}
+
+.staerke[data-wert="1"] .staerke-balken > span,
+.staerke[data-wert="2"] .staerke-balken > span {
+  background: var(--krit);
+}
+
+.staerke[data-wert="4"] .staerke-balken > span {
+  background: var(--ok);
+}
+
+.abdruck {
+  word-break: break-all;
+  font-size: var(--s-1);
+}
+
+.zusammenfassung {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--a1) var(--a4);
+  margin: 0;
+}
+
+.zusammenfassung dt {
+  font-weight: 700;
+  color: var(--leise);
+}
+
+.zusammenfassung dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 30rem) {
+  .schritte .text {
+    display: none;
+  }
+  .schritte li.aktiv .text {
+    display: inline;
+  }
+  .zusammenfassung {
+    grid-template-columns: 1fr;
+  }
+  .zusammenfassung dd {
+    margin-bottom: var(--a2);
+  }
+}
+
+.assistent .feld-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--a2);
+}
+
+.assistent .feld-check input {
+  min-height: 0;
+  margin-top: var(--a1);
+}
+
+a.knopf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: inherit;
+}
+
+a.knopf-haupt {
+  color: var(--auf-marke);
+}
+
+.zusammenfassung dt {
+  font-size: var(--s-1);
+}
+
+.meldung-text-fehler {
+  color: var(--text-krit);
+  font-weight: 700;
+}
+
+/* Anmeldung über AD (Etappe 22a): Eigenschaften einer Anbindung */
+.eigenschaften {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--a1) var(--a4);
+  margin: 0 0 var(--a4);
+}
+.eigenschaften dt {
+  color: var(--leise);
+}
+.eigenschaften dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.verzeichnis-gruppen td.mono {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .eigenschaften {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.1rem;
+  }
+  .eigenschaften dd {
+    margin-bottom: var(--a2);
+  }
+}
+
+/* Agent-Updates (Etappe 23) */
+.text-warn {
+  color: var(--text-warn);
+}
+
+input[type="file"] {
+  max-width: 100%;
+}
+
+/* Berichte (Etappe 25) */
+.text-ok {
+  color: var(--text-ok);
+}
+.text-fehler {
+  color: var(--text-krit);
+}
+.kennzahlen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--a3);
+  margin: var(--a4) 0;
+}
+.kennzahl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a1);
+  padding: var(--a3) var(--a4);
+}
+.kennzahl strong {
+  font-size: var(--s2);
+}
+
+/* --- CSV-Import (Etappe 27) ------------------------------------------------------- */
+
+.csv-feld {
+  font-family: var(--mono);
+  font-size: var(--s-1);
+  resize: vertical;
+  width: 100%;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.zeile-fehler td {
+  background: var(--krit-hauch);
+}
+
+.zeile-fehler td:last-child {
+  color: var(--text-krit);
+}
+
+/* Etappe 30: Wiederherstellungscodes */
+.leiste-codes {
+  align-self: flex-start;
+  font-size: var(--s-1);
+  text-align: left;
+}
+
+.leiste-codes.warnung-text {
+  color: var(--tinte);
+  font-weight: 700;
+}
+
+.codes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--a1) var(--a5);
+  margin: var(--a2) 0;
+  padding-left: var(--a6);
+  font-size: var(--s0);
+}
+
+.codes code {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  letter-spacing: 0.04em;
+}
+
+.status-beantragt {
+  color: var(--leise);
+  font-style: italic;
+}
+
+.status-abgelehnt {
+  color: var(--text-krit);
+  text-decoration: line-through;
+}
+
+.anmeldenamen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a1) var(--a4);
+}
+
+/* Hinweise auf der Seite Alarme (Etappe 31) */
+.hinweise {
+  display: grid;
+  gap: var(--a2);
+  margin-bottom: var(--a4);
+}
+.hinweise .meldung div {
+  margin-top: var(--a1);
+}
+
+/* Etappe 36: Passkeys im Dialog, Anträge auf Untermandanten */
+.dialog .tabelle + form {
+  margin-top: 1rem;
+}
+.antraege {
+  margin-top: 1.5rem;
+}
+.trenner-text {
+  text-align: center;
+  margin: 0.25rem 0;
+}
+
+/* Vorlagensätze (0.44.0): Sensoren eines Satzes als Fließtext */
+.satz-anzahl {
+  font-weight: 600;
+}
+
+/* Eigene Vorlagensätze (0.46.0) */
+.satz-eintraege {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--a1);
+}
+.satz-eintraege li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--a2);
+  padding: var(--a1) var(--a2);
+  border: 1px solid var(--linie);
+  border-radius: var(--r-gross);
+}
+.satz-kopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--a2);
+}
+
+/* --- Kennfarben (0.99.2) --------------------------------------------------------
+   Ein Sensor mit Kennfarbe zeigt bei Warnung, Kritisch und Bestätigt die
+   Kennfarbe statt Gelb bzw. Rot. Die Form der Schwere bleibt (nie nur Farbe).
+   --kenn und --auf-kenn setzt kennfarbe.tsx im style-Attribut. */
+
+.signal.kenn,
+.kachel-text.kenn::before {
+  background: var(--kenn);
+}
+
+.alarm.kenn {
+  box-shadow: inset 4px 0 0 var(--kenn);
+}
+
+.alarm.kenn .signal {
+  background: var(--kenn);
+}
+
+.zst.kenn {
+  background: var(--kenn);
+  color: var(--auf-kenn);
+}
+
+.zst.kenn.zst-bestaetigt {
+  background: color-mix(in srgb, var(--kenn) 18%, var(--flaeche));
+  color: var(--tinte);
+}
+
+/* Marke mit Farbfeld und Name, z. B. hinter der Meldung eines Sensors */
+.kenn-marke {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--a1);
+  margin-left: var(--a2);
+  font-size: var(--s-1);
+  color: var(--tinte);
+  white-space: nowrap;
+}
+
+.kenn-marke::before,
+.kenn-feld {
+  content: "";
+  display: inline-block;
+  width: var(--a3);
+  height: var(--a3);
+  border-radius: var(--r);
+  background: var(--kenn, transparent);
+  box-shadow: inset 0 0 0 1px var(--linie);
+  flex-shrink: 0;
+}
+
+td > .kenn-marke:first-child {
+  margin-left: 0;
+}
+
+.kenn-wahl {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--a2);
+}
+
+.kenn-wahl select {
+  max-width: 10rem;
+}
+
+.kenn-farbwahl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--a2);
+}
+
+.kenn-farbwahl input[type="color"] {
+  width: var(--a7);
+  height: var(--a6);
+  padding: 0;
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  background: var(--flaeche);
+}
+
+.kenn-hex {
+  width: 7rem;
+}
+
+.kenn-vorschlag {
+  width: var(--a5);
+  height: var(--a5);
+  padding: 0;
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  background: var(--kenn);
+  cursor: pointer;
+}
+
+.kenn-vorschlag[aria-pressed="true"] {
+  outline: 2px solid var(--marke);
+  outline-offset: 1px;
+}
+
+.kenn-vorschau {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a2);
+  margin-bottom: var(--a2);
+}
+
+.kenn-vorschau-grund {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--a3);
+  padding: var(--a2) var(--a3);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+}
+
+.kenn-vorschau-grund .signal {
+  margin-top: 0;
+}
+
+.hinweis-fehler {
+  border-left-color: var(--krit);
+  color: var(--text-krit);
+}
+
+.marke.kenn {
+  background: var(--kenn);
+  color: var(--auf-kenn);
+}
+
+/* Reiter „Sensoren“: Löschen und Herkunft (0.99.2) */
+.knopf-text-gefahr {
+  color: var(--text-krit);
+}
+
+.herkunft-liste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a2) var(--a4);
+  margin: 0 0 var(--a3);
+  padding: 0;
+  list-style: none;
+}
+
+.herkunft-liste li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--a2);
+}
+
+/* Vorschau der Wandanzeige in der Admin-Sitzung (0.99.2) */
+.wand-vorschau {
+  margin: 0;
+  padding: var(--a1) var(--a3);
+  border-left: 4px solid #45c3e6;
+  background: rgb(69 195 230 / 12%);
+  color: var(--wand-tinte);
+  font-size: var(--s-1);
+}

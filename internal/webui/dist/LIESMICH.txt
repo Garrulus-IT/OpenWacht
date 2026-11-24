@@ -1,0 +1,2 @@
+Hier legt der Build die Web-Oberfläche ab (go run ./tools/build).
+Die Zentrale bettet den Inhalt per go:embed ein.

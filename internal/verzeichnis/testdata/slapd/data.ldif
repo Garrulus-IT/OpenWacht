@@ -1,0 +1,60 @@
+dn: dc=firma,dc=test
+objectClass: dcObject
+objectClass: organization
+o: Firma
+dc: firma
+
+dn: ou=dienst,dc=firma,dc=test
+objectClass: organizationalUnit
+ou: dienst
+
+dn: ou=benutzer,dc=firma,dc=test
+objectClass: organizationalUnit
+ou: benutzer
+
+dn: ou=gruppen,dc=firma,dc=test
+objectClass: organizationalUnit
+ou: gruppen
+
+dn: cn=svc-openwacht,ou=dienst,dc=firma,dc=test
+objectClass: inetOrgPerson
+cn: svc-openwacht
+sn: Dienst
+userPassword: dienst-pass-123
+
+dn: cn=Anna Admin,ou=benutzer,dc=firma,dc=test
+objectClass: inetOrgPerson
+objectClass: user
+cn: Anna Admin
+sn: Admin
+displayName: Anna Admin
+mail: anna@firma.test
+userPrincipalName: anna@firma.test
+sAMAccountName: anna
+userAccountControl: 512
+objectGUID:: AAECAwQFBgcICQoLDA0ODw==
+userPassword: anna-pass-123
+
+dn: cn=Otto Operator,ou=benutzer,dc=firma,dc=test
+objectClass: inetOrgPerson
+objectClass: user
+cn: Otto Operator
+sn: Operator
+displayName: Otto Operator
+userPrincipalName: otto@firma.test
+sAMAccountName: otto
+userAccountControl: 512
+objectGUID:: EBESExQVFhcYGRobHB0eHw==
+userPassword: otto-pass-123
+
+dn: cn=Gesperrt Gustav,ou=benutzer,dc=firma,dc=test
+objectClass: inetOrgPerson
+objectClass: user
+cn: Gesperrt Gustav
+sn: Gustav
+userPrincipalName: gustav@firma.test
+sAMAccountName: gustav
+userAccountControl: 514
+objectGUID:: ICEiIyQlJicoKSorLC0uLw==
+userPassword: gustav-pass-123
+

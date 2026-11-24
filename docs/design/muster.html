@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenWacht · Musterseite Corporate Design</title>
+<link rel="icon" href="marke/zeichen-klein.svg">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--grund); color: var(--tinte); font-family: var(--schrift); font-size: var(--s0); line-height: 1.45; }
+  .kopf { background: var(--nacht); color: var(--nacht-tinte); display: flex; align-items: center; gap: var(--a3); padding: var(--a3) var(--a5); }
+  .kopf img { width: 40px; height: 40px; }
+  .kopf h1 { margin: 0; font-size: var(--s1); }
+  .kopf .rechts { margin-left: auto; }
+  .kopf button { font: inherit; font-size: var(--s-1); background: transparent; color: var(--nacht-tinte); border: 1px solid var(--nacht-leise); border-radius: var(--r); padding: var(--a1) var(--a3); cursor: pointer; }
+  main { max-width: 1100px; margin: 0 auto; padding: var(--a5); }
+  h2 { font-size: var(--s2); margin: var(--a7) 0 var(--a3); }
+  .raster { display: grid; gap: var(--a4); grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .panel { background: var(--flaeche); border: 1px solid var(--linie); border-top: var(--oberkante) solid var(--marke); border-radius: var(--r-gross); padding: var(--a4); }
+  .panel h3 { margin: 0 0 var(--a3); font-size: var(--s-1); text-transform: uppercase; letter-spacing: .05em; color: var(--leise); }
+  .marke { display: flex; gap: var(--a5); align-items: flex-end; flex-wrap: wrap; }
+  .marke figure { margin: 0; text-align: center; font-size: var(--s-1); color: var(--leise); }
+  .wm { display: flex; align-items: center; gap: var(--a3); }
+  .wm img { width: 48px; height: 48px; }
+  .wm .n { font-size: var(--s3); font-weight: 700; line-height: 1; }
+  .wm .n span { font-weight: 400; }
+  .wm .u { font-size: var(--s-1); color: var(--leise); }
+  .farben { display: grid; gap: var(--a2); grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .farbe { border: 1px solid var(--linie); border-radius: var(--r); overflow: hidden; background: var(--flaeche); font-size: var(--s-1); }
+  .farbe .f { height: 48px; }
+  .farbe .d { padding: var(--a1) var(--a2); }
+  .farbe code { font-family: var(--mono); font-size: .75rem; }
+  .gut { color: var(--text-ok); } .schlecht { color: var(--text-krit); font-weight: 700; }
+  .zst { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px var(--a2) 2px 6px; border-radius: var(--r); margin: 0 var(--a1) var(--a2) 0; }
+  .zst svg { width: 13px; height: 13px; }
+  .zst.ok { background: var(--ok-hauch); color: var(--text-ok); }
+  .zst.warn { background: var(--warn-hauch); color: var(--text-warn); }
+  .zst.krit { background: var(--krit); color: var(--auf-krit); }
+  .zst.best { background: var(--krit-hauch); color: var(--text-krit); }
+  .zst.unbek { background: var(--unbek-hauch); color: var(--leise); }
+  .zst.wart { background: var(--wartung-hauch); color: var(--tinte); }
+  .knopf { font: inherit; font-weight: 700; font-size: var(--s-1); padding: var(--a2) var(--a4); border-radius: var(--r); border: 1px solid var(--marke); background: var(--marke); color: var(--auf-marke); cursor: pointer; margin: 0 var(--a2) var(--a2) 0; }
+  .knopf.zweit { background: transparent; color: var(--marke-tief); }
+  .knopf.gefahr { background: var(--krit); border-color: var(--krit); color: var(--auf-krit); }
+  .knopf:focus-visible, input:focus { outline: 3px solid var(--marke); outline-offset: 2px; }
+  label { display: block; font-size: var(--s-1); font-weight: 700; margin-bottom: var(--a1); }
+  input { font: inherit; width: 100%; padding: var(--a2) var(--a3); border: 1px solid var(--linie); border-radius: var(--r); background: var(--flaeche); color: var(--tinte); }
+  .hilfe { font-size: var(--s-1); color: var(--leise); }
+  .meldung { font-size: var(--s-1); padding: var(--a2) var(--a3); border-left: 4px solid; border-radius: 0 var(--r) var(--r) 0; margin-bottom: var(--a2); }
+  .meldung.krit { border-color: var(--krit); background: var(--krit-hauch); }
+  .meldung.wart { border-color: var(--wartung); background: var(--wartung-hauch); }
+  .meldung.info { border-color: var(--marke); background: var(--marke-hauch); }
+  .skala p { margin: 0 0 var(--a2); line-height: 1.2; }
+  .mono { font-family: var(--mono); }
+  table { border-collapse: collapse; width: 100%; font-size: var(--s-1); font-variant-numeric: tabular-nums; }
+  th { text-align: left; color: var(--leise); text-transform: uppercase; letter-spacing: .05em; font-size: .75rem; border-bottom: 1px solid var(--linie); padding: 6px var(--a2); }
+  td { border-bottom: 1px solid var(--linie); padding: 6px var(--a2); }
+  td.w { font-family: var(--mono); text-align: right; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="f-ok" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="currentColor"/></symbol>
+  <symbol id="f-warn" viewBox="0 0 16 16"><path d="M8 1.5 L15 14 H1 Z" fill="currentColor"/></symbol>
+  <symbol id="f-krit" viewBox="0 0 16 16"><path d="M5.2 1 H10.8 L15 5.2 V10.8 L10.8 15 H5.2 L1 10.8 V5.2 Z" fill="currentColor"/></symbol>
+  <symbol id="f-best" viewBox="0 0 16 16"><path d="M5.2 1 H10.8 L15 5.2 V10.8 L10.8 15 H5.2 L1 10.8 V5.2 Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4.5 8 L7 10.5 L11.5 5.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="f-unbek" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="3 2"/></symbol>
+  <symbol id="f-wart" viewBox="0 0 16 16"><path d="M8 1 L15 8 L8 15 L1 8 Z" fill="currentColor"/></symbol>
+</defs></svg>
+
+<header class="kopf">
+  <img src="marke/zeichen-klein.svg" alt="">
+  <h1>OpenWacht · Musterseite Corporate Design</h1>
+  <div class="rechts"><button id="thema" type="button">Dunkel</button></div>
+</header>
+
+<main>
+  <h2>Marke</h2>
+  <div class="raster">
+    <div class="panel">
+      <h3>Bildzeichen</h3>
+      <div class="marke">
+        <figure><img src="marke/zeichen.svg" width="128" height="128" alt="Bildzeichen Wachendes Auge"><br>ab 32 px</figure>
+        <figure><img src="marke/zeichen-app.svg" width="64" height="64" alt=""><br>App</figure>
+        <figure><img src="marke/zeichen-klein.svg" width="32" height="32" alt=""><br>klein</figure>
+        <figure><img src="marke/zeichen-klein.svg" width="16" height="16" alt=""><br>16 px</figure>
+        <figure><img src="marke/zeichen-schwarz.svg" width="48" height="48" alt=""><br>schwarz</figure>
+        <figure><img src="marke/zeichen-negativ.svg" width="48" height="48" alt=""><br>negativ</figure>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Wortmarke und Siegel</h3>
+      <p style="background:#ffffff;padding:var(--a2);border-radius:var(--r);border:1px solid var(--linie)"><img src="marke/wortmarke-hell.svg" height="56" alt="OpenWacht"></p>
+      <p style="background:var(--nacht);padding:var(--a2);border-radius:var(--r)"><img src="marke/wortmarke-dunkel.svg" height="56" alt="OpenWacht"></p>
+      <p><img src="marke/siegel-deutschland.svg" height="36" alt="Entwickelt in Deutschland"></p>
+      <p><img src="marke/siegel-im-haus.svg" height="36" alt="Selbst betrieben · Daten bleiben im Haus"></p>
+    </div>
+  </div>
+
+  <h2>Farben</h2>
+  <p class="hilfe">Kontrast wird beim Laden gemessen (WCAG 2.2: Text ≥ 4,5:1, Bedienelemente und Symbole ≥ 3:1).</p>
+  <div class="farben" id="farben"></div>
+
+  <h2>Schrift und Zustände</h2>
+  <div class="raster">
+    <div class="panel skala">
+      <h3>Skala 13 / 16 / 20 / 25 / 31 / 39 px</h3>
+      <p style="font-size:var(--s4);font-weight:700">Hosts 128</p>
+      <p style="font-size:var(--s3);font-weight:700">Aktive Alarme</p>
+      <p style="font-size:var(--s2)">Abschnittstitel</p>
+      <p style="font-size:var(--s1)">Platte /var auf pve-1 läuft in 9 Tagen voll.</p>
+      <p>Fließtext: Sensoren prüfen Größe, Ölförderung und Übermaß – 0123456789 € ß.</p>
+      <p class="hilfe">zuletzt gemeldet vor 2 Min. · 4,2 % · 22.11.2026, 14:05</p>
+      <p class="mono">openwacht-zentrale sichern -jetzt</p>
+    </div>
+    <div class="panel">
+      <h3>Zustände: Form + Farbe</h3>
+      <span class="zst ok"><svg><use href="#f-ok"/></svg>OK</span>
+      <span class="zst warn"><svg><use href="#f-warn"/></svg>Warnung</span>
+      <span class="zst krit"><svg><use href="#f-krit"/></svg>Kritisch</span>
+      <span class="zst best"><svg><use href="#f-best"/></svg>Bestätigt</span>
+      <span class="zst unbek"><svg><use href="#f-unbek"/></svg>Unbekannt</span>
+      <span class="zst wart"><svg><use href="#f-wart"/></svg>Wartung</span>
+      <table>
+        <thead><tr><th>Zustand</th><th>Gerät</th><th>Sensor</th><th style="text-align:right">Wert</th></tr></thead>
+        <tbody>
+          <tr><td><span class="zst krit"><svg><use href="#f-krit"/></svg>Kritisch</span></td><td><b>pve-1</b></td><td>Platte /var</td><td class="w">96 %</td></tr>
+          <tr><td><span class="zst warn"><svg><use href="#f-warn"/></svg>Warnung</span></td><td><b>srv-dms</b></td><td>Backup-Alter</td><td class="w">29 Std.</td></tr>
+          <tr><td><span class="zst wart"><svg><use href="#f-wart"/></svg>Wartung</span></td><td><b>pc-empfang</b></td><td>Agent</td><td class="w">–</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h2>Graphenreihen</h2>
+  <div class="panel">
+    <h3>4 Farben, Reihe 5–8 gestrichelt</h3>
+    <svg viewBox="0 0 600 120" style="width:100%;height:120px" role="img" aria-label="Beispiel Graphenreihen">
+      <g fill="none" stroke-width="2" stroke-linecap="round">
+        <polyline points="0,90 100,80 200,85 300,60 400,65 500,40 600,45" style="stroke:var(--reihe-1)"/>
+        <polyline points="0,70 100,72 200,55 300,58 400,50 500,52 600,30" style="stroke:var(--reihe-2)"/>
+        <polyline points="0,50 100,40 200,45 300,35 400,38 500,20 600,25" style="stroke:var(--reihe-3)"/>
+        <polyline points="0,30 100,28 200,20 300,22 400,15 500,12 600,10" style="stroke:var(--reihe-4)"/>
+        <polyline points="0,105 100,100 200,102 300,95 400,98 500,90 600,92" style="stroke:var(--reihe-1);stroke-dasharray:var(--reihe-strich)"/>
+        <polyline points="0,112 100,110 200,108 300,111 400,106 500,104 600,100" style="stroke:var(--reihe-2);stroke-dasharray:var(--reihe-strich)"/>
+      </g>
+    </svg>
+    <p class="hilfe">Reihe 1 pve-1 · 2 pve-2 · 3 srv-wiki · 4 srv-dms · 5 nas (gestrichelt) · 6 fritzbox (gestrichelt)</p>
+  </div>
+
+  <h2>Bausteine</h2>
+  <div class="raster">
+    <div class="panel">
+      <h3>Knöpfe</h3>
+      <button class="knopf" type="button">Speichern</button><button class="knopf zweit" type="button">Abbrechen</button><button class="knopf gefahr" type="button">Gerät löschen</button>
+    </div>
+    <div class="panel">
+      <h3>Formular</h3>
+      <label for="name">Name des Geräts</label>
+      <input id="name" value="pve-1">
+      <p class="hilfe">1–64 Zeichen, eindeutig im Mandanten.</p>
+    </div>
+    <div class="panel">
+      <h3>Meldungen</h3>
+      <div class="meldung krit"><b>Kritisch:</b> Platte /var 96 % seit 14:05.</div>
+      <div class="meldung wart"><b>Wartung</b> bis 18:00 · Patchday</div>
+      <div class="meldung info">Neue Version ist installiert.</div>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var liste = [
+    ["Marke", "--marke", 3], ["Marke tief", "--marke-tief", 4.5], ["Nacht", "--nacht", 0], ["Tinte", "--tinte", 4.5],
+    ["Leise", "--leise", 4.5], ["OK", "--ok", 3], ["Warnung", "--warn", 3], ["Kritisch", "--krit", 3],
+    ["Text Warnung", "--text-warn", 4.5], ["Text Kritisch", "--text-krit", 4.5], ["Unbekannt", "--unbek", 3], ["Wartung", "--wartung", 3]
+  ];
+  function wert(n) { return getComputedStyle(root).getPropertyValue(n).trim(); }
+  function rgb(h) { h = h.replace("#", ""); return [0, 2, 4].map(function (i) { return parseInt(h.substr(i, 2), 16); }); }
+  function lum(c) { var a = c.map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]; }
+  function kontrast(a, b) { var x = lum(rgb(a)), y = lum(rgb(b)); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+  function zeichne() {
+    var f = wert("--flaeche"), ziel = document.getElementById("farben");
+    ziel.textContent = "";
+    liste.forEach(function (e) {
+      var w = wert(e[1]), k = kontrast(w, f), ok = e[2] === 0 || k >= e[2];
+      var karte = document.createElement("div"); karte.className = "farbe";
+      var feld = document.createElement("div"); feld.className = "f"; feld.style.background = w;
+      var d = document.createElement("div"); d.className = "d";
+      var name = document.createElement("b"); name.textContent = e[0];
+      var code = document.createElement("code"); code.textContent = e[1] + " " + w;
+      var kr = document.createElement("code"); kr.className = ok ? "gut" : "schlecht";
+      kr.textContent = k.toFixed(1).replace(".", ",") + ":1" + (e[2] ? " (≥ " + String(e[2]).replace(".", ",") + ")" : "");
+      d.append(name, document.createElement("br"), code, document.createElement("br"), kr);
+      karte.append(feld, d); ziel.append(karte);
+    });
+  }
+  document.getElementById("thema").addEventListener("click", function () {
+    var dunkel = root.dataset.thema === "dunkel";
+    if (dunkel) { delete root.dataset.thema; } else { root.dataset.thema = "dunkel"; }
+    this.textContent = dunkel ? "Dunkel" : "Hell";
+    zeichne();
+  });
+  zeichne();
+})();
+</script>
+</body>
+</html>

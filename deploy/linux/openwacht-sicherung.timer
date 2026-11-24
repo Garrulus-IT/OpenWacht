@@ -1,0 +1,12 @@
+[Unit]
+Description=OpenWacht: Datenbank sichern (stündlich prüfen, ob fällig)
+
+[Timer]
+# Stündlich; ob gesichert wird, entscheidet `openwacht-zentrale sichern` nach der
+# Uhrzeit aus den Einstellungen (Standard 0 Uhr, also vor vzdump um 00:30).
+OnCalendar=*-*-* *:05:00
+RandomizedDelaySec=2m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

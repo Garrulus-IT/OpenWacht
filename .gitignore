@@ -1,0 +1,23 @@
+# Build-Ausgaben
+/dist/
+
+# Abhängigkeiten und Builds der Web-Oberfläche
+/web/node_modules/
+/internal/webui/dist/*
+!/internal/webui/dist/LIESMICH.txt
+
+# Lokale Konfiguration und Geheimnisse – nie einchecken
+*.env
+.env*
+*.pem
+*.key
+*.p12
+*.pfx
+/config.local.*
+
+# Editor und System
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

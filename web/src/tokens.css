@@ -1,0 +1,194 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/* OpenWacht – Design-Tokens der Oberfläche
+   Einzige Stelle für Farben, Schriften und die Schriftskala. styles.css und
+   die Bauteile verwenden nur diese Variablen, keine festen Farben.
+   Namen und Werte nach docs/design/tokens.css (Corporate Design), dazu
+   wenige Ergänzungen, die nur die Oberfläche braucht (markiert mit „UI“).
+   Ausnahmen mit festen Farben: das Bildzeichen (Zeichen.tsx) und der QR-Code
+   (ZweiFaktor.tsx), weil beide in jedem Modus gleich aussehen müssen. */
+
+/* Schriften: unveränderte Originale, SIL OFL 1.1 (siehe schriften/LIESMICH.md). */
+@font-face {
+  font-family: "D-DIN";
+  src: url("./schriften/D-DIN.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "D-DIN";
+  src: url("./schriften/D-DIN-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("./schriften/JetBrainsMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Marke */
+  --marke: #0b6a8a;
+  --marke-tief: #0a4f68;
+  --marke-hauch: #dcedf3;
+  --auf-marke: #ffffff;
+
+  /* Code-Blöcke und Befehle */
+  --nacht: #102238;
+  --nacht-tinte: #e4edf6;
+  --nacht-leise: #8ea3ba;
+
+  /* Flächen und Text */
+  --grund: #eef2f6;
+  --flaeche: #ffffff;
+  --zart: #f5f8fa;
+  --tinte: #14202e;
+  --leise: #526172;
+  --linie: #c9d3de;
+  --linie-zart: #e1e7ee; /* UI: Tabellen- und Rasterlinien */
+  --schatten: rgb(20 32 46 / 12%); /* UI */
+
+  /* Zustände – nur für Zustände verwenden, immer mit Form */
+  --ok: #2c7a57;
+  --ok-hauch: #e1f1e9;
+  --text-ok: #1f6446;
+  --warn: #b07c12; /* nie als Textfarbe */
+  --warn-hauch: #f8efd9;
+  --text-warn: #7d5600;
+  --auf-warn: #0a121c; /* UI: Text auf --warn, ≥ 4,5:1 */
+  --krit: #b3362f;
+  --krit-hauch: #f7e2e0;
+  --text-krit: #9c2a24;
+  --auf-krit: #ffffff;
+  --unbek: #7b8590;
+  --unbek-hauch: #eceef1;
+  --wartung: #6b4f8f;
+  --wartung-hauch: #ece6f4;
+  --text-wartung: #5b3f7f; /* UI */
+  --auf-wartung: #ffffff; /* UI */
+
+  /* Graphenreihen: 4 Farben, Reihe 5–8 dieselben Farben gestrichelt.
+     Keine Zustandsfarbe: kein Grün, Gelb, Rot, Violett. */
+  --reihe-1: #2a78d6;
+  --reihe-2: #d6457f;
+  --reihe-3: #0a97b0;
+  --reihe-4: #5a63d8;
+  --reihe-strich: 6 4;
+
+  --qr-hell: #ffffff; /* UI: QR-Codes brauchen hellen Grund */
+
+  /* Schrift */
+  --schrift: "D-DIN", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --schrift-anzeige: var(--schrift); /* UI: Überschriften, Wortmarke */
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  /* Schriftskala: große Terz (1,25) ab 16 px. Andere Größen gibt es nicht. */
+  --s-1: 0.8125rem; /* 13 px  Tabellen, Nebentext, Marken */
+  --s0: 1rem; /* 16 px  Fließtext */
+  --s1: 1.25rem; /* 20 px  Seitentitel */
+  --s2: 1.5625rem; /* 25 px  Abschnittstitel */
+  --s3: 1.9375rem; /* 31 px  Zahlen in Kacheln */
+  --s4: 2.4375rem; /* 39 px  Startseite, Wandanzeige */
+
+  /* Abstände: 4-px-Raster. Kleinere Werte nur als optische Korrektur (≤ 2,4 px). */
+  --a1: 0.25rem; /* 4 px */
+  --a2: 0.5rem; /* 8 px */
+  --a3: 0.75rem; /* 12 px */
+  --a4: 1rem; /* 16 px */
+  --a5: 1.5rem; /* 24 px */
+  --a6: 2rem; /* 32 px */
+  --a7: 3rem; /* 48 px */
+
+  /* Radien */
+  --r: 3px; /* Bedienelemente, Marken, Felder */
+  --r-gross: 6px; /* Panels, Karten, Dialoge */
+
+  color-scheme: light;
+}
+
+/* Dunkle Darstellung. thema.js setzt data-thema vor dem ersten Zeichnen
+   (System, Hell oder Dunkel, Wahl im Browser gespeichert). */
+:root[data-thema="dunkel"] {
+  --marke: #45c3e6;
+  --marke-tief: #86d9f0;
+  --marke-hauch: #123447;
+  --auf-marke: #04161e;
+
+  --nacht: #060c14;
+  --nacht-tinte: #dfe8f2;
+  --nacht-leise: #7d92a9;
+
+  --grund: #0a121c;
+  --flaeche: #111c29;
+  --zart: #172435;
+  --tinte: #dfe8f2;
+  --leise: #94a6ba;
+  --linie: #2a3a4d;
+  --linie-zart: #1d2b3b;
+  --schatten: rgb(0 0 0 / 50%);
+
+  --ok: #5cb88b;
+  --ok-hauch: #173126;
+  --text-ok: #7fd0a6;
+  --warn: #dba843;
+  --warn-hauch: #33291a;
+  --text-warn: #e6b85c;
+  --auf-warn: #1a1406;
+  --krit: #e8685d;
+  --krit-hauch: #3a201e;
+  --text-krit: #f08a80;
+  --auf-krit: #1a0b0a;
+  --unbek: #8a95a1;
+  --unbek-hauch: #252b32;
+  --wartung: #b49ad8;
+  --wartung-hauch: #2c2440;
+  --text-wartung: #cbb7ea;
+  --auf-wartung: #1a1226;
+
+  --reihe-1: #3987e5;
+  --reihe-2: #d9488a;
+  --reihe-3: #0e98ae;
+  --reihe-4: #8188f2;
+
+  color-scheme: dark;
+}
+
+/* Wandanzeige: immer dunkel wie in einer Leitstelle, eigene kräftige
+   Zustandsfarben nach docs/design/tokens.css. Die Sonne steht auch als
+   Widget im Dashboard, deshalb gelten die Werte auch dort.
+   Schrift auf den Segmenten nach gemessenem Kontrast (≥ 4,5:1): dunkel auf
+   OK, Warnung, Alarm und Wartung, weiß auf bestätigt und unbekannt. */
+.wand,
+.sonne {
+  --wand-grund: #060c14;
+  --wand-flaeche: #111c29;
+  --wand-tinte: #dfe8f2;
+  --wand-leise: #94a6ba;
+  --wand-mitte: #dfe8f2;
+  --wand-fuge: #060c14; /* Fugen zwischen den Segmenten in der Farbe des Grunds */
+  --wand-auf-signal: #ffffff;
+  --wand-text-dunkel: #0a121c;
+  --wand-ok: #3fae78;
+  --wand-warn: #e0b041;
+  --wand-krit: #e5534b;
+  --wand-stoerung: #e5534b;
+  --wand-puls: #ff8a80;
+  --wand-best: #a8615c;
+  --wand-unbek: #6c7682;
+  --wand-wartung: #9a7fd0;
+}
+
+/* Als Widget im Dashboard: Fugen und Mitte passend zur Fläche. */
+.sonne {
+  --wand-fuge: var(--flaeche);
+  --wand-mitte: var(--tinte);
+}
+.wand .sonne {
+  --wand-fuge: var(--wand-grund);
+  --wand-mitte: var(--wand-tinte);
+}

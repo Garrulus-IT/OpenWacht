@@ -1,0 +1,56 @@
+# Trap-Dienst von OpenWacht (SNMP-Traps und -Informs v1, v2c, v3).
+# Eigener Prozess mit eigenem Benutzer und eigener Datenbankrolle, getrennt
+# von der Zentrale. Den Socket (UDP 162) bekommt er von openwacht-traps.socket.
+# Installation: siehe deploy/linux/README.md.
+[Unit]
+Description=OpenWacht-Trap-Dienst (SNMP-Traps und -Informs)
+Documentation=https://github.com/garrulus-it/openwacht
+Requires=openwacht-traps.socket
+After=openwacht-traps.socket network-online.target postgresql.service
+# Erst nach den Migrationen (sonst fehlen die Funktionen traps_*).
+Requires=openwacht-migrieren.service
+After=openwacht-migrieren.service
+
+[Service]
+Type=simple
+User=svc_openwacht_traps
+Group=svc_openwacht_traps
+# Peer-Authentifizierung über den Unix-Socket, kein Passwort.
+Environment="OPENWACHT_DB=host=/run/postgresql user=openwacht_trapdienst dbname=openwacht"
+ExecStart=/usr/bin/openwacht-zentrale traps -trap-schluessel /etc/openwacht-traps/schluessel
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=15
+
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
+ProtectProc=invisible
+ProcSubset=pid
+RemoveIPC=yes
+PrivateUsers=yes
+UMask=0077
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target

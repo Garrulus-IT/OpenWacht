@@ -1,0 +1,22 @@
+# /etc/ntfy/server.yml – ntfy auf dem Rechner der Zentrale.
+# Nur auf Loopback; von außen erreichbar ausschließlich über Caddy (Port 2587, TLS).
+base-url: "https://openwacht.example.org:2587"
+listen-http: "127.0.0.1:2586"
+behind-proxy: true
+
+# Benutzer und Rechte; ohne Anmeldung darf niemand etwas.
+auth-file: "/var/lib/ntfy/user.db"
+auth-default-access: "deny-all"
+
+# Nachrichten 12 Stunden zwischenspeichern, damit die App Verpasstes nachholt.
+cache-file: "/var/cache/ntfy/cache.db"
+cache-duration: "12h"
+
+# Sofortige Pushs auf iOS: Der Server schickt ntfy.sh nur die Nachrichten-ID und
+# einen SHA-256 der Topic-Adresse; den Inhalt holt die App direkt hier ab.
+upstream-base-url: "https://ntfy.sh"
+
+# Keine Selbstregistrierung; Anmelden in der Web-App erlaubt. Anhänge sind ohne
+# attachment-cache-dir ohnehin aus.
+enable-signup: false
+enable-login: true
