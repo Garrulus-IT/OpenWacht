@@ -35,6 +35,10 @@ sagt, was der Betreiber zusätzlich tun sollte. Reihenfolge nach Wirkung.
 - Sitzungsdauer für SSO kurz halten (z. B. 4 Std.), damit ein Entzug im Verzeichnis schnell wirkt.
 - Wiederherstellungscodes erzeugen und offline aufbewahren (Kapitel 3), Betreiber-Konto mit zweitem TOTP-Gerät.
 - API-Tokens nur mit Rolle Leser, kurzer Laufzeit, je Werkzeug ein eigenes.
+- Grenzen je Benutzer (ab 1.0.5, fest eingebaut): höchstens 8 Anfragen gleichzeitig und 1200 je Minute, API-Tokens
+  zusätzlich 300 je Minute; darüber antwortet die Zentrale mit 429. Jede Datenbankabfrage eines Benutzers oder einer
+  Wandanzeige bricht nach 60 Sekunden ab. Ein angemeldeter Leser kann die Zentrale so nicht mit teuren Abfragen
+  lahmlegen.
 
 - Passkeys für Admins einrichten (Kapitel 3): Sie sind gegen nachgemachte Anmeldeseiten (Phishing) geschützt.
 - Rollen regelmäßig rezertifizieren (Bericht unter Verwaltung → Mandanten, Kapitel 3).
@@ -87,6 +91,8 @@ Die Zentrale macht HTTPS selbst; ein Reverse Proxy ist nicht nötig. Wenn doch (
 - Windows-SNMP-Dienst (nur v1/v2c) nie ins Netz öffnen: nur `localhost` annehmen, 161/udp in der Firewall zu, Agent als
   Sammler auf `127.0.0.1/32` (Kapitel 5). Software ohne andere Schnittstelle lieber nur über Dienste überwachen als mit
   einer Community im Netz.
+- Meldungen je Agent sind zweifach begrenzt: in der Zentrale 12 je Minute, in der Datenbank 20 je Minute mit
+  Messwerten (ab 1.0.5). Ein übernommener Rechner füllt so nicht die Platte der Zentrale.
 - Agent-Updates nur signiert (Kapitel 12); Freigabe je Gerät oder Gruppe, nicht für alles auf einmal.
 - Windows: signierte Programme (Kapitel 15), dann bleibt Smart App Control an.
 

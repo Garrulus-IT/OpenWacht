@@ -194,7 +194,7 @@ func (s *Server) requireSession(allowWithoutMFA bool, next http.Handler) http.Ha
 			})
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), sessionKey, &sess)))
+		s.gated(w, r.WithContext(context.WithValue(r.Context(), sessionKey, &sess)), sess.UserID, next)
 	})
 }
 

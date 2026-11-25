@@ -54,6 +54,7 @@ export const typText: Record<CheckTyp, string> = {
   docker: "Docker-Container läuft",
   hyperv: "Hyper-V-VM läuft",
   leistungsindikator: "Windows-Leistungsindikator",
+  autodienste: "Automatische Windows-Dienste laufen",
 };
 
 // 0.47.0: Zusammenfassung einer SNMP-Tabellenspalte
@@ -66,7 +67,7 @@ const spaltenText: Record<string, string> = {
   anzahl_ungleich: "Zeilen mit Wert ungleich …",
 };
 
-export const agentArten: AgentArt[] = ["dienst", "prozess", "datei", "docker", "hyperv", "leistungsindikator"];
+export const agentArten: AgentArt[] = ["dienst", "prozess", "datei", "docker", "hyperv", "leistungsindikator", "autodienste"];
 export const istAgentArt = (t: CheckTyp): t is AgentArt => (agentArten as CheckTyp[]).includes(t);
 const zentraleArten: CheckTyp[] = ["ping", "tcp", "http", "tls", "dns", "http_json", "tcp_banner", "ntp"];
 
@@ -126,6 +127,8 @@ export function zielText(c: { typ: CheckTyp; ziel: CheckZiel }) {
       return `${z.pfad ?? ""}${z.ordner ? " (Ordner)" : ""}`;
     case "leistungsindikator":
       return `\\${z.objekt ?? ""}${z.instanz ? `(${z.instanz})` : ""}\\${z.indikator ?? ""}${z.bezug ? ` / ${z.bezug} in %` : ""}`;
+    case "autodienste":
+      return z.ausnahmen?.length ? `außer ${z.ausnahmen.join(", ")}` : "alle";
   }
 }
 
@@ -174,6 +177,8 @@ export function vorschlagName(typ: CheckTyp, z: CheckZiel): string {
         return `Hyper-V-VM ${z.name ?? ""}`;
       case "leistungsindikator":
         return `${z.objekt ?? ""} ${z.indikator ?? ""}`;
+      case "autodienste":
+        return "Automatische Dienste";
     }
   })();
   return [...n.trim()].slice(0, 100).join("").trim();
@@ -502,6 +507,7 @@ export function CheckFormular(props: {
   const [instanz, setInstanz] = useState(z.instanz ?? "");
   const [zusammenfassung, setZusammenfassung] = useState(z.zusammenfassung ?? "summe");
   const [bezug, setBezug] = useState(z.bezug ?? "");
+  const [ausnahmen, setAusnahmen] = useState(z.ausnahmen?.join("\n") ?? "");
   const [fehler, setFehler] = useState("");
   const [sendet, setSendet] = useState(false);
   const amAgent = istAgentArt(typ);
@@ -599,6 +605,13 @@ export function CheckFormular(props: {
         return { name: nameFeld.trim() };
       case "prozess":
         return nurGesetzt({ name: nameFeld.trim(), mindestens: zahl(mind), hoechstens: zahl(hoechst) });
+      case "autodienste": {
+        const a = ausnahmen
+          .split(/[\n,]/)
+          .map((x) => x.trim())
+          .filter((x) => x !== "");
+        return a.length ? { ausnahmen: a } : {};
+      }
       case "leistungsindikator":
         return nurGesetzt({
           objekt: objekt.trim(),
@@ -1012,6 +1025,12 @@ export function CheckFormular(props: {
             />
           </label>
         )}
+        {typ === "autodienste" && (
+          <label className="feld formular-voll">
+            <span>Ausnahmen (optional, je Zeile ein Dienst- oder Anzeigename, * am Ende für den Anfang)</span>
+            <textarea rows={4} value={ausnahmen} placeholder={"z. B. gupdate\nedgeupdate*"} onChange={(e) => setAusnahmen(e.target.value)} />
+          </label>
+        )}
         {typ === "leistungsindikator" && (
           <>
             <label className="feld">
@@ -1197,6 +1216,13 @@ export function AgentHinweis(props: { typ: AgentArt; hatAgent: boolean; freigabe
         <p className="klein">
           Nur Windows-Agent. Gelesen wird nur aus den Objekten, die mit <code>-indikatoren</code> freigegeben sind. Meldet der Sensor „kein
           Zugriff“, das Dienstkonto <code>NT SERVICE\openwacht-agent</code> in die Gruppe „Leistungsüberwachungsbenutzer“ aufnehmen.
+        </p>
+      )}
+      {props.typ === "autodienste" && (
+        <p className="klein">
+          Nur Windows-Agent. Fehler, sobald ein Dienst mit Starttyp „Automatisch“ steht. Dienste mit Auslöser (Starttyp „Automatisch
+          (Start durch Auslöser)“) zählen nicht, verzögert startende erst 15 Minuten nach dem Systemstart. Gemeldet werden nur die Namen
+          der gestoppten Dienste.
         </p>
       )}
       {props.typ === "hyperv" && (

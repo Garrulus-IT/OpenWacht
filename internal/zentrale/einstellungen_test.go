@@ -61,6 +61,7 @@ func settingsServer(t *testing.T, cfg Config) (*Server, *httptest.Server) {
 	srv.Start()
 	t.Cleanup(srv.Close)
 	cfg.BaseURL, cfg.PasswordParams, cfg.LoginsPerMinutePerIP, cfg.SettingsFromDB = mustURL(srv.URL), &testParams, 1000, true
+	cfg.UserRequestsPerMinute = 1 << 30
 	s, err := New(cfg, pool, testKey)
 	if err != nil {
 		t.Fatal(err)

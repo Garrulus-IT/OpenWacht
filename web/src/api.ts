@@ -158,7 +158,7 @@ export interface AgentToken {
   erstellt: string;
 }
 
-export type AgentArt = "dienst" | "prozess" | "datei" | "docker" | "hyperv" | "leistungsindikator";
+export type AgentArt = "dienst" | "prozess" | "datei" | "docker" | "hyperv" | "leistungsindikator" | "autodienste";
 export type CheckTyp = "ping" | "tcp" | "http" | "tls" | "dns" | "http_json" | "tcp_banner" | "ntp" | "snmp_oid" | AgentArt;
 export type CheckStatus = "ok" | "warn" | "crit" | "unknown";
 
@@ -214,6 +214,8 @@ export interface CheckZiel {
   zusammenfassung?: "summe" | "minimum" | "maximum" | "anzahl" | "anzahl_gleich" | "anzahl_ungleich";
   bezug?: string;
   vergleichswert?: number;
+  // 1.0.5: automatische Windows-Dienste, die nicht zählen
+  ausnahmen?: string[];
 }
 
 // Vorlagensatz (0.44.0): mehrere eingebaute Vorlagen für eine Anwendung

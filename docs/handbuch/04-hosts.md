@@ -48,6 +48,17 @@ Abhängigkeit in beide Richtungen stehen nur als Zahl darunter. Die Seite zeigt 
 
 ![Topologie](bilder/topologie.webp)
 
+## Zertifikate
+
+**Zertifikate** in der Seitenleiste listet alle Sensoren „TLS-Zertifikat“ im gewählten Bereich: Adresse, Gerät,
+Ablaufdatum, Resttage und Aussteller (bei einem Problem wie falschem Namen stattdessen der Hinweis), das zuerst
+ablaufende oben. „Bald fällig“ zeigt nur Zertifikate, die in den nächsten 14, 30, 60 oder 90 Tagen ablaufen, „Mit
+Problem“ nur Warnung, Kritisch und Unbekannt. Ein Klick auf das Gerät öffnet es. Datum und Aussteller stammen aus dem
+letzten Lauf des Sensors; neue Zertifikate kommen über einen Sensor am Gerät dazu. Die Seite zeigt nur, was du auch
+unter Hosts siehst.
+
+![Zertifikate](bilder/zertifikate.webp)
+
 ## Darstellung
 
 Unten links „Darstellung“: wie System, hell oder dunkel. Die Wahl gilt je Browser.

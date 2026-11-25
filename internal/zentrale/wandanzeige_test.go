@@ -377,6 +377,23 @@ func TestAnzeigeDatenbankRechte(t *testing.T) {
 			t.Errorf("%s: %d, erwartet %d", q, got, want)
 		}
 	}
+	// H2: offene Alarme ja, beendete nicht (die Anzeige zeigt nur offene).
+	for _, ended := range []string{"NULL", "now()"} {
+		if _, err := owner.Exec(ctx, `INSERT INTO openwacht.alarms (tenant_id, subject, name, status, worst, started_at, changed_at, ended_at)
+			VALUES ($1, 'check', 'WA DB Alarm', 'crit', 'crit', now() - interval '1 hour', now(), `+ended+`)`, ids["Wand A"]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() { owner.Exec(ctx, `DELETE FROM openwacht.alarms WHERE name = 'WA DB Alarm'`) })
+	if got := count(`SELECT count(*) FROM openwacht.alarms WHERE name = 'WA DB Alarm' AND ended_at IS NULL`, ""); got != 1 {
+		t.Errorf("offene Alarme: %d", got)
+	}
+	if got := count(`SELECT count(*) FROM openwacht.alarms WHERE ended_at IS NOT NULL`, ""); got != 0 {
+		t.Errorf("Anzeige liest %d beendete Alarme", got)
+	}
+	if got := count(`SELECT count(*) FROM openwacht.alarms WHERE name = 'WA DB Alarm'`, "v_it"); got != 2 {
+		t.Errorf("Benutzer sieht %d Alarme", got)
+	}
 	// Benutzer und Anzeige zugleich: Die Anzeige zählt nicht (Leser im Lager sieht Wand A nicht).
 	if got := count(`SELECT count(*) FROM openwacht.devices WHERE tenant_id = '`+ids["Wand A"]+`'`, "v_lz"); got != 0 {
 		t.Errorf("Mischkontext sieht %d Geräte", got)

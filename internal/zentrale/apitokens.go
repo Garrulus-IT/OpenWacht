@@ -65,7 +65,7 @@ func (s *Server) apiTokenSession(w http.ResponseWriter, r *http.Request, header 
 		return
 	}
 	sess := &session{APIToken: true, UserID: *uid}
-	next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), sessionKey, sess)))
+	s.gated(w, r.WithContext(context.WithValue(r.Context(), sessionKey, sess)), *uid, next)
 }
 
 // rateWindow: höchstens n Anfragen je Schlüssel und Minute.

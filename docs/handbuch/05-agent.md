@@ -159,7 +159,9 @@ openwacht-agent sensoren                                       # anzeigen
 openwacht-agent sensoren -aus                                  # zurücknehmen
 ```
 
-Unter Windows zusätzlich `-arten hyperv` (nur Name und Zustand der VMs).
+Unter Windows zusätzlich `-arten hyperv` (nur Name und Zustand der VMs) und `-arten autodienste` (alle automatisch
+startenden Dienste, [Kapitel 7](07-sensoren-und-vorlagen.md#automatische-windows-dienste)). `-arten` ersetzt die
+Liste: Alles, was schon freigegeben war, wieder mit angeben.
 
 ### Windows-Leistungsindikatoren
 

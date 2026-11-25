@@ -58,6 +58,8 @@ func DefaultName(kind string, s Spec) string {
 		n = "Hyper-V-VM " + s.Name
 	case "leistungsindikator":
 		n = s.Object + " " + s.Counter
+	case "autodienste":
+		n = "Automatische Dienste"
 	default:
 		n = "Sensor"
 	}

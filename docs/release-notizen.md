@@ -1,5 +1,19 @@
 # Release-Notizen OpenWacht
 
+## 1.0.5
+
+- **Sensor „Automatische Windows-Dienste“:** ein Sensor prüft alle Dienste mit Starttyp „Automatisch“ und meldet die
+  Namen der gestoppten. Dienste mit Auslöser zählen nicht, verzögert startende erst 15 Minuten nach dem Systemstart;
+  Ausnahmen je Name oder mit `*`. Braucht den Agent 1.0.5 und die Freigabe `-arten autodienste`
+  ([Handbuch Kapitel 7](handbuch/07-sensoren-und-vorlagen.md#automatische-windows-dienste)).
+- **Zertifikate:** neue Seite mit allen TLS-Zertifikaten, sortiert nach Ablauf, mit Filtern „bald fällig“ und „mit
+  Problem“ ([Kapitel 4](handbuch/04-hosts.md#zertifikate)).
+- **Härtung (Hinweise aus dem Pentest):** Grenzen je Benutzer (8 Anfragen gleichzeitig, 1200 je Minute) und
+  `statement_timeout` von 60 Sekunden für Abfragen von Benutzern und Wandanzeigen; Meldungen eines Agents auch in der
+  Datenbank begrenzt; eine Wandanzeige liest in der Datenbank nur noch offene Alarme
+  ([Kapitel 17](handbuch/17-haertung.md)).
+- Migrationen 0054 und 0055 (laufen beim Update von selbst). Agents nur für den neuen Sensor aktualisieren.
+
 ## 1.0.4
 
 - **Update der Zentrale in der Oberfläche:** Einstellungen → Update der Zentrale (Betreiber, mit Zweitfaktor). Paket,
