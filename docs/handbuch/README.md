@@ -49,4 +49,4 @@ Zentrale aus. Es läuft vollständig im eigenen Netz, auch ganz ohne Internet. D
 - **Updates für Agents nur signiert**, mit einem Schlüssel, der nie auf der Zentrale liegt.
 - **Datensparsam:** keine Benutzernamen, Prozesslisten oder Inhalte von Dateien.
 
-Technische Namen (Programme, Pfade, Dienste, Datenbank) heißen aus historischen Gründen `openwacht-…`.
+Programme, Pfade, Dienste und die Datenbank heißen durchgehend `openwacht-…` bzw. `openwacht`.
