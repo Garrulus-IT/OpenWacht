@@ -62,7 +62,7 @@ func Migrations() ([]Migration, error) {
 }
 
 // replacedChecksums: frühere Prüfsummen von Migrationen, deren Text sich nur
-// in Kommentaren geändert hat (0.99.0 und 0.99.3: Namen aus Kommentaren entfernt). Eine
+// in Kommentaren geändert hat (0.99.0, 0.99.3 und 1.0.5: Namen aus Kommentaren entfernt). Eine
 // Datenbank mit dem alten Stand wird dabei auf die neue Prüfsumme umgestellt;
 // jede andere Abweichung bleibt ein Fehler.
 var replacedChecksums = map[int][]string{
@@ -72,6 +72,7 @@ var replacedChecksums = map[int][]string{
 	29: {"c6911331eeb139a369ac06af9a23db871f049a955f2f787931d2e5ead59a8330"},
 	31: {"33c9d829fa4529d11ec8f573f34c31c94237ead098201eb2492a9a940898fdfa"},
 	47: {"cf05514ae4bb7b1d9e8cc3f5c17b5dd557d93ac5adf14c7e16d32f56caf9149e"},
+	53: {"2dc7f06928d953790ae40860e37403caf383eb03c8594ec0268a2a862e34fc77"},
 }
 
 func replacedChecksum(version int, sum []byte) bool {

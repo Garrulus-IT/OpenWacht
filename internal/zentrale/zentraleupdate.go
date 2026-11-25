@@ -24,7 +24,7 @@ import (
 	"github.com/garrulus-it/openwacht/internal/version"
 )
 
-// Update der Zentrale aus der Oberfläche (1.0.4, Entscheidung Philipp:
+// Update der Zentrale aus der Oberfläche (1.0.4, Entscheidung des Herausgebers:
 // Upload im Browser). Der Webdienst wird dabei nie root: Er prüft das Paket
 // (Signatur von SHA256SUMS mit dem Update-Schlüssel, Prüfsumme, Plattform,
 // nur neuere Versionen) und legt es mit einem Auftrag in ZentraleUpdateDir

@@ -6,7 +6,7 @@
 // alles hier ist ohne Windows testbar.
 //
 // Die App liest nur: Sie fragt alle 30 Sekunden GET /api/v1/alarme mit einem
-// API-Token (Rolle Leser, Entscheidung Philipp 25.11.2026). Das Token liegt
+// API-Token (Rolle Leser, Entscheidung des Herausgebers 25.11.2026). Das Token liegt
 // in der Windows-Anmeldeinformationsverwaltung, nie in einer Datei.
 package desktop
 

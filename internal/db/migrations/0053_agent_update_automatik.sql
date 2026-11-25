@@ -1,7 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
 -- 1.0.4: Agents übernehmen neue signierte Versionen auf Wunsch selbst
--- (Entscheidung Philipp, 25.11.2026), gestaffelt je Mandant:
+-- (Entscheidung des Herausgebers, 25.11.2026), gestaffelt je Mandant:
 --   * erst die Agents der Pilotgruppe (Gerätegruppe mit Untergruppen),
 --   * die übrigen frühestens nach der Wartezeit, nur wenn kein Pilot einen
 --     Fehler meldet und, falls es Piloten gibt, mindestens einer die neue
