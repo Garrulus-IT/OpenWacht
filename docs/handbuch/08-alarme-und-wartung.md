@@ -53,6 +53,31 @@ oder der Knopf **Als App installieren** im Dialog, wenn der Browser es anbietet.
 derselben Anmeldung; minimiert kommen die Windows-Benachrichtigungen weiter. Entfernen: in der App Menü → „OpenWacht
 deinstallieren“ bzw. Windows-Einstellungen → Apps.
 
+### Desktop-App für Windows (ab 1.0.4)
+
+`openwacht-desktop.exe` (aus dem Build, `openwacht-desktop_windows_amd64.exe` bzw. `_arm64`) zeigt OpenWacht im
+Infobereich neben der Uhr, **auch ohne offenes Browserfenster**:
+
+- Das **Symbol** trägt den schlimmsten offenen, nicht bestätigten Alarm, als Form und Farbe wie in der Oberfläche (Kreis
+  OK, Dreieck Warnung, Achteck kritisch, gestricheltes Quadrat unbekannt, leerer Ring: keine Verbindung). Der Tooltip
+  nennt die Zahlen.
+- **Benachrichtigungen von Windows** bei neuen Alarmen, Verschlechterungen und Entwarnungen (ab vier auf einmal eine
+  zusammengefasste); ein Klick öffnet die Alarme im Browser.
+- **Menü** (Rechtsklick): OpenWacht öffnen, Alarme öffnen, jetzt prüfen, mit Windows starten, einrichten, beenden.
+  Linksklick öffnet OpenWacht.
+
+**Einrichten:** In OpenWacht unter **Verwaltung → API-Tokens** ein Token mit der Rolle **Leser** für den Mandanten
+anlegen ([Kapitel 11](11-api-tokens.md)). Die Datei z. B. nach `%LOCALAPPDATA%\Programs\OpenWacht\` kopieren und
+starten. Beim ersten Start fragt ein Konsolenfenster nach der Adresse der Zentrale und dem Token (Eingabe unsichtbar),
+prüft beides mit einer Abfrage und speichert das Token in der **Windows-Anmeldeinformationsverwaltung** (Eintrag
+„OpenWacht Desktop“), nie in einer Datei. Die Adresse steht in `%APPDATA%\OpenWacht\desktop.json`.
+`openwacht-desktop entfernen` löscht Token, Einstellungen und Autostart wieder.
+
+Die App fragt alle 30 Sekunden `GET /api/v1/alarme` ab, nur über HTTPS und ohne Weiterleitungen zu folgen; sie ändert
+nichts. Das Zertifikat der Zentrale muss Windows vertrauen (z. B. Firmen-CA). Sie ist wie der Windows-Agent nicht
+Authenticode-signiert: SmartScreen warnt beim ersten Start, und ein Virenschutz braucht ggf. eine Ausnahme. Unter Windows
+ist sie bisher nur gebaut, nicht von uns ausgeführt worden.
+
 Die Oberfläche fragt dafür alle 15 Sekunden die Alarme ab, mit Windows-Benachrichtigung auch im Hintergrund. Den Ton einer
 **Wandanzeige** stellen Admins in der Liste der Wandanzeigen unter „Ton“ ein
 ([Kapitel 4](04-hosts.md#dashboard-und-wandanzeige)).

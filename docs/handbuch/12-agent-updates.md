@@ -53,6 +53,26 @@ und legt es bereit. Den Austausch macht ein **getrennter** Installationsdienst m
 dem Schlüssel des installierten Agents noch einmal prüft (Linux sofort, Windows über eine geplante Aufgabe binnen
 15 Minuten). Der Agent-Dienst selbst kann sein Programm nicht ändern.
 
+## Automatisch übernehmen (ab 1.0.4)
+
+Statt jede Version von Hand freizugeben, übernehmen die Agents eines Mandanten neue Versionen auf Wunsch selbst:
+**Verwaltung → Agent-Updates → Automatisch übernehmen** (Admins des Mandanten oder darüber, je Mandant).
+
+- **Pilotgruppe** (eine Gerätegruppe, mit Untergruppen): Ihre Agents bekommen eine neue Version, sobald das Paket
+  hochgeladen ist.
+- **Wartezeit** (0 bis 720 Stunden, Standard 24): Erst danach sind die übrigen Agents dran, und nur, wenn **kein Pilot
+  einen Fehler** beim Update meldet und, falls es Piloten gibt, **mindestens einer die neue Version schon fährt**. Ohne
+  Pilotgruppe zählt nur die Wartezeit.
+- **Zeitfenster:** Wochentage und Stunden in der Zeitzone der Installation; „von“ gleich „bis“ heißt ganzer Tag, „von“
+  größer als „bis“ reicht über Mitternacht (z. B. 22 bis 5 Uhr).
+
+Ist ein Agent dran, trägt die Zentrale bei seiner nächsten Meldung die Freigabe ein (Spalte „Freigegeben“ mit dem
+Zusatz „automatisch“); danach läuft alles wie bei einer Freigabe von Hand, mit derselben Prüfung der Signatur im Agent.
+Eine **Freigabe von Hand geht vor** und wird von der Automatik nicht überschrieben. Eine Rückstufung gibt es auch hier
+nicht. Änderungen an der Regel stehen im Audit-Log (`agent_update.automatik`).
+
+Voraussetzung ist wie immer ein mit dem Offline-Schlüssel signiertes Paket, das der Betreiber hochgeladen hat.
+
 ## Schlüssel wechseln oder widerrufen
 
 - **Geplanter Wechsel:** neuen Schlüssel erzeugen, in `schluessel.pub` den bisherigen auf `auslaufend` und den neuen
@@ -60,7 +80,7 @@ dem Schlüssel des installierten Agents noch einmal prüft (Linux sofort, Window
   Version den alten Eintrag entfernen.
 - **Schlüssel verloren oder abgeflossen:** Version bauen, in der der Schlüssel als `widerrufen` steht, und mit der
   **Reserve** signieren, dabei den Schlüssel ausdrücklich widerrufen:
-  `go run ./tools/signieren -schluessel ~/openwacht-reserve.key -version 1.0.3 -widerrufen <kennung> openwacht-agent_…`.
+  `go run ./tools/signieren -schluessel ~/openwacht-reserve.key -version 1.0.4 -widerrufen <kennung> openwacht-agent_…`.
   Danach einen neuen Reserve-Schlüssel anlegen.
 
 Ein Widerruf ist mitsigniert. Lädt der Betreiber ein solches Paket hoch, bietet die Zentrale nichts mehr an, was mit

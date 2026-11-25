@@ -1,5 +1,17 @@
 # Release-Notizen OpenWacht
 
+## 1.0.4
+
+- **Update der Zentrale in der Oberfläche:** Einstellungen → Update der Zentrale (Betreiber, mit Zweitfaktor). Paket,
+  `SHA256SUMS` und `SHA256SUMS.sig` hochladen; die Zentrale prüft Signatur, Prüfsumme, Plattform und Version, ein
+  getrennter Dienst mit root-Rechten prüft noch einmal und installiert mit apt. Nur bei Installation als
+  Debian-Paket; das Update **auf** 1.0.4 selbst noch von Hand ([Handbuch Kapitel 1](handbuch/01-installation.md)).
+- **Agent-Updates automatisch:** je Mandant Pilotgruppe, Wartezeit und Zeitfenster; die übrigen Agents folgen nur, wenn
+  kein Pilot einen Fehler meldet. Freigaben von Hand gehen vor ([Kapitel 12](handbuch/12-agent-updates.md)).
+- **Desktop-App für Windows:** `openwacht-desktop` im Infobereich mit Zustandssymbol und Benachrichtigungen, nur lesend
+  mit einem API-Token der Rolle Leser ([Kapitel 8](handbuch/08-alarme-und-wartung.md)).
+- Migration 0053 (läuft beim Update von selbst). Agents müssen nicht aktualisiert werden.
+
 ## 1.0.3
 
 - **Kürzere Alarm-Mails:** Der Betreff nennt nur noch Zustand, Gerät und Sensor (höchstens 90 Zeichen), die Meldung steht

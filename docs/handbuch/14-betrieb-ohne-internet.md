@@ -34,7 +34,7 @@ sudo apt install apt-utils debian-archive-keyring     # einmalig
 sh deploy/offline/paket-bauen.sh -dist dist
 
 # Ergebnis
-ls dist/openwacht-offline_1.0.3_debian-13_amd64.tar*
+ls dist/openwacht-offline_1.0.4_debian-13_amd64.tar*
 ```
 
 Das Skript
@@ -52,9 +52,9 @@ Optionen: `-arch arm64`, `-aus <ordner>`, `-quellen <datei>` (z. B. ein Spiegel 
 Update-Schlüssel signiert (eigener Kontext, eine Update-Signatur gilt dafür nicht):
 
 ```bash
-tar -xOf dist/openwacht-offline_1.0.3_debian-13_amd64.tar openwacht-offline_1.0.3_debian-13_amd64/SHA256SUMS >SHA256SUMS
+tar -xOf dist/openwacht-offline_1.0.4_debian-13_amd64.tar openwacht-offline_1.0.4_debian-13_amd64/SHA256SUMS >SHA256SUMS
 go run ./tools/signieren -schluessel ~/openwacht-update.key -summen SHA256SUMS      # offline
-sh deploy/offline/paket-bauen.sh -dist dist -signatur SHA256SUMS.sig -paket dist/openwacht-offline_1.0.3_debian-13_amd64.tar
+sh deploy/offline/paket-bauen.sh -dist dist -signatur SHA256SUMS.sig -paket dist/openwacht-offline_1.0.4_debian-13_amd64.tar
 ```
 
 Der letzte Schritt legt `SHA256SUMS.sig` ins Paket, prüft sie mit `dist/openwacht-zentrale_linux_amd64` und packt neu.
