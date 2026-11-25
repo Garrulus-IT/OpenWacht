@@ -17,6 +17,12 @@ Type=oneshot
 ExecStart=/usr/bin/openwacht-zentrale zweitinstanz -lauf
 TimeoutStartSec=2h
 NoNewPrivileges=yes
+# Nur, was der Lauf braucht: Wechsel zu postgres und svc_openwacht_db, Lesen
+# der Sicherungen im Eingang (gehören oft einem anderen Benutzer).
+CapabilityBoundingSet=CAP_SETUID CAP_SETGID CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH
+ProtectHome=read-only
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
 PrivateTmp=yes
 PrivateNetwork=yes
 ProtectSystem=full
