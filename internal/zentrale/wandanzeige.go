@@ -64,6 +64,7 @@ type anzeigeOut struct {
 	Netz              *string    `json:"netz"`
 	Erstellt          time.Time  `json:"erstellt"`
 	ZuletztDa         *time.Time `json:"zuletzt_da"`
+	Ton               alarmUI    `json:"ton"` // 1.0.2
 }
 
 // cleanNet prüft das optionale Netz einer Anzeige (CIDR oder einzelne Adresse).
@@ -92,14 +93,16 @@ func cleanNet(s string) (*string, error) {
 
 func (s *Server) handleDisplayList(w http.ResponseWriter, r *http.Request) {
 	s.handle(w, r, "anzeigen", func(ctx context.Context, tx pgx.Tx) (int, any, error) {
-		rows, err := tx.Query(ctx, `SELECT id::text, tenant_id::text, name, include_children, allowed_net::text, created_at, last_seen
+		rows, err := tx.Query(ctx, `SELECT id::text, tenant_id::text, name, include_children, allowed_net::text, created_at, last_seen, sound
 			FROM openwacht.displays ORDER BY lower(name), id`)
 		if err != nil {
 			return 0, nil, err
 		}
 		list, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (anzeigeOut, error) {
 			var a anzeigeOut
-			err := row.Scan(&a.ID, &a.MandantID, &a.Name, &a.MitUntermandanten, &a.Netz, &a.Erstellt, &a.ZuletztDa)
+			var raw []byte
+			err := row.Scan(&a.ID, &a.MandantID, &a.Name, &a.MitUntermandanten, &a.Netz, &a.Erstellt, &a.ZuletztDa, &raw)
+			a.Ton = scanAlarmUI(raw, false)
 			return a, err
 		})
 		if err != nil {
@@ -424,9 +427,20 @@ func (s *Server) handleDisplayData(w http.ResponseWriter, r *http.Request) {
 	d := displayFrom(ctx)
 	var body any
 	err := s.withDisplay(ctx, d.ID, func(tx pgx.Tx) error {
-		var err error
-		body, err = s.displayTree(ctx, tx, d)
-		return err
+		tree, err := s.displayTree(ctx, tx, d)
+		if err != nil {
+			return err
+		}
+		// Ton der Anzeige (1.0.2); der Bildschirm spielt ihn erst nach einem Klick.
+		var raw []byte
+		if err := tx.QueryRow(ctx, `SELECT openwacht.display_sound()`).Scan(&raw); err != nil {
+			return err
+		}
+		if m, ok := tree.(map[string]any); ok {
+			m["ton"] = scanAlarmUI(raw, false)
+		}
+		body = tree
+		return nil
 	})
 	if err != nil {
 		writeDBError(w, "anzeige daten", err)

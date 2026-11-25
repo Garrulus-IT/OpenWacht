@@ -71,6 +71,8 @@ export interface Ich {
   betreiber: boolean;
   // Alarm-Mails an sich selbst (Etappe 20)
   alarm_mails: boolean;
+  // Hinweise am Rand und Ton (1.0.2); fehlt bei älteren Zentralen
+  hinweise_ton?: HinweiseTon;
   // Herkunft des Kontos (Etappe 22a): lokal oder aus dem AD
   quelle: "lokal" | "ldap" | "oidc";
   // noch offene Wiederherstellungscodes (Etappe 30)
@@ -78,6 +80,19 @@ export interface Ich {
   csrf: string;
   version: string;
   commit: string;
+}
+
+// Ton bei neuen Ereignissen (1.0.2). Die Klänge erzeugt der Browser.
+export type TonStufe = "aus" | "krit" | "warn";
+export type Klang = "bling" | "gong" | "doppel";
+export interface TonEinstellung {
+  ton: TonStufe;
+  klang: Klang;
+  lautstaerke: number; // 0 … 100
+  entwarnung: boolean;
+}
+export interface HinweiseTon extends TonEinstellung {
+  hinweise: boolean;
 }
 
 export interface Mandant {
@@ -679,6 +694,8 @@ export interface Anzeige {
   netz: string | null;
   erstellt: string;
   zuletzt_da: string | null;
+  // Ton der Anzeige (1.0.2)
+  ton?: TonEinstellung;
 }
 
 export type AnzeigeStatus = "ok" | "warn" | "crit" | "quittiert" | "unknown" | "wartung";
@@ -705,6 +722,8 @@ export interface AnzeigeDaten {
   baum: AnzeigeKnoten;
   // Legende (0.99.2); fehlt bei älteren Zentralen
   kennfarben?: AnzeigeKennfarbe[];
+  // Ton der Anzeige (1.0.2); fehlt in der Vorschau
+  ton?: TonEinstellung;
 }
 
 // --- Traps (Etappe 14) ---------------------------------------------------------------

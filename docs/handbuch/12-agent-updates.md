@@ -60,7 +60,7 @@ dem Schlüssel des installierten Agents noch einmal prüft (Linux sofort, Window
   Version den alten Eintrag entfernen.
 - **Schlüssel verloren oder abgeflossen:** Version bauen, in der der Schlüssel als `widerrufen` steht, und mit der
   **Reserve** signieren, dabei den Schlüssel ausdrücklich widerrufen:
-  `go run ./tools/signieren -schluessel ~/openwacht-reserve.key -version 1.0.1 -widerrufen <kennung> openwacht-agent_…`.
+  `go run ./tools/signieren -schluessel ~/openwacht-reserve.key -version 1.0.2 -widerrufen <kennung> openwacht-agent_…`.
   Danach einen neuen Reserve-Schlüssel anlegen.
 
 Ein Widerruf ist mitsigniert. Lädt der Betreiber ein solches Paket hoch, bietet die Zentrale nichts mehr an, was mit

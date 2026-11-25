@@ -25,6 +25,22 @@ Sensoren, die nicht OK sind. Bestätigte Alarme erinnern nicht mehr, bleiben abe
 Hinweise kennen kein Bestätigen und keine Wartung: eine Meldung beim Auftreten, eine bei einem Wechsel zwischen Warnung
 und Fehler und eine Entwarnung.
 
+## Hinweise am Rand und Ton
+
+Unten in der Leiste öffnet **Hinweise und Ton** die eigenen Einstellungen. Sie gelten nur für dich, in jedem Browser, in
+dem du angemeldet bist, und nur, solange OpenWacht offen ist. Auch Leser stellen das für sich ein.
+
+- **Hinweise am Rand** (ab Werk an): Unten rechts erscheint ein kurzer Hinweis bei einem neuen Alarm, wenn ein Alarm
+  schlimmer wird (Warnung → Kritisch) und bei einer Entwarnung. Ein Klick führt zu den aktiven Alarmen. Hinweise
+  verschwinden nach einigen Sekunden (Kritisch nach 20), nicht, solange die Maus darauf liegt. Bestätigte Alarme melden
+  sich nicht. Traps mit der Wirkung Warnung oder Kritisch sind Alarme und erscheinen ebenso.
+- **Ton** (ab Werk aus): aus, nur bei Kritisch oder bei Warnung und Kritisch. Klang Bling, Gong oder Doppelton,
+  Lautstärke und auf Wunsch ein leiser Ton bei Entwarnung. „Probehören“ spielt den Klang. Die Klänge erzeugt der Browser
+  selbst; Dateien werden nicht geladen. Browser spielen Ton erst, nachdem die Seite einmal angeklickt wurde.
+
+Die Oberfläche fragt dafür alle 15 Sekunden die Alarme ab. Den Ton einer **Wandanzeige** stellen Admins in der Liste der
+Wandanzeigen unter „Ton“ ein (Kapitel 4).
+
 ## Alarmkanäle
 
 **Alarme → Kanäle** (Admins des Mandanten):
