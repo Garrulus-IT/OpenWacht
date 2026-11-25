@@ -1140,7 +1140,7 @@ func (q snmpRow) collectorDown(lim alarm.HostLimits) string {
 func (q snmpRow) input(warming bool, lim alarm.HostLimits) alarm.SNMPInput {
 	in := alarm.SNMPInput{Name: q.name, Disabled: q.disabled, Warming: warming, LastError: q.lastError,
 		Silent: time.Duration(q.silent * float64(time.Second)), Interval: time.Duration(q.interval) * time.Second,
-		CPU15: q.cpu15, Watched: q.watched, Excluded: q.excluded, Proxmox: q.version == versionPVE || q.version == versionVCenter, FritzBox: q.version == versionTR064, ONTAP: q.version == versionONTAP, XAPI: q.version == versionXAPI, Now: q.now, CollectorDown: q.collectorDown(lim)}
+		CPU15: q.cpu15, Watched: q.watched, Excluded: q.excluded, Proxmox: q.version == versionPVE || q.version == versionVCenter, FritzBox: q.version == versionTR064, ONTAP: q.version == versionONTAP, XAPI: q.version == versionXAPI, Citrix: q.version == versionCitrix, Now: q.now, CollectorDown: q.collectorDown(lim)}
 	if q.collector != nil && q.collectorRevoked != nil && *q.collectorRevoked {
 		in.LastError = "Sammler " + *q.collector + " ist gesperrt, bitte unter „Abgefragt von“ einen anderen wählen"
 	}

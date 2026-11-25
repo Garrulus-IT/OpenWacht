@@ -593,7 +593,7 @@ export interface SnmpWerte {
 export function snmpStart(g: Geraet, q: Snmp | null): SnmpWerte {
   return {
     version:
-      q && q.version !== "pve" && q.version !== "tr064" && q.version !== "vcenter" && q.version !== "ontap" && q.version !== "xapi"
+      q && q.version !== "pve" && q.version !== "tr064" && q.version !== "vcenter" && q.version !== "ontap" && q.version !== "xapi" && q.version !== "citrix"
         ? q.version
         : "3",
     adresse: q?.adresse ?? g.adresse ?? "",

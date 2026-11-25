@@ -463,6 +463,29 @@ export interface SnmpMesswerte {
   fritzbox?: FritzBoxMesswerte;
   ontap?: NetAppMesswerte;
   xapi?: XenServerMesswerte;
+  citrix?: CitrixMesswerte;
+}
+
+// --- Citrix (Abfragequelle mit version „citrix“, 1.0.6) ------------------------------
+
+export interface CitrixMesswerte {
+  fingerabdruck?: string;
+  vdas: number;
+  registriert: number;
+  wartung: number;
+  nicht_registriert: number;
+  nicht_registriert_namen?: string[];
+  fehler_minuten: number;
+  fehler?: { code: number; anzahl: number }[];
+  fehler_gesamt: number;
+}
+
+export interface CitrixInfo {
+  vdas: number;
+  nicht_registriert: number;
+  fehler_gesamt: number;
+  fehler_nicht_lesbar?: string;
+  fingerabdruck: string;
 }
 
 // --- XenServer/XCP-ng (Abfragequelle mit version „xapi“, 0.42.0) --------------------
@@ -619,7 +642,7 @@ export interface Snmp {
   id: string;
   mandant_id: string;
   geraet_id: string;
-  version: "1" | "2c" | "3" | "pve" | "tr064" | "vcenter" | "ontap" | "xapi";
+  version: "1" | "2c" | "3" | "pve" | "tr064" | "vcenter" | "ontap" | "xapi" | "citrix";
   adresse: string;
   port: number;
   // SNMP: Community bzw. v3-Zugangsdaten gespeichert; Proxmox: API-Token gespeichert

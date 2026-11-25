@@ -25,7 +25,7 @@ Zentrale aus. Es läuft vollständig im eigenen Netz, auch ganz ohne Internet. D
 16. [Betrieb und Skalierung](16-betrieb-und-skalierung.md): Lasttest, Größen, Aufbewahrung, Ausfallkonzept
 17. [Härtungsleitfaden](17-haertung.md): Ports, Firewall, Reverse Proxy, Anmeldung, Meldeweg (`security.txt`)
 18. [Recht und Nachweise](18-recht-und-nachweise.md): Datenschutz-Vorlagen, BSI-Grundschutz, Barrierefreiheit, Rezertifizierung
-19. [Anbindungen](19-anbindungen.md): Proxmox, vCenter, NetApp, XenServer, FRITZ!Box, Hyper-V, Docker, Windows ohne Agent
+19. [Anbindungen](19-anbindungen.md): Proxmox, vCenter, NetApp, XenServer, Citrix, FRITZ!Box, Hyper-V, Docker, Windows ohne Agent
 
 Änderungen je Version: [Release-Notizen](../release-notizen.md).
 

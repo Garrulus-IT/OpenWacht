@@ -273,6 +273,8 @@ func sourceKindText(version string) string {
 		return "NetApp"
 	case versionXAPI:
 		return "XenServer"
+	case versionCitrix:
+		return "Citrix"
 	}
 	return "SNMP"
 }

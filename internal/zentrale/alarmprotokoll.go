@@ -681,6 +681,8 @@ func (s *Server) snmpSensors(ctx context.Context, tx pgx.Tx, open map[string]*al
 			kind = "NetApp"
 		case versionXAPI:
 			kind = "XenServer"
+		case versionCitrix:
+			kind = "Citrix"
 		}
 		base := sensorOut{Art: "snmp", QuelleID: q.id, MandantID: tenant, GeraetID: device, Host: q.name}
 		if q.disabled {
@@ -702,7 +704,7 @@ func (s *Server) snmpSensors(ctx context.Context, tx pgx.Tx, open map[string]*al
 		for _, f := range alarm.EvaluateSNMP(fresh, prevAll[q.id], lim) {
 			sn := base
 			sn.Gegenstand, sn.Name, sn.Status, sn.Meldung = f.Subject, alarm.SensorName(f.Subject), f.Status, f.Message
-			if ((q.version == versionPVE || q.version == versionVCenter || q.version == versionONTAP || q.version == versionXAPI) && f.Subject != alarm.SubjectSilent) || strings.HasPrefix(f.Subject, alarm.TrapPrefix) {
+			if ((q.version == versionPVE || q.version == versionVCenter || q.version == versionONTAP || q.version == versionXAPI || q.version == versionCitrix) && f.Subject != alarm.SubjectSilent) || strings.HasPrefix(f.Subject, alarm.TrapPrefix) {
 				// Proxmox: Namen mit Gastnamen („Backup VM 100 (srv-dms)“)
 				sn.Name = strings.TrimPrefix(f.Name, q.name+" · ")
 			}

@@ -5,6 +5,10 @@
 - **Geräte in einen anderen Mandanten verschieben:** im Menü des Geräts, für Admins beider Mandanten. Agent, Abfragen,
   Sensoren, Alarme und Verlauf ziehen mit, der Agent braucht keine neue Registrierung; Gruppe, Abhängigkeiten,
   Wartungsfenster und nicht geltende Kennfarben fallen weg ([Handbuch Kapitel 4](handbuch/04-hosts.md#in-einen-anderen-mandanten-verschieben)).
+- **Citrix:** Abfrage des Monitor Service einer Citrix-Site (OData, Windows-Anmeldung, nur HTTPS, nur lesend): nicht
+  registrierte VDAs mit Namen und fehlgeschlagene Verbindungen der letzten Stunde je Fehlerart, nie Benutzer
+  ([Kapitel 19](handbuch/19-anbindungen.md#citrix-monitor-service-odata)). Bisher nur gegen eine nachgebaute Gegenstelle
+  getestet, noch nicht gegen einen echten Delivery Controller.
 - **Meldungen bei verdächtigen Anmeldungen:** Mail an das Konto bei einer Anmeldung von einem neuen Rechner; bei Sperren
   nach Fehlversuchen und bei Notfall-Befehlen auf der Zentrale auch an den Betreiber. Braucht den eingerichteten
   Mailversand ([Kapitel 3](handbuch/03-mandanten-und-rollen.md)).
@@ -17,7 +21,7 @@
 - Beim Anlegen eines Benutzers lautet die Meldung für eine vergebene Adresse immer gleich; höchstens 20 solcher
   Ablehnungen je Admin und Stunde.
 - Die Warnung beim Start ohne Alarmziele nennt richtig, was gesperrt ist (Mail geht weiter).
-- Migrationen 0056 bis 0058 (laufen beim Update von selbst).
+- Migrationen 0056 bis 0059 (laufen beim Update von selbst).
 
 ## 1.0.5
 

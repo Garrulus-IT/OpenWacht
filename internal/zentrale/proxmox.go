@@ -194,7 +194,7 @@ func (s *Server) handlePVESet(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return 0, nil, err
 		}
-		if oldVersion == versionTR064 || oldVersion == versionVCenter || oldVersion == versionONTAP || oldVersion == versionXAPI {
+		if oldVersion == versionTR064 || oldVersion == versionVCenter || oldVersion == versionONTAP || oldVersion == versionXAPI || oldVersion == versionCitrix {
 			return 0, nil, &apiError{http.StatusConflict, "Das Gerät hat schon eine andere Abfrage (" + sourceKindText(oldVersion) + "). Bitte diese zuerst entfernen."}
 		}
 		if oldVersion != versionPVE {

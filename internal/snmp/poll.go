@@ -35,6 +35,7 @@ type Snapshot struct {
 	FritzBox    *FritzBox    `json:"fritzbox,omitempty"`
 	ONTAP       *ONTAP       `json:"ontap,omitempty"`
 	XAPI        *XAPI        `json:"xapi,omitempty"`
+	Citrix      *Citrix      `json:"citrix,omitempty"`
 	// Eigene OIDs (Etappe 18b), Texte nur als Hash
 	Extra []ExtraValue `json:"eigene,omitempty"`
 	// Eigene Spalten (0.47.0), nur Kennzahlen ohne Indizes

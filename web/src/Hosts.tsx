@@ -26,6 +26,7 @@ import { VCenterFormular } from "./VCenter";
 import { FritzBoxFormular, FritzBoxTeil, fritzKurz } from "./FritzBox";
 import { NetAppFormular, NetAppTeil, netappKurz } from "./NetApp";
 import { XenServerFormular, XenServerTeil, xenKurz } from "./XenServer";
+import { CitrixFormular, CitrixTeil, citrixKurz } from "./Citrix";
 import { TrapRegeln } from "./Traps";
 import { WartungHinweis, WartungMarke, WartungSteuerung } from "./Wartung";
 import { Aktionsmenue } from "./Aktionsmenue";
@@ -259,7 +260,7 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
         )}
         {!hinzufuegen && !ordnen && !regeln && (darf || daten?.snmp.some((q) => q.traps)) && (
           <span className="kopf-knoepfe">
-            {(daten?.snmp.some((q) => q.version !== "pve" && q.version !== "tr064" && q.version !== "vcenter" && q.version !== "ontap" && q.version !== "xapi") ||
+            {(daten?.snmp.some((q) => q.version !== "pve" && q.version !== "tr064" && q.version !== "vcenter" && q.version !== "ontap" && q.version !== "xapi" && q.version !== "citrix") ||
               rolleIn(bereich, mandant.id) === "admin") && (
               <button className="knopf" onClick={() => setRegeln(true)}>
                 Trap-Regeln
@@ -565,7 +566,7 @@ function GeraetZeile(props: {
   const platte = m ? vollstePlatte(m) : null;
   const detailId = `geraet-${g.id}`;
   const [modus, setModus] = useState<
-    "" | "bearbeiten" | "check" | "agent" | "snmp" | "proxmox" | "vcenter" | "fritzbox" | "netapp" | "xenserver" | "loeschen" | "wartung" | "schwellen" | "entfernen" | "verschieben"
+    "" | "bearbeiten" | "check" | "agent" | "snmp" | "proxmox" | "vcenter" | "fritzbox" | "netapp" | "xenserver" | "citrix" | "loeschen" | "wartung" | "schwellen" | "entfernen" | "verschieben"
   >("");
   const q = s.snmp;
   const istVc = q?.version === "vcenter";
@@ -573,8 +574,9 @@ function GeraetZeile(props: {
   const istFritz = q?.version === "tr064";
   const istNetApp = q?.version === "ontap";
   const istXen = q?.version === "xapi";
-  const quelleName = istVc ? "vCenter" : istPve ? "Proxmox" : istFritz ? "FRITZ!Box" : istNetApp ? "NetApp" : istXen ? "XenServer" : "SNMP";
-  const quelleModus = istVc ? "vcenter" : istPve ? "proxmox" : istFritz ? "fritzbox" : istNetApp ? "netapp" : istXen ? "xenserver" : "snmp";
+  const istCitrix = q?.version === "citrix";
+  const quelleName = istVc ? "vCenter" : istPve ? "Proxmox" : istFritz ? "FRITZ!Box" : istNetApp ? "NetApp" : istXen ? "XenServer" : istCitrix ? "Citrix" : "SNMP";
+  const quelleModus = istVc ? "vcenter" : istPve ? "proxmox" : istFritz ? "fritzbox" : istNetApp ? "netapp" : istXen ? "xenserver" : istCitrix ? "citrix" : "snmp";
   // Werte für die Kopfzeile: Agent, sonst SNMP (wenn das Gerät CPU/RAM/Platten meldet)
   const sm = !m && q?.messwerte ? q.messwerte : null;
   // Meldet sich das Gerät nicht mehr, keine alten Werte im Kopf zeigen.
@@ -598,7 +600,7 @@ function GeraetZeile(props: {
     a && z ? `Agent ${zustandText[z]}${a.zuletzt_gesehen && z !== "online" && !mAlt ? `, zuletzt ${vor(a.zuletzt_gesehen, jetzt)}` : ""}` : "",
     !a && s.gesperrt.length > 0 ? "Agent gesperrt" : "",
     !a && g.adresse ? g.adresse : "",
-    q ? (istPve ? proxmoxKurz(q) : istFritz ? fritzKurz(q) : istNetApp ? netappKurz(q) : istXen ? xenKurz(q) : snmpKurz(q)) : "",
+    q ? (istPve ? proxmoxKurz(q) : istFritz ? fritzKurz(q) : istNetApp ? netappKurz(q) : istXen ? xenKurz(q) : istCitrix ? citrixKurz(q) : snmpKurz(q)) : "",
     checkZusammenfassung(s.checks),
     !a && !q && s.checks.length === 0 && s.gesperrt.length === 0 ? "noch nicht überwacht" : "",
   ].filter(Boolean);
@@ -773,6 +775,30 @@ function GeraetZeile(props: {
           entfernen={modus === "entfernen"}
           onEntfernenEnde={() => setModus("")}
         />
+      ) : modus === "citrix" ? (
+        <CitrixFormular
+          g={g}
+          q={istCitrix ? q : null}
+          onFertig={() => {
+            setModus("");
+            props.onGeaendert();
+          }}
+          melden={props.melden}
+        />
+      ) : q && istCitrix ? (
+        <CitrixTeil
+          q={q}
+          g={g}
+          darfAdmin={props.darfAdmin}
+          darfPflegen={props.darf}
+          jetzt={jetzt}
+          onBearbeiten={() => setModus("citrix")}
+          onGeaendert={props.onGeaendert}
+          melden={props.melden}
+          ohneAktionen
+          entfernen={modus === "entfernen"}
+          onEntfernenEnde={() => setModus("")}
+        />
       ) : modus === "xenserver" ? (
         <XenServerFormular
           g={g}
@@ -860,7 +886,7 @@ function GeraetZeile(props: {
               check={bearbeite}
               netze={props.netze}
               hatAgent={!!a}
-              hatSnmp={!!q && !istPve && !istFritz && !istNetApp && !istXen}
+              hatSnmp={!!q && !istPve && !istFritz && !istNetApp && !istXen && !istCitrix}
               freigabe={a?.messwerte?.sensoren ?? null}
               onFertig={(neu) => {
                 setModus("");
@@ -981,6 +1007,7 @@ function GeraetZeile(props: {
                       { text: "FRITZ!Box einrichten", onWahl: () => setModus("fritzbox") },
                       { text: "NetApp einrichten", onWahl: () => setModus("netapp") },
                       { text: "XenServer einrichten", onWahl: () => setModus("xenserver") },
+                      { text: "Citrix einrichten", onWahl: () => setModus("citrix") },
                     ]
                   : []),
               ],
@@ -1058,7 +1085,7 @@ function GeraetZeile(props: {
               sensoren={s.sensoren}
               geschwister={geschwister}
               netze={props.netze}
-              hatSnmp={!!q && !istPve && !istFritz && !istNetApp && !istXen}
+              hatSnmp={!!q && !istPve && !istFritz && !istNetApp && !istXen && !istCitrix}
               darf={props.darf}
               onGeaendert={props.onGeaendert}
               melden={props.melden}
