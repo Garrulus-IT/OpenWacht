@@ -112,14 +112,19 @@ func windowsAutoServices(context.Context) ([]autoService, time.Duration, error) 
 			continue
 		}
 		name := windows.UTF16PtrToString(e.ServiceName)
+		running := e.ServiceStatusProcess.CurrentState == windows.SERVICE_RUNNING
 		auto, delayed, trigger, ok := serviceStart(scm, e.ServiceName)
-		if !ok || !auto {
+		if !ok {
+			// Starttyp nicht lesbar: mitzählen statt still weglassen.
+			out = append(out, autoService{Name: name, Display: windows.UTF16PtrToString(e.DisplayName), Running: running, Unreadable: true})
+			continue
+		}
+		if !auto {
 			continue
 		}
 		out = append(out, autoService{
 			Name: name, Display: windows.UTF16PtrToString(e.DisplayName),
-			Running: e.ServiceStatusProcess.CurrentState == windows.SERVICE_RUNNING,
-			Delayed: delayed, Trigger: trigger,
+			Running: running, Delayed: delayed, Trigger: trigger,
 		})
 	}
 	return out, windows.DurationSinceBoot(), nil
@@ -132,7 +137,7 @@ const (
 )
 
 // serviceStart liest Starttyp, verzögerten Start und Auslöser eines Dienstes.
-// ok = false: nicht lesbar (zählt nicht, statt einen Fehlalarm auszulösen).
+// ok = false: nicht lesbar (meldet der Sensor als „nicht lesbar“).
 func serviceStart(scm windows.Handle, name *uint16) (auto, delayed, trigger, ok bool) {
 	h, err := windows.OpenService(scm, name, windows.SERVICE_QUERY_CONFIG)
 	if err != nil {

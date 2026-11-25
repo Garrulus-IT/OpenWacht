@@ -79,6 +79,8 @@ Befehle:
   entsperren   Sperren nach Fehlversuchen für ein Konto aufheben (-email; OPENWACHT_DB_EIGENTUEMER)
   zweifaktor-zuruecksetzen  Zwei-Faktor-Anmeldung eines Kontos zurücksetzen, z. B. bei verlorenem
                Gerät ohne Wiederherstellungscode (-email; OPENWACHT_DB_EIGENTUEMER)
+  passwort-setzen  neues Passwort für ein lokales Konto setzen, z. B. wenn das einzige Admin-Passwort
+               verloren ist (-email; OPENWACHT_DB_EIGENTUEMER); beendet alle Sitzungen
   pruefe-signatur  Signatur von SHA256SUMS eines Pakets prüfen (-summen; -abdruck)
   update-installieren  Update aus der Oberfläche installieren (root, über openwacht-zentrale-update.service)
   agent-ca     Agent-CA anzeigen oder wechseln (-neu, -umstellen, -alte-entfernen; OPENWACHT_DB_EIGENTUEMER)
@@ -126,6 +128,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdAuditCheck(ctx, args[1:], stdout)
 	case "zweifaktor-zuruecksetzen":
 		err = cmd2FAReset(ctx, args[1:], stdout)
+	case "passwort-setzen":
+		err = cmdPasswordSet(ctx, args[1:], stdin, stdout)
 	case "installieren":
 		err = cmdInstall(ctx, args[1:], stdout)
 	case "einrichtungslink":
@@ -295,6 +299,73 @@ func cmdUnlock(ctx context.Context, args []string, out io.Writer) error {
 	return nil
 }
 
+// cmdPasswordSet setzt das Passwort eines lokalen Kontos neu (Notfall, nur
+// auf der Shell als Eigentümer der Datenbank). Die Zwei-Faktor-Anmeldung
+// bleibt; Sitzungen enden, Sperren nach Fehlversuchen werden aufgehoben.
+func cmdPasswordSet(ctx context.Context, args []string, in io.Reader, out io.Writer) error {
+	fs := flag.NewFlagSet("passwort-setzen", flag.ContinueOnError)
+	email := fs.String("email", "", "E-Mail-Adresse des lokalen Kontos")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*email) == "" {
+		return errors.New("-email ist Pflicht")
+	}
+	conn, err := connectEnv(ctx, "OPENWACHT_DB_EIGENTUEMER")
+	if err != nil {
+		return err
+	}
+	defer conn.Close(ctx)
+	return passwordSet(ctx, conn, *email, in, out, auth.DefaultParams)
+}
+
+func passwordSet(ctx context.Context, conn *pgx.Conn, email string, in io.Reader, out io.Writer, p auth.Params) error {
+	var source *string
+	// Erst prüfen, ob es das Konto gibt, dann nach dem Passwort fragen.
+	if err := conn.QueryRow(ctx, `SELECT auth_source FROM openwacht.users WHERE email = lower(btrim($1))`, email).
+		Scan(&source); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return err
+	}
+	if source == nil {
+		return fmt.Errorf("kein Benutzer mit der E-Mail-Adresse %q", email)
+	}
+	if *source != "lokal" {
+		return fmt.Errorf("%s meldet sich über %s an; das Passwort wird dort geändert", email, authSourceName(*source))
+	}
+	password, err := readPassword(in, out, email)
+	if err != nil {
+		return err
+	}
+	if err := auth.ValidateNewPassword(password, email); err != nil {
+		return err
+	}
+	hash, err := auth.HashPassword(password, p)
+	if err != nil {
+		return err
+	}
+	var res *string
+	if err := conn.QueryRow(ctx, `SELECT openwacht.auth_password_set_shell($1, $2)`, email, hash).Scan(&res); err != nil {
+		return err
+	}
+	if res == nil || *res != "lokal" {
+		return errors.New("Konto hat sich während der Eingabe geändert; nichts gesetzt")
+	}
+	fmt.Fprintf(out, "Passwort von %s gesetzt, alle Sitzungen beendet, Sperren aufgehoben. Die Zwei-Faktor-Anmeldung bleibt.\n", email)
+	return nil
+}
+
+func authSourceName(s string) string {
+	switch s {
+	case "ldap":
+		return "das AD bzw. LDAP"
+	case "oidc":
+		return "SSO (OIDC)"
+	case "token":
+		return "ein API-Token (Konto ohne Passwort)"
+	}
+	return s
+}
+
 // cmd2FAReset setzt die Zwei-Faktor-Anmeldung eines Kontos zurück (Etappe 30,
 // Entscheidung: nicht in der Oberfläche). Beendet alle Sitzungen des Kontos.
 func cmd2FAReset(ctx context.Context, args []string, out io.Writer) error {
@@ -345,7 +416,7 @@ func cmdSetup(ctx context.Context, args []string, in io.Reader, out io.Writer) e
 		return err
 	}
 	defer conn.Close(ctx)
-	password, err := readPassword(in, out)
+	password, err := readPassword(in, out, "den ersten Admin")
 	if err != nil {
 		return err
 	}
@@ -356,9 +427,9 @@ func cmdSetup(ctx context.Context, args []string, in io.Reader, out io.Writer) e
 	return nil
 }
 
-// readPassword liest das Passwort des ersten Admins. Am Terminal verdeckt und
-// zur Kontrolle zweimal; aus einer Pipe (printf … |) eine Zeile wie bisher.
-func readPassword(in io.Reader, out io.Writer) (string, error) {
+// readPassword liest ein Passwort (für wen: „den ersten Admin“). Am Terminal
+// verdeckt und zur Kontrolle zweimal; aus einer Pipe (printf … |) eine Zeile.
+func readPassword(in io.Reader, out io.Writer, wer string) (string, error) {
 	r := bufio.NewReader(in)
 	line := func() (string, error) {
 		l, err := r.ReadString('\n')
@@ -374,11 +445,11 @@ func readPassword(in io.Reader, out io.Writer) (string, error) {
 		restore, terminal = echoOff(f)
 	}
 	if !terminal {
-		fmt.Fprintln(out, "Passwort für den ersten Admin eingeben (eine Zeile, mindestens 12 Zeichen):")
+		fmt.Fprintf(out, "Passwort für %s eingeben (eine Zeile, mindestens 12 Zeichen):\n", wer)
 		return line()
 	}
 	defer restore()
-	fmt.Fprint(out, "Passwort für den ersten Admin (mindestens 12 Zeichen, wird nicht angezeigt): ")
+	fmt.Fprintf(out, "Passwort für %s (mindestens 12 Zeichen, wird nicht angezeigt): ", wer)
 	first, err := line()
 	fmt.Fprintln(out)
 	if err != nil {
@@ -816,7 +887,8 @@ func cmdServe(ctx context.Context, args []string) error {
 	go func() {
 		defer close(alertsDone)
 		if t := srv.AlertTargetList(); len(t) == 0 {
-			slog.Warn("Alarme: keine ntfy-Server freigegeben (Einstellungen bzw. -alarm-ziele); es werden keine Alarme verschickt")
+			// Mail geht über das Relay und braucht kein Alarmziel.
+			slog.Warn("Alarme: keine Alarmziele freigegeben (Einstellungen bzw. -alarm-ziele); Mail geht, ntfy, Webhook, Teams und SMS sind gesperrt")
 		} else {
 			slog.Info("Alarme gestartet", "ziele", t)
 		}

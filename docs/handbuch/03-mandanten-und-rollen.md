@@ -118,5 +118,19 @@ sudo -u svc_openwacht_db env OPENWACHT_DB_EIGENTUEMER="host=/run/postgresql user
   openwacht-zentrale entsperren -email erika.mustermann@beispiel.example
 ```
 
+**Passwort vergessen (ab 1.0.6):** Ein lokales Konto bekommt in der Oberfläche ein neues Passwort von einem Admin, der es
+verwaltet (Benutzer und Mandanten → Benutzer → in der Zeile des Kontos „Passwort neu setzen“). Gibt es keinen solchen
+Admin mehr, etwa weil das einzige Admin-Passwort verloren ist, setzt der Eigentümer der Datenbank es auf der Zentrale neu
+(am Terminal verdeckt, zweimal):
+
+```bash
+sudo -u svc_openwacht_db env OPENWACHT_DB_EIGENTUEMER="host=/run/postgresql user=openwacht_owner dbname=openwacht" \
+  openwacht-zentrale passwort-setzen -email erika.mustermann@beispiel.example
+```
+
+Alle Sitzungen des Kontos enden, Sperren nach Fehlversuchen sind aufgehoben, die Zwei-Faktor-Anmeldung bleibt (fehlt auch
+das Handy: zusätzlich `zweifaktor-zuruecksetzen`). Im Audit-Log steht `passwort.gesetzt` mit Quelle `shell`. Für Konten
+aus dem AD oder per SSO lehnt der Befehl ab: Deren Passwort ändert man dort.
+
 Hinter einem Reverse Proxy zählt die Adresse aus `X-Forwarded-For` nur, wenn der Proxy mit `-proxy` als
 vertrauenswürdig eingetragen ist; sonst teilen sich alle Benutzer die Adresse des Proxys und damit auch dessen Sperre.

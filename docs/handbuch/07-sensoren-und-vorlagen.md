@@ -48,6 +48,10 @@ Meldung nennt die gestoppten Dienste mit ihrem Dienstnamen („2 Dienste gestopp
 - Am Rechner freigeben: `openwacht-agent sensoren -arten "dienst,autodienste"` (Liste der Arten vollständig angeben,
   siehe [Kapitel 5](05-agent.md#sensoren-auf-dem-rechner-freigeben)). Der Agent liest nur Name, Anzeigename, Starttyp
   und Zustand, nie Dienstkonto oder Programmpfad.
+- **Nicht lesbare Dienste (ab Agent 1.0.6):** Darf das Dienstkonto des Agents die Einstellungen eines Dienstes nicht
+  lesen (manche Virenschutz- und Herstellerdienste schränken das ein), ist sein Starttyp unbekannt. Die Meldung nennt
+  dann ihre Zahl („; 2 nicht lesbar“); steht ein solcher Dienst, ist das eine **Warnung** mit seinem Namen, weil er
+  automatisch starten sollen könnte. Ist das gewollt, den Dienst als Ausnahme eintragen.
 
 ### SNMP-Tabellenspalten
 

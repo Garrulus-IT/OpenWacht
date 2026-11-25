@@ -267,6 +267,9 @@ type autoService struct {
 	Running       bool
 	Delayed       bool // „Automatisch (verzögerter Start)“
 	Trigger       bool // startet und endet bei Ereignissen, darf stehen
+	// Unreadable: Starttyp nicht lesbar (dem Dienstkonto fehlt
+	// SERVICE_QUERY_CONFIG). Ob er laufen müsste, ist unbekannt.
+	Unreadable bool
 }
 
 // delayedGrace: so lange nach dem Systemstart zählen verzögert startende
@@ -275,11 +278,21 @@ const delayedGrace = 15 * time.Minute
 
 // autoServicesResult: Fehler, wenn ein automatisch startender Dienst steht.
 // Gemeldet werden nur Dienstnamen (höchstens 250 Zeichen) und die Anzahl.
+// Dienste, deren Starttyp nicht lesbar ist, nennt die Meldung mit ihrer Zahl;
+// steht einer davon, ist das eine Warnung (er könnte automatisch starten
+// sollen). Ausnahmen gelten auch für sie.
 func autoServicesResult(list []autoService, uptime time.Duration, exceptions []string) checks.Result {
-	var stopped []string
-	n := 0
+	var stopped, unclear []string
+	n, unreadable := 0, 0
 	for _, x := range list {
 		if x.Trigger || checks.ExceptionMatch(exceptions, x.Name, x.Display) {
+			continue
+		}
+		if x.Unreadable {
+			unreadable++
+			if !x.Running {
+				unclear = append(unclear, x.Name)
+			}
 			continue
 		}
 		n++
@@ -288,15 +301,27 @@ func autoServicesResult(list []autoService, uptime time.Duration, exceptions []s
 		}
 		stopped = append(stopped, x.Name)
 	}
-	slices.SortFunc(stopped, func(a, b string) int { return strings.Compare(strings.ToLower(a), strings.ToLower(b)) })
+	byName := func(a, b string) int { return strings.Compare(strings.ToLower(a), strings.ToLower(b)) }
+	slices.SortFunc(stopped, byName)
+	slices.SortFunc(unclear, byName)
 	metric := fmt.Sprintf("%d gestoppt", len(stopped))
+	suffix := ""
+	switch {
+	case len(unclear) > 0:
+		suffix = fmt.Sprintf("; Starttyp nicht lesbar, steht: %s", strings.Join(unclear, ", "))
+	case unreadable > 0:
+		suffix = fmt.Sprintf("; %d nicht lesbar", unreadable)
+	}
 	switch len(stopped) {
 	case 0:
-		return checks.Result{Status: checks.OK, Message: fmt.Sprintf("alle %d automatisch startenden Dienste laufen", n), Metric: metric}
+		if len(unclear) > 0 {
+			return checks.Result{Status: checks.Warn, Message: clipText(fmt.Sprintf("alle %d automatisch startenden Dienste laufen%s", n, suffix), 250), Metric: metric}
+		}
+		return checks.Result{Status: checks.OK, Message: clipText(fmt.Sprintf("alle %d automatisch startenden Dienste laufen%s", n, suffix), 250), Metric: metric}
 	case 1:
-		return checks.Result{Status: checks.Crit, Message: clipText("Dienst gestoppt: "+stopped[0], 250), Metric: metric}
+		return checks.Result{Status: checks.Crit, Message: clipText("Dienst gestoppt: "+stopped[0]+suffix, 250), Metric: metric}
 	}
-	return checks.Result{Status: checks.Crit, Message: clipText(fmt.Sprintf("%d Dienste gestoppt: %s", len(stopped), strings.Join(stopped, ", ")), 250), Metric: metric}
+	return checks.Result{Status: checks.Crit, Message: clipText(fmt.Sprintf("%d Dienste gestoppt: %s%s", len(stopped), strings.Join(stopped, ", "), suffix), 250), Metric: metric}
 }
 
 // processMatch: Linux kürzt Prozessnamen (comm) auf 15 Zeichen, Windows

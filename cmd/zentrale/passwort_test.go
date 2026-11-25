@@ -18,7 +18,7 @@ func TestReadPasswordPipe(t *testing.T) {
 		"":                           "",
 	} {
 		var out bytes.Buffer
-		got, err := readPassword(strings.NewReader(in), &out)
+		got, err := readPassword(strings.NewReader(in), &out, "den ersten Admin")
 		if err != nil || got != want {
 			t.Errorf("readPassword(%q) = %q, %v; erwartet %q", in, got, err, want)
 		}
