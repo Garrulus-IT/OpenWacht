@@ -3,9 +3,10 @@
   "short_name": "OpenWacht",
   "description": "Open-Source-Monitoring aus Europa",
   "lang": "de",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
-  "display": "browser",
+  "display": "standalone",
   "background_color": "#102238",
   "theme_color": "#102238",
   "icons": [

@@ -15,6 +15,7 @@ func FuzzParseImportCSV(f *testing.F) {
 	f.Add("name;adresse;gruppe;profil;vorlage\nsrv-file01;10.10.0.10;Server/Datei;SNMP Standard;Ping\n")
 	f.Add("\ufeffname,adresse\n\"sw-core01\",10.10.0.2\n\n,\n")
 	f.Add("name\n\"offen")
+	f.Add("\"name;adresse\"\r\n\"srv-a;10.20.0.1\"\r\n")
 	f.Fuzz(func(t *testing.T, text string) {
 		rows, err := parseImportCSV(text)
 		if err != nil {

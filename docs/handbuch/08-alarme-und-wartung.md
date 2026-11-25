@@ -38,8 +38,24 @@ dem du angemeldet bist, und nur, solange OpenWacht offen ist. Auch Leser stellen
   Lautstärke und auf Wunsch ein leiser Ton bei Entwarnung. „Probehören“ spielt den Klang. Die Klänge erzeugt der Browser
   selbst; Dateien werden nicht geladen. Browser spielen Ton erst, nachdem die Seite einmal angeklickt wurde.
 
-Die Oberfläche fragt dafür alle 15 Sekunden die Alarme ab. Den Ton einer **Wandanzeige** stellen Admins in der Liste der
-Wandanzeigen unter „Ton“ ein ([Kapitel 4](04-hosts.md#dashboard-und-wandanzeige)).
+- **Windows-Benachrichtigung** (1.0.3, je Browser, ab Werk aus): Ist OpenWacht im Hintergrund (anderes Fenster vorn,
+  minimiert), zeigt der Browser dieselben Ereignisse zusätzlich als Benachrichtigung des Systems, unter Windows unten
+  rechts im Infobereich. Ab vier Ereignissen auf einmal kommt eine zusammengefasste. Ein Klick holt OpenWacht nach vorn
+  und öffnet die Alarme. Beim Einschalten fragt der Browser einmal nach der Erlaubnis; hat er sie gesperrt, lässt sie
+  sich über das Schloss links in der Adressleiste → Berechtigungen → Benachrichtigungen wieder erlauben. Das geht nur
+  über HTTPS, und OpenWacht muss offen sein.
+
+![Hinweise und Ton](bilder/hinweise-ton.webp)
+
+**Als App installieren:** In Edge und Chrome lässt sich OpenWacht als eigene App mit Fenster und Eintrag im Startmenü
+installieren: Symbol „App installieren“ rechts in der Adressleiste, bzw. Menü (⋯) → Apps → „OpenWacht installieren“,
+oder der Knopf **Als App installieren** im Dialog, wenn der Browser es anbietet. Die App ist dieselbe Oberfläche mit
+derselben Anmeldung; minimiert kommen die Windows-Benachrichtigungen weiter. Entfernen: in der App Menü → „OpenWacht
+deinstallieren“ bzw. Windows-Einstellungen → Apps.
+
+Die Oberfläche fragt dafür alle 15 Sekunden die Alarme ab, mit Windows-Benachrichtigung auch im Hintergrund. Den Ton einer
+**Wandanzeige** stellen Admins in der Liste der Wandanzeigen unter „Ton“ ein
+([Kapitel 4](04-hosts.md#dashboard-und-wandanzeige)).
 
 ## Alarmkanäle
 
@@ -70,7 +86,11 @@ nicht bei jedem Durchlauf; das schont Relays mit einer Grenze je Minute (Exchang
 
 **Monatsbericht** am Mail-Kanal: siehe [Kapitel 9](09-berichte.md).
 
-So sieht eine Alarm-Mail im Betreff aus: `KRIT · drucker-empfang · TCP 9100: Port 9100: keine Route zum Host`.
+**So sieht eine Alarm-Mail aus:** Der Betreff nennt nur Zustand, Gerät und Sensor, höchstens 90 Zeichen, z. B.
+`KRIT · drucker-empfang · TCP 9100`. Im Text steht oben noch einmal Gerät und Sensor, darunter groß die Meldung
+(„Port 9100: keine Route zum Host“), dann seit wann, Prognose, weitere Probleme am Gerät, Graph und der Link. Eine
+**Sammelmail** heißt z. B. `KRIT · OpenWacht: 3 Probleme, 1 wieder OK` (schlimmster Zustand vorn) und listet getrennt
+„Probleme“ und „Wieder in Ordnung“, je Ereignis eine Zeile.
 
 ### SMS über ein brevis.one-Gateway
 

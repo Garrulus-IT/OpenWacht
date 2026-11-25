@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 export type Reiter =
-  "dashboard" | "hosts" | "alarme" | "berichte" | "vorlagen" | "snmpprofile" | "anzeigen" | "wartung" | "verwaltung" | "einstellungen";
+  "dashboard" | "hosts" | "topologie" | "alarme" | "berichte" | "vorlagen" | "snmpprofile" | "anzeigen" | "wartung" | "verwaltung" | "einstellungen";
 export type VerwaltungsReiter = "mandanten" | "benutzer" | "tokens" | "updates" | "api" | "anmeldung";
 export type AlarmReiter = "aktiv" | "protokoll" | "kanaele";
 export type GeraetReiter = "uebersicht" | "sensoren";
@@ -38,6 +38,7 @@ export interface Ort {
 export const seitenPfad: Record<Reiter, string> = {
   dashboard: "/",
   hosts: "/hosts",
+  topologie: "/topologie",
   alarme: "/alarme",
   berichte: "/berichte",
   vorlagen: "/sensor-vorlagen",
@@ -51,6 +52,7 @@ export const seitenPfad: Record<Reiter, string> = {
 export const seitenTitel: Record<Reiter, string> = {
   dashboard: "Dashboard",
   hosts: "Hosts",
+  topologie: "Topologie",
   alarme: "Alarme",
   berichte: "Berichte",
   vorlagen: "Sensor-Vorlagen",
@@ -76,6 +78,7 @@ export const navGruppen: { titel: string; punkte: NavPunkt[] }[] = [
     punkte: [
       { id: "dashboard", text: "Dashboard" },
       { id: "hosts", text: "Hosts" },
+      { id: "topologie", text: "Topologie" },
       { id: "alarme", text: "Alarme" },
       { id: "berichte", text: "Berichte" },
     ],
@@ -123,6 +126,7 @@ export function lesen(loc: { pathname: string; search: string }): Ort {
   let alarm: AlarmReiter = "aktiv";
   // Den Reiter Checks gibt es seit Etappe 8 nicht mehr; Checks stehen bei ihrem Gerät.
   if (erstes === "hosts" || erstes === "checks") reiter = "hosts";
+  else if (erstes === "topologie") reiter = "topologie";
   else if (erstes === "alarme") {
     reiter = "alarme";
     alarm = alarmListe.find((x) => x.id === teile[1])?.id ?? "aktiv";

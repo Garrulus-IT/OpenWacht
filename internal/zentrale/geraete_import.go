@@ -67,6 +67,35 @@ type importRow struct {
 	name, addr, group, profile, template string
 }
 
+// unwrapExcelLines erkennt eine Datei, in der jede Zeile als ein einziges Feld
+// in Anführungszeichen steht. So speichert Excel, wenn fertige CSV-Zeilen in
+// Spalte A eingefügt und dann als CSV gespeichert wurden
+// („"name;adresse;…"“). Dann gilt der Inhalt der Felder als die eigentliche
+// Datei (1.0.3). Nur wenn wirklich jede Zeile genau ein Feld ist und die
+// Kopfzeile ein Trennzeichen enthält; sonst bleibt alles, wie es ist.
+func unwrapExcelLines(text string) (string, bool) {
+	if !strings.HasPrefix(text, `"`) {
+		return "", false
+	}
+	rd := csv.NewReader(strings.NewReader(text))
+	rd.FieldsPerRecord = -1
+	var lines []string
+	for {
+		rec, err := rd.Read()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil || len(rec) != 1 || strings.ContainsAny(rec[0], "\r\n") {
+			return "", false
+		}
+		lines = append(lines, rec[0])
+	}
+	if len(lines) == 0 || !strings.ContainsAny(lines[0], ";,") {
+		return "", false
+	}
+	return strings.Join(lines, "\n") + "\n", true
+}
+
 // parseImportCSV liest die Datei. Fehler der Datei als Ganzes (Kopfzeile,
 // Größe, Zeilenzahl) brechen ab; Fehler einzelner Felder prüft der Aufrufer.
 func parseImportCSV(text string) ([]importRow, error) {
@@ -77,6 +106,9 @@ func parseImportCSV(text string) ([]importRow, error) {
 		return nil, badRequest("Die Datei ist nicht UTF-8 (bitte als „CSV UTF-8“ speichern).")
 	}
 	text = strings.TrimPrefix(text, "\ufeff")
+	if inner, ok := unwrapExcelLines(text); ok {
+		text = inner
+	}
 	first, _, _ := strings.Cut(text, "\n")
 	comma := ';'
 	if strings.Count(first, ",") > strings.Count(first, ";") {

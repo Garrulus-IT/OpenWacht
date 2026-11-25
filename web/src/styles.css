@@ -4662,3 +4662,97 @@ td > .kenn-marke:first-child {
   font: inherit;
   cursor: pointer;
 }
+
+/* --- Topologie (1.0.3) ---------------------------------------------------------- */
+.topo-hinweis {
+  max-width: 70ch;
+}
+.topo-mandant + .topo-mandant {
+  margin-top: var(--a4, 2rem);
+}
+.topo-wald,
+.topo-kinder {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.topo-wald {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a3);
+  margin-top: var(--a3);
+}
+.topo-zweig > .topo-knoten {
+  max-width: 22rem;
+}
+/* Kinder eines Geräts: neutrale Linie vom Elterngerät nach unten, die Geräte
+   daneben im Raster; ein Kind mit eigenen Kindern nimmt die ganze Zeile. */
+.topo-kinder {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--a2);
+  margin-left: 1.25rem;
+  padding: var(--a2) 0 0 var(--a3);
+  border-left: 2px solid var(--linie);
+}
+.topo-kind:has(> .topo-kinder) {
+  grid-column: 1 / -1;
+}
+.topo-kind:has(> .topo-kinder) > .topo-knoten {
+  max-width: 22rem;
+}
+.topo-knoten {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  width: 100%;
+  min-width: 0;
+  padding: var(--a2) var(--a3);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  background: var(--flaeche);
+  color: var(--tinte);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.topo-knoten:hover {
+  border-color: var(--marke);
+}
+.topo-knoten:focus-visible {
+  outline: 2px solid var(--marke);
+  outline-offset: 2px;
+}
+/* Linie zum Gerät: Zustand des Geräts, gestrichelt, wenn es ruht oder unbekannt ist */
+.topo-kind > .topo-knoten {
+  border-left: 4px solid var(--topo-linie, var(--linie));
+}
+.topo-gestrichelt > .topo-knoten {
+  border-left-style: dashed;
+}
+.topo-knoten .signal {
+  flex: none;
+}
+.topo-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.topo-name,
+.topo-unter {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.topo-name {
+  font-weight: 700;
+}
+.topo-unter {
+  color: var(--leise);
+  font-size: var(--s-1);
+}
+/* Hinweise und Ton: eine Spalte, Felder untereinander */
+.ton-formular {
+  grid-template-columns: 1fr;
+  gap: var(--a3);
+}

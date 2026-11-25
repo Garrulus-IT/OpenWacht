@@ -102,6 +102,75 @@ export function tonFuer(stufe: TonStufe, status: string): "krit" | "warn" | null
   return null;
 }
 
+// --- Benachrichtigungen des Systems (1.0.3) ------------------------------------
+//
+// Zusätzlich zu den Hinweisen am Rand kann der Browser eine Benachrichtigung
+// des Systems zeigen (unter Windows unten rechts), wenn OpenWacht im
+// Hintergrund ist. Ob das gewollt ist, gilt je Browser (Erlaubnis des Browsers
+// und ein Merker im localStorage, kein Geheimnis). OpenWacht muss dafür offen
+// sein, als Tab oder als installierte App.
+
+const MERKER = "openwacht.benachrichtigung";
+const GEAENDERT = "openwacht-benachrichtigung";
+
+export function systemMoeglich(): boolean {
+  return typeof window !== "undefined" && "Notification" in window && window.isSecureContext;
+}
+
+export function systemAn(): boolean {
+  if (!systemMoeglich() || Notification.permission !== "granted") return false;
+  try {
+    return localStorage.getItem(MERKER) === "an";
+  } catch {
+    return false;
+  }
+}
+
+// systemSetzen fragt beim Einschalten nach der Erlaubnis (nur nach einem Klick
+// möglich) und liefert, ob die Benachrichtigungen jetzt an sind.
+export async function systemSetzen(an: boolean): Promise<boolean> {
+  if (an && systemMoeglich() && Notification.permission === "default") {
+    try {
+      await Notification.requestPermission();
+    } catch {
+      /* alte Browser: Rückgabe über die Erlaubnis unten */
+    }
+  }
+  try {
+    if (an && systemMoeglich() && Notification.permission === "granted") localStorage.setItem(MERKER, "an");
+    else localStorage.removeItem(MERKER);
+  } catch {
+    /* ohne localStorage bleibt es aus */
+  }
+  window.dispatchEvent(new Event(GEAENDERT));
+  return systemAn();
+}
+
+function useSystemAn(): boolean {
+  const [an, setAn] = useState(systemAn);
+  useEffect(() => {
+    const neu = () => setAn(systemAn());
+    window.addEventListener(GEAENDERT, neu);
+    window.addEventListener("focus", neu);
+    return () => {
+      window.removeEventListener(GEAENDERT, neu);
+      window.removeEventListener("focus", neu);
+    };
+  }, []);
+  return an;
+}
+
+// Als App installieren: Chrome und Edge bieten das über ein Ereignis an.
+type InstallEreignis = Event & { prompt: () => Promise<void> };
+let installieren: InstallEreignis | null = null;
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    installieren = e as InstallEreignis;
+  });
+  window.addEventListener("appinstalled", () => (installieren = null));
+}
+
 // --- Hinweise am Rand ---------------------------------------------------------
 
 const RANG: Record<string, number> = { unknown: 1, warn: 2, crit: 3 };
@@ -115,14 +184,28 @@ interface Hinweis {
   seit: number;
 }
 
+function kopf(h: Hinweis): string {
+  const st = h.art === "entwarnung" ? "ok" : h.alarm.status;
+  return h.art === "entwarnung" ? "Entwarnung" : h.art === "schlimmer" ? `Jetzt ${TEXT[st] ?? st}` : (TEXT[st] ?? st);
+}
+
+function kurz(h: Hinweis): string {
+  return `${kopf(h)}: ${h.alarm.name}`;
+}
+
 export function RandHinweise({ e, onAlarme }: { e: HinweiseTon; onAlarme: () => void }) {
-  const aktiv = e.hinweise || e.ton !== "aus";
-  const q = useQuelle<{ alarme: Alarm[] }>(aktiv ? ALARME : null, 15_000);
+  const system = useSystemAn();
+  const aktiv = e.hinweise || e.ton !== "aus" || system;
+  const q = useQuelle<{ alarme: Alarm[] }>(aktiv ? ALARME : null, 15_000, system);
   const vorher = useRef<Map<string, Alarm> | null>(null);
   const [liste, setListe] = useState<Hinweis[]>([]);
   const [halt, setHalt] = useState(false);
   const einst = useRef(e);
   einst.current = e;
+  const systemRef = useRef(system);
+  systemRef.current = system;
+  const zuAlarmen = useRef(onAlarme);
+  zuAlarmen.current = onAlarme;
 
   // Ton nach der ersten Bedienung der Seite freigeben.
   useEffect(() => {
@@ -170,6 +253,26 @@ export function RandHinweise({ e, onAlarme }: { e: HinweiseTon; onAlarme: () => 
       }
     }
     if (ton) spielen(einst.current.klang, einst.current.lautstaerke, ton);
+    // Im Hintergrund zusätzlich als Benachrichtigung des Systems.
+    if (systemRef.current && dazu.length && (document.hidden || !document.hasFocus())) {
+      const zeigen = (titel: string, text: string, tag: string) => {
+        try {
+          const n = new Notification(titel, { body: text, tag, icon: "/icon-192.png", silent: einst.current.ton !== "aus" });
+          n.onclick = () => {
+            window.focus();
+            zuAlarmen.current();
+            n.close();
+          };
+        } catch {
+          /* z. B. wenn die Erlaubnis gerade entzogen wurde */
+        }
+      };
+      if (dazu.length > 3) {
+        zeigen(`OpenWacht: ${dazu.length} Ereignisse`, dazu.slice(0, 3).map(kurz).join("\n") + "\n…", "openwacht-sammel");
+      } else {
+        for (const h of dazu) zeigen(kopf(h), h.alarm.name + (h.alarm.gegenstand ? ` · ${h.alarm.gegenstand}` : ""), h.alarm.id);
+      }
+    }
     if (einst.current.hinweise && dazu.length) setListe((l) => [...dazu, ...l].slice(0, 20));
   }, [q.daten]);
 
@@ -194,7 +297,7 @@ export function RandHinweise({ e, onAlarme }: { e: HinweiseTon; onAlarme: () => 
             <span className={`signal signal-${st}`} aria-hidden="true" />
             <button type="button" className="rand-hinweis-text" onClick={onAlarme} title="Zu den Alarmen">
               <span className="rand-hinweis-kopf">
-                {h.art === "entwarnung" ? "Entwarnung" : h.art === "schlimmer" ? `Jetzt ${TEXT[st] ?? st}` : TEXT[st] ?? st}
+                {kopf(h)}
               </span>
               <span className="rand-hinweis-name">{h.alarm.name}</span>
               {h.alarm.gegenstand && <span className="rand-hinweis-gegenstand">{h.alarm.gegenstand}</span>}
@@ -280,13 +383,64 @@ export function TonFelder<T extends TonEinstellung>({ wert, setWert, name }: { w
   );
 }
 
+// Windows-Benachrichtigung und „Als App installieren“: gelten für diesen Browser.
+function SystemFelder() {
+  const an = useSystemAn();
+  const [stand, setStand] = useState("");
+  const [kannInstallieren, setKannInstallieren] = useState(installieren !== null);
+  const moeglich = systemMoeglich();
+  const gesperrt = moeglich && Notification.permission === "denied";
+  return (
+    <fieldset className="feld-gruppe">
+      <legend>Benachrichtigung des Systems (nur dieser Browser)</legend>
+      <label className="haken">
+        <input
+          type="checkbox"
+          checked={an}
+          disabled={!moeglich || gesperrt}
+          onChange={async (ev) => {
+            const ok = await systemSetzen(ev.target.checked);
+            setStand(ev.target.checked && !ok ? "Der Browser hat keine Erlaubnis gegeben." : "");
+          }}
+        />
+        <span>Auch als Windows-Benachrichtigung, wenn OpenWacht im Hintergrund ist</span>
+      </label>
+      <p className="klein">
+        {!moeglich
+          ? "Dieser Browser kann hier keine Benachrichtigungen zeigen (sie brauchen HTTPS)."
+          : gesperrt
+            ? "Benachrichtigungen sind für diese Seite gesperrt. Erlauben lässt sich das über das Schloss links in der Adressleiste → Berechtigungen."
+            : "OpenWacht muss dafür offen sein, als Tab oder als App (minimiert reicht). Ein Klick auf die Benachrichtigung öffnet die Alarme."}
+        {stand && ` ${stand}`}
+      </p>
+      {kannInstallieren && (
+        <div className="aktionen">
+          <button
+            type="button"
+            className="knopf"
+            onClick={async () => {
+              const e = installieren;
+              if (!e) return;
+              installieren = null;
+              setKannInstallieren(false);
+              await e.prompt().catch(() => undefined);
+            }}
+          >
+            Als App installieren
+          </button>
+        </div>
+      )}
+    </fieldset>
+  );
+}
+
 export function TonDialog({ wert, onGespeichert, onZu }: { wert: HinweiseTon; onGespeichert: (w: HinweiseTon) => void; onZu: () => void }) {
   const [w, setW] = useState<HinweiseTon>(wert);
   const [fehler, setFehler] = useState("");
   return (
     <Dialog titel="Hinweise und Ton" onZu={onZu}>
       <form
-        className="formular"
+        className="formular formular-flach ton-formular"
         onSubmit={async (ev) => {
           ev.preventDefault();
           setFehler("");
@@ -305,6 +459,7 @@ export function TonDialog({ wert, onGespeichert, onZu }: { wert: HinweiseTon; on
           <span>Hinweise am Rand bei neuen Alarmen, Verschlechterungen und Entwarnungen</span>
         </label>
         <TonFelder wert={w} setWert={setW} name="ich" />
+        <SystemFelder />
         {fehler && (
           <p className="meldung meldung-fehler" role="alert">
             {fehler}

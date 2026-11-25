@@ -79,7 +79,12 @@ func (r Report) who(channelTenant string) string {
 	return d
 }
 
-// Subject: „KRIT · pve-1 · Platte /var: 96 % belegt“.
+// SubjectMax: Länge des Betreffs. Kurz genug für die Liste im Postfach und
+// fürs Handy (1.0.3: vorher bis 200 Zeichen mit der ganzen Meldung).
+const SubjectMax = 90
+
+// Subject: „KRIT · pve-1 · Platte /var“. Die Meldung steht im Text der Mail
+// ganz oben, nicht im Betreff.
 func (r Report) Subject(channelTenant string) string {
 	st := stateShort[r.Status]
 	switch r.Event {
@@ -88,15 +93,17 @@ func (r Report) Subject(channelTenant string) string {
 	case Reminder:
 		st = "Erinnerung " + st
 	}
-	msg := Clean(r.Message, 120)
+	return Clean(st+" · "+Clean(r.who(channelTenant), 45)+" · "+Clean(r.Sensor, 60), SubjectMax)
+}
+
+// headline: die Meldung als erste Zeile der Mail; bei einer Entwarnung ohne
+// Meldung „wieder in Ordnung“.
+func (r Report) headline() string {
+	msg := Clean(r.Message, 300)
 	if r.Event == Recovered && msg == "" {
 		msg = "wieder in Ordnung"
 	}
-	s := st + " · " + r.who(channelTenant) + " · " + Clean(r.Sensor, 100)
-	if msg != "" {
-		s += ": " + msg
-	}
-	return Clean(s, 200)
+	return msg
 }
 
 // Fact: eine Zeile „Bezeichnung: Wert“.
@@ -250,6 +257,7 @@ var mailTmpl = template.Must(template.New("mail").Parse(`<!DOCTYPE html>
 <tr><td style="background:{{.Color}};color:#ffffff;padding:12px 16px;font-size:16px;font-weight:bold">{{.Head}}</td></tr>
 {{range .Blocks}}<tr><td style="padding:14px 16px;border-top:1px solid #c9d3de">
 <div style="font-size:15px;font-weight:bold;margin-bottom:8px">{{.Title}}</div>
+{{if .Lead}}<div style="font-size:16px;line-height:1.4;margin:0 0 12px">{{.Lead}}</div>{{end}}
 <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;line-height:1.45">
 {{range .Facts}}<tr><td style="padding:2px 12px 2px 0;color:#526172;vertical-align:top;white-space:nowrap">{{.Label}}</td><td style="padding:2px 0">{{.Value}}</td></tr>
 {{end}}</table>
@@ -266,6 +274,7 @@ var mailTmpl = template.Must(template.New("mail").Parse(`<!DOCTYPE html>
 type mailBlock struct {
 	AxisFrom string // linke Beschriftung der Zeitachse
 	Title    string
+	Lead     string // Meldung, groß unter dem Titel
 	Facts    []Fact
 	Image    string
 	Caption  string
@@ -287,11 +296,23 @@ func foot(channelTenant, channel string) string {
 // BuildMail: eine Mail für ein Ereignis. Mit Graph, wenn r.Chart Punkte hat.
 func BuildMail(channelTenant, channel string, r Report, now time.Time, loc *time.Location) Mail {
 	m := Mail{Subject: r.Subject(channelTenant)}
-	facts := r.Facts(channelTenant, now, loc)
+	// Gerät, Sensor und Meldung stehen groß oben; in den Angaben darunter
+	// nicht noch einmal.
+	var facts []Fact
+	for _, f := range r.Facts(channelTenant, now, loc) {
+		if f.Label != "Meldung" && f.Label != "Gerät" && f.Label != "Sensor" {
+			facts = append(facts, f)
+		}
+	}
 	others := r.othersLines(now)
-	b := mailBlock{Title: r.who(channelTenant) + " · " + Clean(r.Sensor, 100), Facts: facts, Others: others, Link: r.Link}
+	lead := r.headline()
+	b := mailBlock{Title: r.who(channelTenant) + " · " + Clean(r.Sensor, 100), Lead: lead, Facts: facts, Others: others, Link: r.Link}
 	var txt strings.Builder
-	txt.WriteString(m.Subject + "\n\n")
+	txt.WriteString(b.Title + "\n")
+	if lead != "" {
+		txt.WriteString(lead + "\n")
+	}
+	txt.WriteString("\n")
 	for _, f := range facts {
 		txt.WriteString(f.Label + ": " + f.Value + "\n")
 	}
@@ -380,38 +401,68 @@ func counts(rs []Report) string {
 // einzelner Mails eine Sammelmail raus (ohne Graphen).
 const SummaryLimit = 10
 
-// BuildSummary: eine Sammelmail für viele Ereignisse.
+// BuildSummary: eine Sammelmail für viele Ereignisse. Betreff mit dem
+// schlimmsten Zustand vorn, im Text getrennt „Probleme“ und „Wieder in
+// Ordnung“, je Ereignis eine Zeile (1.0.3).
 func BuildSummary(channelTenant, channel string, rs []Report, link string) Mail {
 	sorted := sortReports(rs)
-	subject := Clean("OpenWacht "+Clean(channelTenant, 100)+": "+counts(sorted), 200)
-	var lines []Fact
-	var txt strings.Builder
-	txt.WriteString(subject + "\n\n")
-	for i, r := range sorted {
-		if i == 200 {
-			txt.WriteString(fmt.Sprintf("… und %d weitere\n", len(sorted)-i))
-			lines = append(lines, Fact{"…", fmt.Sprintf("und %d weitere", len(sorted)-i)})
-			break
-		}
-		s := r.Subject(channelTenant)
-		st, rest, _ := strings.Cut(s, " · ")
-		lines = append(lines, Fact{st, rest})
-		txt.WriteString(s + "\n")
-	}
-	if link != "" {
-		txt.WriteString("\nIn OpenWacht öffnen: " + link + "\n")
-	}
-	ft := foot(channelTenant, channel)
-	txt.WriteString("\n-- \n" + ft + "\n")
 	worst := OK
 	for _, r := range sorted {
 		if r.Event != Recovered && rank[r.Status] > rank[worst] {
 			worst = r.Status
 		}
 	}
-	block := mailBlock{Title: fmt.Sprintf("%d Ereignisse", len(sorted)), Facts: lines, Link: link}
-	return Mail{Subject: subject, Text: txt.String(),
-		HTML: renderMail(subject, stateColor[worst], subject, []mailBlock{block}, ft)}
+	subject := Clean(stateShort[worst]+" · OpenWacht: "+counts(sorted), SubjectMax)
+	var problems, recovered []Report
+	for _, r := range sorted {
+		if r.Event == Recovered {
+			recovered = append(recovered, r)
+		} else {
+			problems = append(problems, r)
+		}
+	}
+	var txt strings.Builder
+	txt.WriteString(counts(sorted) + "\n")
+	var blocks []mailBlock
+	section := func(title string, list []Report, withMsg bool) {
+		if len(list) == 0 {
+			return
+		}
+		b := mailBlock{Title: fmt.Sprintf("%s (%d)", title, len(list))}
+		txt.WriteString("\n" + b.Title + "\n")
+		for i, r := range list {
+			if i == 200 {
+				b.Facts = append(b.Facts, Fact{"…", fmt.Sprintf("und %d weitere", len(list)-i)})
+				txt.WriteString(fmt.Sprintf("… und %d weitere\n", len(list)-i))
+				break
+			}
+			st := stateShort[r.Status]
+			if r.Event == Recovered {
+				st = "OK"
+			} else if r.Event == Reminder {
+				st += " (Erinnerung)"
+			}
+			line := r.who(channelTenant) + " · " + Clean(r.Sensor, 100)
+			if msg := Clean(r.Message, 150); withMsg && msg != "" {
+				line += " – " + msg
+			}
+			b.Facts = append(b.Facts, Fact{st, line})
+			txt.WriteString("- " + st + " · " + line + "\n")
+		}
+		blocks = append(blocks, b)
+	}
+	section("Probleme", problems, true)
+	section("Wieder in Ordnung", recovered, false)
+	if len(blocks) == 0 {
+		blocks = append(blocks, mailBlock{Title: "Keine Ereignisse"})
+	}
+	if link != "" {
+		txt.WriteString("\nIn OpenWacht öffnen: " + link + "\n")
+		blocks[len(blocks)-1].Link = link
+	}
+	ft := foot(channelTenant, channel)
+	txt.WriteString("\n-- \n" + ft + "\n")
+	return Mail{Subject: subject, Text: txt.String(), HTML: renderMail(subject, stateColor[worst], subject, blocks, ft)}
 }
 
 // TestMail: „Test senden“ für einen Mail-Kanal bzw. die SMTP-Einstellung.

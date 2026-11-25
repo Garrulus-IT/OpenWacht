@@ -17,6 +17,9 @@ interface Eintrag {
   hoerer: Set<() => void>;
   takt: number;
   timer: number | null;
+  // so viele Nutzer wollen auch bei verborgenem Fenster neue Daten (1.0.3:
+  // Windows-Benachrichtigungen, wenn OpenWacht im Hintergrund ist)
+  verborgen: number;
 }
 
 const speicher = new Map<string, Eintrag>();
@@ -42,34 +45,37 @@ function holen(pfad: string, e: Eintrag) {
 }
 
 // useQuelle lädt pfad (null = nichts laden) und liefert Daten und Fehler.
-export function useQuelle<T>(pfad: string | null, takt = 30_000): { daten: T | null; fehler: string } {
+// auchVerborgen: auch weiter laden, wenn das Fenster nicht sichtbar ist.
+export function useQuelle<T>(pfad: string | null, takt = 30_000, auchVerborgen = false): { daten: T | null; fehler: string } {
   const [, neu] = useState(0);
   useEffect(() => {
     if (!pfad) return;
     let e = speicher.get(pfad);
     if (!e) {
-      e = { daten: null, fehler: "", zeit: 0, laeuft: null, hoerer: new Set(), takt, timer: null };
+      e = { daten: null, fehler: "", zeit: 0, laeuft: null, hoerer: new Set(), takt, timer: null, verborgen: 0 };
       speicher.set(pfad, e);
     }
     const eintrag = e;
     const hoeren = () => neu((n) => n + 1);
     eintrag.hoerer.add(hoeren);
+    if (auchVerborgen) eintrag.verborgen++;
     eintrag.takt = Math.min(eintrag.takt, takt);
     if (Date.now() - eintrag.zeit > eintrag.takt / 2) void holen(pfad, eintrag);
     else hoeren();
     if (eintrag.timer === null) {
       eintrag.timer = window.setInterval(() => {
-        if (!document.hidden) void holen(pfad, eintrag);
+        if (!document.hidden || eintrag.verborgen > 0) void holen(pfad, eintrag);
       }, eintrag.takt);
     }
     return () => {
       eintrag.hoerer.delete(hoeren);
+      if (auchVerborgen) eintrag.verborgen--;
       if (eintrag.hoerer.size === 0 && eintrag.timer !== null) {
         window.clearInterval(eintrag.timer);
         eintrag.timer = null;
       }
     };
-  }, [pfad, takt]);
+  }, [pfad, takt, auchVerborgen]);
   const e = pfad ? speicher.get(pfad) : undefined;
   return { daten: (e?.daten as T | undefined) ?? null, fehler: e?.fehler ?? "" };
 }

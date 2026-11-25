@@ -601,6 +601,16 @@ async function demodaten(api: Api, geheimnis: string, simagent: string, snmp: bo
   await neuGeraet(haupt, "aff-c250", "10.20.0.30", rz);
   await neuGeraet(haupt, "pool-rz", "10.20.0.50", rz);
 
+  // Abhängigkeiten für die Topologie (1.0.3): alles im Haus hängt am Core-Switch,
+  // der Drucker zusätzlich am Access Point.
+  const alle = (await api.rufe<{ geraete: { id: string; name: string; adresse: string | null }[] }>("GET", "/api/v1/geraete")).geraete;
+  const haengtAn = async (id: string | undefined, eltern: string) => {
+    const g = alle.find((x) => x.id === id);
+    if (g) await api.rufe("PUT", `/api/v1/geraete/${g.id}`, { name: g.name, adresse: g.adresse ?? "", abhaengig_von: eltern });
+  };
+  for (const id of [apOg, mail, geraete["srv-file01"], geraete["srv-db01"], geraete["srv-app01"], geraete["srv-tel01"]]) await haengtAn(id, swCore);
+  await haengtAn(drucker, apOg);
+
   // Agent-Geräte in Gruppen
   await api.rufe("POST", "/api/v1/geraete/gruppe", { geraete: [geraete["srv-file01"], geraete["srv-db01"], geraete["srv-app01"]].filter(Boolean), gruppe_id: rz });
 
@@ -756,6 +766,16 @@ async function seiten(page: Page, api: Api, demo: Demo, geheimnis: string) {
   await gehe(page, `/hosts?geraet=${sw}&ansicht=sensoren`);
   await foto(page, "host-sensoren");
 
+  if (gewollt("topologie")) {
+    await gehe(page, "/topologie");
+    await foto(page, "topologie");
+  }
+  if (gewollt("hinweise-ton")) {
+    await gehe(page, "/alarme");
+    await page.getByRole("button", { name: "Hinweise und Ton" }).click();
+    await foto(page, "hinweise-ton", { element: page.locator("dialog.dialog") });
+    await page.keyboard.press("Escape");
+  }
   await netapp(page, demo);
   await xenserver(page, demo);
 

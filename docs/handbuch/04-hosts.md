@@ -38,6 +38,16 @@ Mandant, keine Kreise). Ist das Elterngerät nicht erreichbar (Ping kritisch, Ag
 gibt es für die Geräte darunter keine eigenen Alarme; Hosts zeigt „nicht erreichbar wegen …“. Entwarnungen gehen
 weiter raus.
 
+## Topologie
+
+**Topologie** in der Seitenleiste zeigt die Abhängigkeiten als Bäume, je Mandant: oben das Gerät, von dem andere
+abhängen, darunter die abhängigen Geräte, mit eigenen Kindern auch über mehrere Ebenen. Jedes Gerät trägt seinen
+Zustand (Form und Farbe); der farbige Rand links ist die Linie zu ihm in seinem Zustand, gestrichelt, wenn es ruht
+(Elterngerät nicht erreichbar), unbekannt oder noch nicht geprüft ist. Ein Klick öffnet das Gerät. Geräte ohne
+Abhängigkeit in beide Richtungen stehen nur als Zahl darunter. Die Seite zeigt nur, was du auch unter Hosts siehst.
+
+![Topologie](bilder/topologie.webp)
+
 ## Darstellung
 
 Unten links „Darstellung“: wie System, hell oder dunkel. Die Wahl gilt je Browser.
