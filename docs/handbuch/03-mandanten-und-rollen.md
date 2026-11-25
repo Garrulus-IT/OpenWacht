@@ -110,6 +110,21 @@ fünf Fehlversuchen vor jeder Prüfung (1, 2, 4 … höchstens 15 Sekunden), dam
 Fehlversuche bei der Bestätigung heikler Änderungen zählen mit. Die Meldung bleibt immer dieselbe („Anmeldung
 fehlgeschlagen“), auch bei einer Sperre.
 
+**Zweiter Faktor (ab 1.0.6):** Zusätzlich zählt die Zentrale falsche Codes (App oder Wiederherstellungscode) für das
+**ganze Konto**: Nach zehn falschen Codes binnen 15 Minuten, egal von welchen Rechnern, ist die Anmeldung mit Code für
+15 Minuten gesperrt. Passkeys gehen weiter. Wer so viele Codes ausprobiert, kennt das Passwort schon; die Sperre bremst
+ihn, kann das Konto aber auch kurz blockieren. `entsperren` hebt sie auf.
+
+**Meldungen per Mail (ab 1.0.6):** Ist der Mailversand eingerichtet, schreibt OpenWacht dem Konto bei
+
+- einer Anmeldung von einem Rechner bzw. Netz, von dem es sich in den letzten 90 Tagen nicht angemeldet hat (nicht bei
+  der allerersten Anmeldung),
+- einer Sperre nach Fehlversuchen, der Sperre des zweiten Faktors und wenn auf der Zentrale die Zwei-Faktor-Anmeldung
+  zurückgesetzt oder das Passwort gesetzt wurde.
+
+Die Meldungen außer „neuer Rechner“ gehen zusätzlich an den Betreiber. Je Konto und Art kommt höchstens eine Mail je
+Stunde. Die Mail nennt Konto und Zeit, aber keine Adresse: Die Zentrale speichert Quellen nur als HMAC.
+
 Gespeichert ist die Quelle nur als HMAC (die Zentrale kann vergleichen, aber keine Adresse auslesen); Einträge
 verfallen nach 90 Tagen ohne Aktivität. Sperre vorzeitig aufheben (als Eigentümer der Datenbank, mit Audit-Eintrag):
 

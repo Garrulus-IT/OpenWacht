@@ -761,6 +761,8 @@ func (s *Server) RunAlerts(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
+		// Meldungen zu Anmeldungen (1.0.6); zählen nicht für den Totmann.
+		s.sendAuthNotices(ctx)
 		if err != nil {
 			slog.Warn("Alarme: Durchlauf fehlgeschlagen", "fehler", err)
 		}

@@ -278,9 +278,14 @@ func (s *Server) handleSecondFactor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	src := s.loginSource(r)
-	if s.sourceLocked(ctx, userID, src) {
+	locked, why := s.sourceLocked(ctx, userID, src), map[string]any(nil)
+	if !locked && s.mfaLocked(ctx, userID) {
+		// H5: zu viele falsche Codes aus allen Quellen
+		locked, why = true, map[string]any{"grund": "zweiter_faktor_konto"}
+	}
+	if locked {
 		s.pool.Exec(ctx, `SELECT openwacht.session_delete($1)`, th)
-		s.auditAuth(ctx, userID, "anmeldung.gesperrt", nil, false)
+		s.auditAuth(ctx, userID, "anmeldung.gesperrt", why, false)
 		clearCookie(w, pendingCookie)
 		writeError(w, http.StatusUnauthorized, msgLoginFailed)
 		return
@@ -295,6 +300,7 @@ func (s *Server) handleSecondFactor(w http.ResponseWriter, r *http.Request) {
 		}
 		if !valid {
 			s.loginFailed(ctx, userID, src)
+			s.mfaFailed(ctx, userID)
 			s.auditAuth(ctx, userID, "anmeldung.fehlgeschlagen", map[string]any{"grund": "zweiter_faktor"}, false)
 			writeError(w, http.StatusUnauthorized, "Der Code ist ungültig oder wurde schon verwendet.")
 			return
@@ -308,6 +314,7 @@ func (s *Server) handleSecondFactor(w http.ResponseWriter, r *http.Request) {
 		}
 		if left < 0 {
 			s.loginFailed(ctx, userID, src)
+			s.mfaFailed(ctx, userID)
 			s.auditAuth(ctx, userID, "anmeldung.fehlgeschlagen", map[string]any{"grund": "wiederherstellungscode"}, false)
 			writeError(w, http.StatusUnauthorized, "Der Code ist ungültig oder wurde schon verwendet.")
 			return

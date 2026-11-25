@@ -99,6 +99,23 @@ func (s *Server) sourceLocked(ctx context.Context, userID string, src []byte) bo
 	return locked
 }
 
+// mfaLocked: zweiter Faktor des Kontos gesperrt (H5, im Zweifel ja).
+func (s *Server) mfaLocked(ctx context.Context, userID string) bool {
+	var locked bool
+	if err := s.pool.QueryRow(ctx, `SELECT openwacht.auth_mfa_locked($1)`, userID).Scan(&locked); err != nil {
+		slog.Error("Sperre des zweiten Faktors nicht prüfbar", "fehler", err)
+		return true
+	}
+	return locked
+}
+
+// mfaFailed zählt einen falschen Code für das ganze Konto (H5).
+func (s *Server) mfaFailed(ctx context.Context, userID string) {
+	if _, err := s.pool.Exec(ctx, `SELECT openwacht.auth_mfa_failed($1)`, userID); err != nil {
+		slog.Error("falscher Code nicht gezählt", "fehler", err)
+	}
+}
+
 // --- Wiederherstellungscodes (N5) --------------------------------------------
 
 const recoveryCodeCount = 10
