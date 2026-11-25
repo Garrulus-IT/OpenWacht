@@ -69,6 +69,8 @@ var (
 	agentPackageTargets = []target{{"linux", "amd64", ""}, {"linux", "arm64", ""}}
 	// MSI für Windows (Stufe 1).
 	msiTargets = []target{{"windows", "amd64", ""}, {"windows", "arm64", ""}}
+	// Desktop-App für den Infobereich (1.0.4), nur Windows.
+	desktopTargets = []target{{"windows", "amd64", ""}, {"windows", "arm64", ""}}
 )
 
 const modulePath = "github.com/garrulus-it/openwacht"
@@ -139,6 +141,13 @@ func run(args []string) error {
 				}
 				built = append(built, msi)
 			}
+		}
+		if slices.Contains(desktopTargets, t) {
+			name, err := buildWith(*out, "desktop", "openwacht-desktop", t, *ver, commit, "-H windowsgui")
+			if err != nil {
+				return err
+			}
+			built = append(built, name)
 		}
 		if slices.Contains(agentPackageTargets, t) {
 			pkgs, err := buildAgentPackages(*out, name, t.arch, *ver, mtime)
@@ -269,9 +278,19 @@ func outputName(prog string, t target) string {
 }
 
 func build(out, pkg, prog string, t target, ver, commit string) (string, error) {
+	return buildWith(out, pkg, prog, t, ver, commit, "")
+}
+
+// buildWith: wie build, mit zusätzlichen Linker-Optionen (Desktop-App: -H windowsgui,
+// damit Windows kein Konsolenfenster öffnet).
+func buildWith(out, pkg, prog string, t target, ver, commit, extra string) (string, error) {
 	name := outputName(prog, t)
+	lf := ldflags(ver, commit)
+	if extra != "" {
+		lf = extra + " " + lf
+	}
 	cmd := exec.Command("go", "build", "-trimpath", "-buildvcs=false",
-		"-ldflags", ldflags(ver, commit),
+		"-ldflags", lf,
 		"-o", filepath.Join(out, name), "./cmd/"+pkg)
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS="+t.os, "GOARCH="+t.arch, "GOARM="+t.arm)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
