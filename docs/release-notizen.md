@@ -1,5 +1,22 @@
 # Release-Notizen OpenWacht
 
+## 1.0.1
+
+- **Sammeln:** Mail- und SMS-Kanäle sammeln Meldungen eine Minute lang und schicken sie gemeinsam, Entwarnungen
+  inklusive; ist ein Sensor innerhalb der Minute wieder OK, kommt keine Meldung. Nach einem Fehlschlag (z. B. Grenze
+  des Relays, `421`) erst nach einer Minute erneut. Je Kanal unter „Zustellung“ abschaltbar, ab Werk an
+  ([Handbuch Kapitel 8](handbuch/08-alarme-und-wartung.md)).
+- **Kennfarben für Vorlagensätze:** Kennfarbe je Eintrag im eigenen Vorlagensatz und in einem Schritt für alle Sensoren
+  einer Herkunft, an einem Gerät oder auf allen ([Handbuch Kapitel 7](handbuch/07-sensoren-und-vorlagen.md)).
+- **Korrektur MSI:** Das MSI des Windows-Agents brach unter Windows mit Fehler 1603 ab (Fehler 2228, Tabelle `Signature`
+  fehlte); Installation und Update per MSI gehen wieder.
+- **Vorlagensätze für Citrix-Worker:** „Citrix Worker (VDA, Agent)“ (bisher „Citrix Worker (VDA)“) prüft Dienste nach
+  festen Dienstnamen statt übersetzter Anzeigenamen; den Dienst „Citrix ICA Service“ gibt es auf aktuellen VDAs nicht,
+  der Sensor entfällt. Neu „Citrix Worker (VDA, SNMP)“ für Worker ohne Agent, etwa aus PVS oder MCS: CPU, Arbeitsspeicher
+  und Neustarts über SNMP, dazu Neustart verpasst, Ping, ICA und Sitzungszuverlässigkeit.
+- **Doku:** Befehl für die Sicherung von Hand vor einem Update ergänzt.
+- Migrationen 0050 und 0051 (laufen beim Update von selbst).
+
 ## 1.0.0
 
 Erste veröffentlichte Version. OpenWacht überwacht Server, Netzwerkgeräte und Dienste für mehrere Mandanten von einer
@@ -65,8 +82,13 @@ Zentrale aus und läuft vollständig im eigenen Netz, auch ohne Internet. Einzel
 
 Ein Update ist immer derselbe Weg:
 
-1. **Sicherung:** Das Paket sichert die Datenbank selbst, bevor es migriert. Wer zusätzlich sichern will:
-   `sudo -u svc_openwacht_db openwacht-zentrale sichern -jetzt`.
+1. **Sicherung:** Das Paket sichert die Datenbank selbst, aber nur, wenn Migrationen ausstehen. Vor jedem Update
+   zusätzlich von Hand sichern ([Handbuch Kapitel 13](handbuch/13-sicherung.md)):
+
+   ```bash
+   sudo -u svc_openwacht_db env OPENWACHT_DB_EIGENTUEMER="host=/run/postgresql user=openwacht_owner dbname=openwacht" \
+     openwacht-zentrale sichern -verzeichnis /var/backups/openwacht -jetzt
+   ```
 2. **Paket prüfen:** Signatur von `SHA256SUMS` prüfen, dann die Prüfsumme des Pakets vergleichen
    (`sha256sum -c --ignore-missing SHA256SUMS`, [Handbuch Kapitel 1](handbuch/01-installation.md)).
 3. **Installieren:** `sudo apt install ./openwacht-zentrale_<version>_amd64.deb`. Das Paket führt alle fehlenden

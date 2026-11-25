@@ -5,7 +5,7 @@ selbst betrieben. Freie Software unter der GNU AGPL v3 (siehe [Lizenz](#lizenz))
 
 ![Hosts mit Gruppen, Zuständen und Messwerten](docs/bilder/hosts.png)
 
-**Stand:** 1.0.0. Handbuch: [`docs/handbuch/`](docs/handbuch/README.md), Änderungen: [`docs/release-notizen.md`](docs/release-notizen.md).
+**Stand:** 1.0.1. Handbuch: [`docs/handbuch/`](docs/handbuch/README.md), Änderungen: [`docs/release-notizen.md`](docs/release-notizen.md).
 Jeder Build legt neben `SHA256SUMS` eine Software-Stückliste (CycloneDX) ab; für Kunden ohne Internet gibt es ein
 Offline-Installationspaket (`deploy/offline/`, Handbuch Kapitel 14).
 

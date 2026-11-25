@@ -4,7 +4,7 @@
 
 ```bash
 apt install postgresql
-apt install ./openwacht-zentrale_1.0.0_amd64.deb
+apt install ./openwacht-zentrale_1.0.1_amd64.deb
 ```
 
 `postinst` ruft `openwacht-zentrale installieren` auf: Systembenutzer, `/etc/openwacht` mit Hauptschlüssel,
@@ -52,7 +52,7 @@ in `/etc/systemd/system` (mit dem Pfad des Binarys).
   `/openwacht-wurzel.crt`. Der Agent-Port (8444) läuft wie bisher direkt mit mTLS.
 - **Sicherung:** `openwacht-sicherung.timer` stündlich, `openwacht-zentrale sichern` (als `svc_openwacht_db`, Eigentümer-Rolle)
   sichert zur Uhrzeit aus den Einstellungen bzw. nach, wenn die letzte älter als 25 Stunden ist; Aufbewahrung nach
-  Einstellung (Standard 14 Tage, die neueste bleibt immer). Sofort: `openwacht-zentrale sichern -jetzt`.
+  Einstellung (Standard 14 Tage, die neueste bleibt immer). Sofort sichern: Befehl in Handbuch Kapitel 13 (als `svc_openwacht_db` mit `OPENWACHT_DB_EIGENTUEMER`).
 - **Trap-Dienst** (SNMP-Traps und -Informs): eigener Prozess `openwacht-zentrale traps` unter dem
   Systembenutzer `svc_openwacht_traps` mit der Datenbankrolle `openwacht_trapdienst` (Mitglied von
   `openwacht_traps`, darf nur die Funktionen `traps_*`). Port 162/udp öffnet systemd

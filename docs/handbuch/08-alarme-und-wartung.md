@@ -45,6 +45,13 @@ ein Kanal gestört, holt er nach, ohne dass andere doppelt melden.
 **Bereitschaft und Eskalation** (je Kanal): Wochentage und Uhrzeit, zu denen der Kanal meldet (Zeitzone der
 Installation; außerhalb wird gesammelt und nachgeholt); „unbestätigt nach N Minuten an Kanal X“.
 
+**Sammeln** (Mail und SMS, je Kanal, ab Werk an): Das erste Ereignis startet eine Minute; alles, was in dieser Minute
+dazukommt (Alarme, Entwarnungen, Erinnerungen), geht danach als **eine** Mail bzw. SMS hinaus, schlimmste zuerst. Ein
+einzelnes Ereignis kommt als normale Mail mit Graph. Ist ein Sensor innerhalb der Minute wieder OK, gibt es keine
+Meldung (im Alarmprotokoll steht er trotzdem). Scheitert der Versand, versucht der Kanal es nach einer Minute erneut,
+nicht bei jedem Durchlauf; das schont Relays mit einer Grenze je Minute (Exchange: `421 4.4.2`). Abschalten unter
+„Zustellung“ am Kanal; dann geht jede Meldung sofort, ab zehn Ereignissen auf einmal als Sammelmail.
+
 **Monatsbericht** am Mail-Kanal: siehe [Kapitel 9](09-berichte.md).
 
 So sieht eine Alarm-Mail im Betreff aus: `KRIT · drucker-empfang · TCP 9100: Port 9100: keine Route zum Host`.

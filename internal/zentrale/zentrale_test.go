@@ -139,7 +139,8 @@ func newTestServer(t *testing.T, mod func(*Config)) (*Server, *httptest.Server) 
 	srv := httptest.NewUnstartedServer(nil)
 	srv.Start()
 	u, _ := url.Parse(srv.URL)
-	cfg := Config{BaseURL: u, PasswordParams: &testParams, LoginsPerMinutePerIP: 1000}
+	// Sammeln (1.0.1) aus: Die übrigen Tests erwarten den Versand im selben Durchlauf.
+	cfg := Config{BaseURL: u, PasswordParams: &testParams, LoginsPerMinutePerIP: 1000, AlertCollect: -1}
 	if mod != nil {
 		mod(&cfg)
 	}

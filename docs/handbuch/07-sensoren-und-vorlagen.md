@@ -64,7 +64,7 @@ nicht. „Als eigene“ macht aus einer eingebauten Vorlage eine eigene zum Anpa
 
 ## Vorlagensätze
 
-Ein **Vorlagensatz** legt mehrere Sensoren für eine Anwendung auf einmal an. Eingebaut sind vierzehn Sätze, dreizehn für
+Ein **Vorlagensatz** legt mehrere Sensoren für eine Anwendung auf einmal an. Eingebaut sind fünfzehn Sätze, vierzehn für
 Windows-Server und einer für den NetScaler; jeder Sensor heißt „Satz: …“ und merkt sich den Satz als Herkunft.
 
 ![Vorlagensätze](bilder/sensor-vorlagensaetze.webp)
@@ -79,7 +79,8 @@ Windows-Server und einer für den NetScaler; jeder Sensor heißt „Satz: …“
 | **IQ4docs** | Dienste `IQ4docsMongoDB`, `IQ4docsRabbitMQ`, Fleet Agent (`iq4dService`) und Watchdog (`iq4dWatchdog`), IIS; Anwendungspool gestoppt; Weboberfläche (HTTPS); Zertifikat | `-arten "dienst,leistungsindikator" -indikatoren APP_POOL_WAS` |
 | **Druckserver** | Druckwarteschlange (Spooler); Aufträge in der vollsten Warteschlange (Warnung 25, kritisch 100); Aufträge gesamt; Zahl der Warteschlangen (kritisch bei 0); Auftragsfehler und „nicht bereit“ seit Dienststart; SMB (445) | `-arten "dienst,leistungsindikator" -indikatoren "Print Queue"` |
 | **Hyper-V-Host** | Dienste VM-Verwaltung (vmms) und Host Compute; VMs in kritischem Zustand (ab 1 kritisch); VMs in Ordnung; Auslastung des Hypervisors (80 %/95 %); freier Arbeitsspeicher (Warnung unter 4096 MB, kritisch unter 1024 MB) | `-arten "dienst,leistungsindikator" -indikatoren "Hyper-V Virtual Machine Health Summary,Hyper-V Hypervisor Logical Processor,Memory"` |
-| **Citrix Worker (VDA)** | Desktop Service, ICA Service, Group Policy Engine, Remotedesktopdienste; aktive Sitzungen; höchste Sitzungslatenz (200/500 ms); Neustart verpasst (Laufzeit über 26 Stunden); Ping; ICA (1494) und Sitzungszuverlässigkeit (2598) | `-arten "dienst,leistungsindikator" -indikatoren "Terminal Services,ICA Session,System"` |
+| **Citrix Worker (VDA, Agent)** | Desktop Service, Group Policy Engine, Remotedesktopdienste; aktive Sitzungen; höchste Sitzungslatenz (200/500 ms); Neustart verpasst (Laufzeit über 26 Stunden); Ping; ICA (1494) und Sitzungszuverlässigkeit (2598) | `-arten "dienst,leistungsindikator" -indikatoren "Terminal Services,ICA Session,System"` |
+| **Citrix Worker (VDA, SNMP)** | ohne Agent: CPU, Arbeitsspeicher, Platten und Neustart aus der SNMP-Abfrage des Geräts; Neustart verpasst über `hrSystemUptime` (über 26 Stunden); Ping; ICA (1494) und Sitzungszuverlässigkeit (2598). Für Worker aus PVS/MCS: SNMP einmal im Master-Image einrichten | keine; am Worker Windows-Feature „SNMP-Dienst“, Community nur lesen, nur die Zentrale zulassen (nur v1/v2c) |
 | **Citrix StoreFront** | Credential Wallet, Default Domain Services, Peer Resolution, Subscriptions Store, Configuration Replication, IIS, Net.Tcp Port Sharing; Store-Erkennung `https://…/Citrix/Store/discovery`; Zertifikat (30/14 Tage) | `-arten dienst` |
 | **Citrix Delivery Controller** | Broker, Configuration, Host, Machine Creation, Monitor, Delegated Administration, AD Identity; Port 80 (Anmeldung der VDAs); Lizenzserver: Dienst Citrix Licensing, Ports 27000, 7279, 8083 | `-arten dienst` |
 | **Citrix Cloud Connector** | Dienste Agent System, WatchDog, Agent Discovery, AD Provider, Credential Provider, WebRelay, Message Broker, Remote Broker Provider (`XaXdCloudProxy`), STA, Config Synchronizer, High Availability (Local Host Cache), Remote HCL, Cloud Gateway, Monitor; VDA-Anmeldung auf Port 80 | `-arten dienst` |
@@ -164,6 +165,11 @@ Gerät und Gruppe, im Dashboard und auf der Wandanzeige.
 - **Zuordnen** im Reiter „Sensoren“ eines Geräts, Spalte „Kennfarbe“: für eigene Sensoren und für die eingebauten
   Messwerte von Agent und SNMP (Erreichbarkeit, Speicher, Platten, Schnittstellen …). An **Trap-Regeln** mit Wirkung
   Warnung oder Kritisch gilt die Kennfarbe für alle Zustände und Protokolleinträge der Regel.
+- **Für eine ganze Herkunft:** Im Reiter „Sensoren“ steht je Vorlage bzw. Vorlagensatz „Kennfarbe für alle …“. Danach
+  wählt man „Nur auf <Gerät>“ oder „Auf allen Geräten“ (alle Geräte, deren Sensoren man ändern darf). Sensoren in
+  Mandanten, zu denen die Kennfarbe nicht passt, bleiben unverändert; die Meldung nennt ihre Zahl.
+- **Im eigenen Vorlagensatz:** Jeder Eintrag kann eine Kennfarbe tragen (Kennfarbe des Mandanten des Satzes oder eines
+  übergeordneten). Beim Anwenden bekommt der neue Sensor sie mit.
 - **Was bleibt:** Form und Text der Schwere (Dreieck = Warnung, Achteck = kritisch) und die Schwere für
   Benachrichtigungen. OK, Unbekannt, Wartung und Pausiert zeigen nie eine Kennfarbe.
 - **Rot gewinnt immer:** Hat ein Gerät mehrere Probleme gleicher Schwere, zeigt es die Farbe ohne Kennfarbe. Eine

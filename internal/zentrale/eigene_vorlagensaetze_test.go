@@ -226,3 +226,105 @@ func TestEigeneVorlagensaetze(t *testing.T) {
 		t.Errorf("Audit: %v", actions)
 	}
 }
+
+// 1.0.1: Kennfarben in eigenen Vorlagensätzen (A) und für alle Sensoren einer
+// Herkunft (B).
+func TestVorlagensatzKennfarbe(t *testing.T) {
+	verwaltungSetup(t)
+	resetLimits(t)
+	ctx := context.Background()
+	t.Cleanup(func() {
+		owner.Exec(ctx, `DELETE FROM openwacht.sensor_template_sets WHERE name LIKE 'VK %'`)
+		owner.Exec(ctx, `DELETE FROM openwacht.kennfarben WHERE name LIKE 'VK %'`)
+	})
+	mkColor := func(user, tenant, name, farbe string) string {
+		t.Helper()
+		r := as(t, user).do("POST", "/api/v1/mandanten/"+ids[tenant]+"/kennfarben", map[string]any{"name": name, "farbe": farbe})
+		expectStatus(t, "Kennfarbe "+name, r, 201)
+		return r.body["id"].(string)
+	}
+	fw := mkColor("v_fw", "Fertigung", "VK Pink", "#c0307a")
+	fw2 := mkColor("v_fw", "Fertigung", "VK Türkis", "#00838a")
+	oa := mkColor("v_oa", "Organisation", "VK Orga", "#7b5cd6")
+	base := "/api/v1/mandanten/" + ids["Fertigung"] + "/sensor-vorlagensaetze"
+
+	// A: Kennfarbe eines Geschwisters im Satz: abgelehnt; eigene: angenommen
+	withColor := func(k string) map[string]any {
+		it := setItem("VK Ping", "ping", `{"host":"{adresse}"}`, 60)
+		it["kennfarbe_id"] = k
+		return setBody("VK Satz", it, setItem("VK TCP", "tcp", `{"host":"{adresse}","port":22}`, 60))
+	}
+	r := as(t, "v_fw").do("POST", base, withColor(oa))
+	expectStatus(t, "fremde Kennfarbe im Satz", r, 400)
+	if msg, _ := r.body["fehler"].(string); !strings.Contains(msg, "Sensor 1") {
+		t.Errorf("Meldung: %q", msg)
+	}
+	expectStatus(t, "Kennfarbe keine ID", as(t, "v_fw").do("POST", base, withColor("rot")), 400)
+	r = as(t, "v_fw").do("POST", base, withColor(fw))
+	expectStatus(t, "Satz mit Kennfarbe", r, 201)
+	set := r.body["id"].(string)
+	l := as(t, "v_fw").do("GET", "/api/v1/sensor-vorlagen", nil)
+	if !strings.Contains(l.raw, `"kennfarbe_id":"`+fw+`"`) {
+		t.Errorf("Liste zeigt die Kennfarbe nicht")
+	}
+
+	// Anwenden: Der Ping bekommt die Farbe, der TCP-Sensor keine
+	r = newDevice(t, "v_fw", "Fertigung", "VK Gerät 1", "vk1.fw.test")
+	expectStatus(t, "Gerät 1", r, 201)
+	d1 := r.body["id"].(string)
+	r = newDevice(t, "v_fw", "Fertigung", "VK Gerät 2", "vk2.fw.test")
+	expectStatus(t, "Gerät 2", r, 201)
+	d2 := r.body["id"].(string)
+	cleanupChecks(t, d1, d2)
+	t.Cleanup(func() { owner.Exec(ctx, `DELETE FROM openwacht.devices WHERE id = ANY($1::uuid[])`, []string{d1, d2}) })
+	r = as(t, "v_fw").do("POST", "/api/v1/sensor-vorlagen/anwenden", map[string]any{"satz_id": set, "geraete": []string{d1, d2}})
+	expectStatus(t, "anwenden", r, 200)
+	color := func(dev, name string) string {
+		t.Helper()
+		var k *string
+		if err := owner.QueryRow(ctx, `SELECT kennfarbe_id::text FROM openwacht.checks WHERE device_id = $1 AND name = $2`, dev, name).Scan(&k); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if k == nil {
+			return ""
+		}
+		return *k
+	}
+	if color(d1, "VK Ping") != fw || color(d2, "VK Ping") != fw || color(d1, "VK TCP") != "" {
+		t.Errorf("nach dem Anwenden: %q %q %q", color(d1, "VK Ping"), color(d2, "VK Ping"), color(d1, "VK TCP"))
+	}
+
+	// B: alle Sensoren der Herkunft an einem Gerät
+	url := "/api/v1/sensoren/herkunft-kennfarbe"
+	expectStatus(t, "Leser", as(t, "v_lz").do("PUT", url, map[string]any{"herkunft": "VK Satz", "kennfarbe_id": fw2, "geraet": d1}), 404)
+	expectStatus(t, "Geschwister", as(t, "v_oa").do("PUT", url, map[string]any{"herkunft": "VK Satz", "kennfarbe_id": oa, "geraet": d1}), 404)
+	r = as(t, "v_fw").do("PUT", url, map[string]any{"herkunft": "VK Satz", "kennfarbe_id": fw2, "geraet": d1})
+	expectStatus(t, "ein Gerät", r, 200)
+	if r.body["geaendert"].(float64) != 2 {
+		t.Errorf("ein Gerät: %v", r.body)
+	}
+	if color(d1, "VK Ping") != fw2 || color(d1, "VK TCP") != fw2 || color(d2, "VK Ping") != fw {
+		t.Error("ein Gerät: falsche Sensoren geändert")
+	}
+	// fremde Kennfarbe: nichts geändert
+	r = as(t, "v_fw").do("PUT", url, map[string]any{"herkunft": "VK Satz", "kennfarbe_id": oa})
+	if r.status == 200 && r.body["geaendert"].(float64) != 0 {
+		t.Errorf("fremde Kennfarbe gesetzt: %v", r.body)
+	}
+	// alle Geräte, dann entfernen
+	r = as(t, "v_fw").do("PUT", url, map[string]any{"herkunft": "VK Satz", "kennfarbe_id": fw})
+	expectStatus(t, "alle Geräte", r, 200)
+	if color(d1, "VK TCP") != fw || color(d2, "VK TCP") != fw {
+		t.Error("alle Geräte: nicht gesetzt")
+	}
+	expectStatus(t, "entfernen", as(t, "v_fw").do("PUT", url, map[string]any{"herkunft": "VK Satz", "kennfarbe_id": nil}), 200)
+	if color(d1, "VK Ping") != "" || color(d2, "VK TCP") != "" {
+		t.Error("entfernen: Farbe noch da")
+	}
+	expectStatus(t, "Herkunft unbekannt", as(t, "v_fw").do("PUT", url, map[string]any{"herkunft": "VK gibt es nicht", "kennfarbe_id": fw}), 404)
+	var n int
+	owner.QueryRow(ctx, `SELECT count(*) FROM openwacht.audit_log WHERE action = 'check.herkunft_kennfarbe' AND details->>'herkunft' = 'VK Satz'`).Scan(&n)
+	if n < 3 {
+		t.Errorf("Audit: %d Einträge", n)
+	}
+}

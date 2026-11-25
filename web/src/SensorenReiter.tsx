@@ -119,6 +119,9 @@ export function SensorenReiter(props: {
   const [bearbeite, setBearbeite] = useState<Check | null>(null);
   // Löschen mit Bestätigung: ein Sensor oder alle einer Herkunft (0.99.2)
   const [loeschen, setLoeschen] = useState<{ check: Check } | { herkunft: string; anzahl: number } | null>(null);
+  // Kennfarbe für alle Sensoren einer Herkunft (1.0.1): hier oder auf allen Geräten
+  const [herkunftFarbe, setHerkunftFarbe] = useState<{ herkunft: string; kennfarbe: string | null } | null>(null);
+  const [farbHinweis, setFarbHinweis] = useState("");
   const [arbeitet, setArbeitet] = useState(false);
   // Ausnehmen einzelner Werte einer Quelle (SNMP, NetApp …) mit Begründung (0.99.2)
   const [ausnehmen, setAusnehmen] = useState<Sensor | null>(null);
@@ -139,6 +142,27 @@ export function SensorenReiter(props: {
       if ("check" in loeschen) await api("DELETE", `/api/v1/checks/${loeschen.check.id}`);
       else await api("POST", `/api/v1/geraete/${g.id}/checks/herkunft-loeschen`, { herkunft: loeschen.herkunft });
       setLoeschen(null);
+      props.onGeaendert();
+    } catch (e) {
+      props.melden(e);
+    } finally {
+      setArbeitet(false);
+    }
+  };
+  const herkunftFarbeSetzen = async (alleGeraete: boolean) => {
+    if (!herkunftFarbe) return;
+    setArbeitet(true);
+    try {
+      const r = await api<{ geaendert: number; unveraendert: number }>("PUT", "/api/v1/sensoren/herkunft-kennfarbe", {
+        herkunft: herkunftFarbe.herkunft,
+        kennfarbe_id: herkunftFarbe.kennfarbe,
+        ...(alleGeraete ? {} : { geraet: g.id }),
+      });
+      setFarbHinweis(
+        `${r.geaendert} ${r.geaendert === 1 ? "Sensor" : "Sensoren"} geändert` +
+          (r.unveraendert > 0 ? `, ${r.unveraendert} ohne Recht oder mit nicht passender Kennfarbe unverändert.` : "."),
+      );
+      setHerkunftFarbe(null);
       props.onGeaendert();
     } catch (e) {
       props.melden(e);
@@ -318,6 +342,24 @@ export function SensorenReiter(props: {
               <span className="klein">
                 {n} {n === 1 ? "Sensor" : "Sensoren"}
               </span>
+              {kennfarben.liste.length > 0 && (
+                <select
+                  aria-label={`Kennfarbe für alle Sensoren aus ${h}`}
+                  value=""
+                  onChange={(e) => {
+                    setFarbHinweis("");
+                    setHerkunftFarbe({ herkunft: h, kennfarbe: e.target.value === "-" ? null : e.target.value });
+                  }}
+                >
+                  <option value="">Kennfarbe für alle …</option>
+                  {kennfarben.liste.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.name}
+                    </option>
+                  ))}
+                  <option value="-">keine Kennfarbe</option>
+                </select>
+              )}
               <button
                 className="knopf knopf-klein knopf-gefahr"
                 onClick={() => {
@@ -332,6 +374,28 @@ export function SensorenReiter(props: {
           ))}
         </ul>
       )}
+      {herkunftFarbe && (
+        <div className="einschub" role="group" aria-label="Kennfarbe einer Herkunft">
+          <p>
+            {herkunftFarbe.kennfarbe
+              ? `Kennfarbe „${kennfarben.liste.find((k) => k.id === herkunftFarbe.kennfarbe)?.name ?? ""}“`
+              : "Keine Kennfarbe"}{" "}
+            für alle Sensoren aus „{herkunftFarbe.herkunft}“ setzen:
+          </p>
+          <div className="knopf-reihe">
+            <button className="knopf knopf-haupt" disabled={arbeitet} onClick={() => void herkunftFarbeSetzen(false)}>
+              Nur auf {g.name}
+            </button>
+            <button className="knopf" disabled={arbeitet} onClick={() => void herkunftFarbeSetzen(true)}>
+              Auf allen Geräten
+            </button>
+            <button type="button" className="knopf" onClick={() => setHerkunftFarbe(null)}>
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      )}
+      {farbHinweis && <p className="klein" role="status">{farbHinweis}</p>}
 
       <div className="tabelle-rahmen">
         <table className="tabelle tabelle-kompakt sensoren-tabelle">

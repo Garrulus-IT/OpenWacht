@@ -81,7 +81,7 @@ func TestVorlagensaetze047(t *testing.T) {
 		}
 	}
 	// Citrix: beide LTSR-Stände genannt
-	for _, id := range []string{"satz-citrix-vda", "satz-citrix-sf", "satz-citrix-ddc"} {
+	for _, id := range []string{"satz-citrix-vda", "satz-citrix-vda-snmp", "satz-citrix-sf", "satz-citrix-ddc"} {
 		if n := setByID(t, id).Notiz; !strings.Contains(n, "2402") || !strings.Contains(n, "2507") {
 			t.Errorf("%s ohne beide LTSR: %s", id, n)
 		}

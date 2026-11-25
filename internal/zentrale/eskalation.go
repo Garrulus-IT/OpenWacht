@@ -209,6 +209,7 @@ func (s *Server) handleChannelDelivery(w http.ResponseWriter, r *http.Request) {
 		Bereitschaft  *activeHours `json:"bereitschaft"`
 		Eskalation    *escalation  `json:"eskalation"`
 		Monatsbericht bool         `json:"monatsbericht"` // nur Mail-Kanäle (Etappe 25)
+		Sammeln       *bool        `json:"sammeln"`       // nur Mail und SMS (1.0.1); fehlt = unverändert
 	}
 	if !readJSON(w, r, &in) {
 		return
@@ -245,6 +246,9 @@ func (s *Server) handleChannelDelivery(w http.ResponseWriter, r *http.Request) {
 		if in.Monatsbericht && kind != kindMail {
 			return 0, nil, badRequest("Monatsberichte gibt es nur für Mail-Kanäle.")
 		}
+		if in.Sammeln != nil && *in.Sammeln && kind != kindMail && kind != kindSMS {
+			return 0, nil, badRequest("Sammeln gibt es nur für Mail- und SMS-Kanäle.")
+		}
 		if target != nil {
 			var same bool
 			if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM openwacht.alert_channels WHERE id = $1 AND tenant_id = $2)`,
@@ -256,15 +260,16 @@ func (s *Server) handleChannelDelivery(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		tag, err := tx.Exec(ctx, `UPDATE openwacht.alert_channels SET active_hours = $2, escalate_after_min = $3, escalate_channel_id = $4,
-			monthly_report = $5 WHERE id = $1`, id, hours, after, target, in.Monatsbericht)
+			monthly_report = $5, collect = coalesce($6, collect) WHERE id = $1`, id, hours, after, target, in.Monatsbericht, in.Sammeln)
 		if err != nil {
 			return 0, nil, err
 		}
 		if tag.RowsAffected() == 0 {
 			return 0, nil, errNotFound // nur lesend sichtbar
 		}
-		return http.StatusOK, map[string]any{"bereitschaft": in.Bereitschaft, "eskalation": in.Eskalation, "monatsbericht": in.Monatsbericht},
+		return http.StatusOK, map[string]any{"bereitschaft": in.Bereitschaft, "eskalation": in.Eskalation, "monatsbericht": in.Monatsbericht,
+				"sammeln": in.Sammeln},
 			audit(ctx, tx, &tenant, "alarmkanal.zustellung", map[string]any{"kanal": id, "bereitschaft": in.Bereitschaft,
-				"eskalation": in.Eskalation})
+				"eskalation": in.Eskalation, "sammeln": in.Sammeln})
 	})
 }

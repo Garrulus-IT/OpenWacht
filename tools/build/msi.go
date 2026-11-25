@@ -57,6 +57,7 @@ func cLN(n int) uint16  { return cS(n) | colLocal | colNull }         // LNN
 func cI2() uint16       { return colShort | colPersist | 2 }          // i2
 func cI2N() uint16      { return cI2() | colNull }                    // I2
 func cI4() uint16       { return colPersist | 4 }                     // i4
+func cI4N() uint16      { return cI4() | colNull }                    // I4
 func cI2K() uint16      { return cI2() | colKey }                     // i2, Schlüssel
 func cSNK(n int) uint16 { return cSN(n) | colKey }                    // SNN, Schlüssel
 func cI4K() uint16      { return cI4() | colKey }                     // i4, Schlüssel
@@ -429,6 +430,12 @@ func msiTables(goarch, ver string, exeSize int) []msiTable {
 		{name: "AppSearch", cols: []msiCol{{"Property", cK(72)}, {"Signature_", cK(72)}}, rows: [][]any{
 			{"OW_WIN10", "OwWinZehn"},
 		}},
+		// AppSearch fragt immer die Tabelle Signature ab, auch wenn nur ein
+		// RegLocator ohne Dateisuche gesucht wird. Fehlt sie, bricht jede
+		// Installation mit Fehler 2228 bzw. 1603 ab. Sie bleibt leer.
+		{name: "Signature", cols: []msiCol{{"Signature", cK(72)}, {"FileName", cS(255)}, {"MinVersion", cSN(20)},
+			{"MaxVersion", cSN(20)}, {"MinSize", cI4N()}, {"MaxSize", cI4N()}, {"MinDate", cI4N()}, {"MaxDate", cI4N()},
+			{"Languages", cSN(255)}}},
 		{name: "Directory", cols: []msiCol{{"Directory", cK(72)}, {"Directory_Parent", cSN(72)}, {"DefaultDir", cL(255)}}, rows: [][]any{
 			{"TARGETDIR", nil, "SourceDir"},
 			{"ProgramFiles64Folder", "TARGETDIR", "."},

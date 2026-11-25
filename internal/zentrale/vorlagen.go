@@ -39,6 +39,8 @@ type vorlageOut struct {
 	// Ziel braucht die Adresse des Geräts ({adresse})
 	BrauchtAdresse bool       `json:"braucht_adresse"`
 	Geaendert      *time.Time `json:"geaendert,omitempty"`
+	// 1.0.1: Kennfarbe eines Eintrags im eigenen Vorlagensatz (beim Anwenden übernommen)
+	Kennfarbe *string `json:"kennfarbe_id,omitempty"`
 }
 
 // builtinTemplates: die gängigsten Sensoren. IDs mit Präfix „std-“.
@@ -307,14 +309,15 @@ var builtinSets = []vorlagenSatz{
 				`{"objekt":"Memory","indikator":"Available MBytes","warnung_unter":4096,"kritisch_unter":1024}`,
 				"freier Arbeitsspeicher des Hosts in MB; Schwellen an die Größe anpassen", 60},
 		}),
-	newSet("satz-citrix-vda", "Citrix Worker (VDA)", "Citrix Virtual Apps and Desktops, VDA 2402 LTSR und 2507 LTSR: Dienste, ICA, Sitzungen, "+
+	newSet("satz-citrix-vda", "Citrix Worker (VDA, Agent)", "Citrix Virtual Apps and Desktops, VDA 2402 LTSR und 2507 LTSR: Dienste, ICA, Sitzungen, "+
 		"Latenz ohne Benutzernamen, Neustart verpasst (Laufzeit über 26 Stunden). Ob der VDA am Controller registriert ist, "+
 		"zeigt nur indirekt der Desktop Service. Am Agent freigeben: "+
 		`openwacht-agent sensoren -arten "dienst,leistungsindikator" -indikatoren "Terminal Services,ICA Session,System"`,
 		[]satzEintrag{
 			{"Citrix VDA: Desktop Service", "dienst", `{"name":"BrokerAgent"}`, "Citrix Desktop Service, meldet den VDA am Controller an", 60},
-			{"Citrix VDA: ICA Service", "dienst", `{"name":"Citrix ICA Service"}`, "Anzeigename; Sitzungen über ICA/HDX", 60},
-			{"Citrix VDA: Group Policy Engine", "dienst", `{"name":"Citrix Group Policy Engine"}`, "Anzeigename; Citrix-Richtlinien", 60},
+			// Dienstnamen statt Anzeigenamen: Diese sind übersetzt („Citrix Desktopdienst“),
+			// und einen „Citrix ICA Service“ gibt es auf VDA 2402/2507 nicht (an einem VDA abgelesen).
+			{"Citrix VDA: Group Policy Engine", "dienst", `{"name":"CitrixCseEngine"}`, "Citrix-Richtlinien", 60},
 			{"Citrix VDA: Remotedesktopdienste", "dienst", `{"name":"TermService"}`, "Remotedesktopdienste (Multi-Session-VDA)", 60},
 			{"Citrix VDA: Sitzungen aktiv", "leistungsindikator", `{"objekt":"Terminal Services","indikator":"Active Sessions"}`,
 				"aktive Sitzungen (nur Anzeige, ohne Namen)", 60},
@@ -326,6 +329,22 @@ var builtinSets = []vorlagenSatz{
 			{"Citrix VDA: Neustart verpasst", "leistungsindikator",
 				`{"objekt":"System","indikator":"System Up Time","kritisch_ueber":93600}`,
 				"Laufzeit in Sekunden; Fehler über 26 Stunden (93 600 s), an den Neustartplan anpassen", 300},
+			{"Citrix VDA: Ping", "ping", `{"host":"{adresse}","anzahl":5,"verlust_warnung":20,"verlust_kritisch":60}`,
+				"erreichbar, Paketverlust", 60},
+			{"Citrix VDA: ICA (Port 1494)", "tcp", `{"host":"{adresse}","port":1494}`, "ICA ohne Sitzungszuverlässigkeit", 300},
+			{"Citrix VDA: CGP (Port 2598)", "tcp", `{"host":"{adresse}","port":2598}`, "Sitzungszuverlässigkeit (Standard)", 300},
+		}),
+	// Worker ohne Agent (1.0.1, Wunsch eines Citrix-Teams): nur SNMP und
+	// Sensoren der Zentrale. Passt zu Workern aus PVS/MCS, weil die
+	// SNMP-Einstellung einmal im Master-Image liegt und keine Identität braucht.
+	newSet("satz-citrix-vda-snmp", "Citrix Worker (VDA, SNMP)", "Citrix Virtual Apps and Desktops, VDA 2402 LTSR und 2507 LTSR, ohne Agent: "+
+		"CPU, Arbeitsspeicher, Platten und erkannte Neustarts liest die SNMP-Abfrage des Geräts selbst (am Gerät „SNMP einrichten“); "+
+		"dazu Neustart verpasst über die Laufzeit des Systems, Ping, ICA und Sitzungszuverlässigkeit. Am Worker bzw. im "+
+		"Master-Image: Windows-Feature „SNMP-Dienst“, Community nur lesen, nur die Zentrale als Host zulassen (Windows kann nur v1/v2c).",
+		[]satzEintrag{
+			// hrSystemUptime statt sysUpTime: sysUpTime springt schon beim Neustart des SNMP-Dienstes zurück.
+			{"Citrix VDA: Neustart verpasst (SNMP)", "snmp_oid", `{"oid":"1.3.6.1.2.1.25.1.1.0","kritisch_ueber":9360000}`,
+				"Laufzeit des Systems in Hundertstelsekunden; Fehler über 26 Stunden (9 360 000), an den Neustartplan anpassen", 300},
 			{"Citrix VDA: Ping", "ping", `{"host":"{adresse}","anzahl":5,"verlust_warnung":20,"verlust_kritisch":60}`,
 				"erreichbar, Paketverlust", 60},
 			{"Citrix VDA: ICA (Port 1494)", "tcp", `{"host":"{adresse}","port":1494}`, "ICA ohne Sitzungszuverlässigkeit", 300},
@@ -446,6 +465,7 @@ type vorlageIn struct {
 	Ziel      json.RawMessage `json:"ziel"`
 	Intervall int             `json:"intervall_sekunden"`
 	Notiz     string          `json:"notiz"`
+	Kennfarbe *string         `json:"kennfarbe_id"` // nur in eigenen Vorlagensätzen (1.0.1)
 }
 
 func parseTemplateIn(in vorlageIn) (vorlageIn, []byte, error) {
@@ -756,9 +776,12 @@ func (s *Server) handleTemplateApply(w http.ResponseWriter, r *http.Request) {
 					return 0, nil, err
 				}
 				var id string
-				err = tx.QueryRow(ctx, `INSERT INTO openwacht.checks (device_id, name, kind, target, interval_s, enabled, origin)
-				VALUES ($1, $2, $3, $4, $5, true, $6) ON CONFLICT DO NOTHING RETURNING id::text`,
-					d.id, templateSensorName(t.Name), t.Typ, target, t.Intervall, origin).Scan(&id)
+				// Kennfarbe aus dem eigenen Satz (1.0.1) nur, wenn sie zum Mandanten des Geräts passt.
+				err = tx.QueryRow(ctx, `INSERT INTO openwacht.checks (device_id, name, kind, target, interval_s, enabled, origin, kennfarbe_id)
+				VALUES ($1, $2, $3, $4, $5, true, $6,
+					CASE WHEN openwacht.kennfarbe_allowed($7::uuid, $8::uuid) THEN $7::uuid END)
+				ON CONFLICT DO NOTHING RETURNING id::text`,
+					d.id, templateSensorName(t.Name), t.Typ, target, t.Intervall, origin, t.Kennfarbe, d.tenant).Scan(&id)
 				var pe *pgconn.PgError
 				switch {
 				case errors.Is(err, pgx.ErrNoRows):

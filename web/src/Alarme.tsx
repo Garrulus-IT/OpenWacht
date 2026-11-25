@@ -321,6 +321,8 @@ function Zustellung(props: { k: Alarmkanal; alle: Alarmkanal[]; onFertig: () => 
   const [ziel, setZiel] = useState(k.eskalation?.kanal ?? "");
   const [minuten, setMinuten] = useState(String(k.eskalation?.nach_minuten ?? 30));
   const [bericht, setBericht] = useState(k.monatsbericht);
+  const kannSammeln = k.typ === "mail" || k.typ === "sms";
+  const [sammeln, setSammeln] = useState(k.sammeln);
   const speichern = async (e: FormEvent) => {
     e.preventDefault();
     try {
@@ -328,6 +330,7 @@ function Zustellung(props: { k: Alarmkanal; alle: Alarmkanal[]; onFertig: () => 
         bereitschaft: mitZeit ? { tage, von, bis } : null,
         eskalation: ziel ? { nach_minuten: Number(minuten), kanal: ziel } : null,
         monatsbericht: k.typ === "mail" && bericht,
+        ...(kannSammeln ? { sammeln } : {}),
       });
       props.onFertig();
     } catch (err) {
@@ -391,6 +394,18 @@ function Zustellung(props: { k: Alarmkanal; alle: Alarmkanal[]; onFertig: () => 
           )}
         </div>
       </fieldset>
+      {kannSammeln && (
+        <fieldset className="feld-gruppe formular-voll">
+          <legend>Sammeln</legend>
+          <label className="feld-check">
+            <input type="checkbox" checked={sammeln} onChange={(e) => setSammeln(e.target.checked)} />
+            <span>
+              Meldungen 1 Minute sammeln und gemeinsam schicken ({k.typ === "mail" ? "eine Mail" : "eine SMS"} statt vieler,
+              Entwarnungen inklusive). Ist ein Sensor innerhalb der Minute wieder OK, kommt keine Meldung.
+            </span>
+          </label>
+        </fieldset>
+      )}
       {k.typ === "mail" && (
         <fieldset className="feld-gruppe formular-voll">
           <legend>Monatsbericht</legend>
@@ -573,6 +588,12 @@ function KanalZeile(props: {
                   : "nur Sensoren und Hosts dieses Mandanten"}
               </dd>
             </div>
+            {(k.typ === "mail" || k.typ === "sms") && (
+              <div>
+                <dt>Sammeln</dt>
+                <dd>{k.sammeln ? "1 Minute, dann gemeinsam" : "nein, jede Meldung sofort"}</dd>
+              </div>
+            )}
             {k.typ === "mail" && (
               <div>
                 <dt>Monatsbericht</dt>

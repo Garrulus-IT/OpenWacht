@@ -81,6 +81,8 @@ type channelOut struct {
 	Bereitschaft  *activeHours `json:"bereitschaft"`
 	Eskalation    *escalation  `json:"eskalation"`
 	Monatsbericht bool         `json:"monatsbericht"`
+	// 1.0.1: Mail und SMS sammeln eine Minute
+	Sammeln bool `json:"sammeln"`
 	// SMS (0.43.0)
 	SMSBenutzer   *string `json:"sms_benutzer,omitempty"`
 	Fingerabdruck *string `json:"fingerabdruck,omitempty"`
@@ -192,7 +194,7 @@ func (s *Server) handleChannelList(w http.ResponseWriter, r *http.Request) {
 		rows, err := tx.Query(ctx, `SELECT id::text, tenant_id::text, name, kind, coalesce(server, ''), coalesce(topic, ''),
 				has_token, include_children, enabled, all_users, last_ok, last_error, last_error_at,
 				active_hours, escalate_after_min, escalate_channel_id::text, monthly_report,
-				sms_user, sms_pin, sms_target, sms_group, sms_ring, sms_watch
+				sms_user, sms_pin, sms_target, sms_group, sms_ring, sms_watch, collect
 			FROM openwacht.alert_channels WHERE ($1 = '' OR tenant_id = $1::uuid) ORDER BY lower(name)`, filter)
 		if err != nil {
 			return 0, nil, err
@@ -204,7 +206,8 @@ func (s *Server) handleChannelList(w http.ResponseWriter, r *http.Request) {
 			err := row.Scan(&c.ID, &c.MandantID, &c.Name, &c.Typ, &c.Server, &c.Topic, &c.TokenGesetzt,
 				&c.Untermandanten, &c.Aktiv, &c.AlleBenutzer, &c.ZuletztOK, &c.Fehler, &c.FehlerAm,
 				&c.Bereitschaft, &after, &target, &c.Monatsbericht,
-				&c.SMSBenutzer, &c.Fingerabdruck, &c.EmpfaengerArt, &c.Gruppe, &c.Anrufen, &c.Ueberwachen)
+				&c.SMSBenutzer, &c.Fingerabdruck, &c.EmpfaengerArt, &c.Gruppe, &c.Anrufen, &c.Ueberwachen, &c.Sammeln)
+			c.Sammeln = c.Sammeln && (c.Typ == kindMail || c.Typ == kindSMS)
 			if after != nil && target != nil {
 				c.Eskalation = &escalation{NachMinuten: *after, Kanal: *target}
 			}
@@ -634,6 +637,78 @@ func (s *Server) alertRules() map[string]any {
 type sendChannel struct {
 	id, tenantID, tenantName, name, kind, server, topic string
 	tokenEnc, secretEnc                                 []byte
+	collect                                             bool // 1.0.1: Mail/SMS sammeln, mehrere Ereignisse in einer Nachricht
+}
+
+// collectWindow merkt je sammelndem Kanal, seit wann Ereignisse warten
+// (nur im Speicher: Nach einem Neustart beginnt das Fenster neu).
+type collectWindow struct {
+	mu    sync.Mutex
+	since map[string]time.Time
+}
+
+// due: Ist das Fenster des Kanals abgelaufen? Das erste Ereignis startet es.
+func (w *collectWindow) due(id string, now time.Time, d time.Duration) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.since == nil {
+		w.since = map[string]time.Time{}
+	}
+	start, ok := w.since[id]
+	if !ok {
+		w.since[id] = now
+		return false
+	}
+	return now.Sub(start) >= d
+}
+
+// restart: neues Fenster ab now (nach einem Fehlschlag: erst in einer Minute
+// erneut versuchen, statt das Relay alle 15 Sekunden anzufragen).
+func (w *collectWindow) restart(id string, now time.Time) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.since == nil {
+		w.since = map[string]time.Time{}
+	}
+	w.since[id] = now
+}
+
+func (w *collectWindow) clear(id string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	delete(w.since, id)
+}
+
+// keep: Fenster von Kanälen ohne wartende Ereignisse verwerfen (z. B. Sensor
+// wieder OK, bevor gemeldet wurde: Dann gibt es nichts zu melden).
+func (w *collectWindow) keep(waiting map[string][]pending) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	for id := range w.since {
+		if len(waiting[id]) == 0 {
+			delete(w.since, id)
+		}
+	}
+}
+
+// collectingChannels: welche der Kanäle sammeln (Schalter, nur Mail und SMS).
+func (s *Server) collectingChannels(ctx context.Context, ids []string) (map[string]bool, error) {
+	out := map[string]bool{}
+	if s.cfg.AlertCollect < 0 || len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := s.pool.Query(ctx, `SELECT id::text FROM openwacht.alert_channels_collecting($1::uuid[])`, ids)
+	if err != nil {
+		return nil, err
+	}
+	got, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range got {
+		out[id] = true
+	}
+	return out, nil
 }
 
 func (s *Server) loadChannels(ctx context.Context, ids []string) ([]sendChannel, error) {
@@ -800,6 +875,16 @@ func (s *Server) alertRoundR(ctx context.Context) (sent, failed int, err error) 
 		}
 		order = slices.DeleteFunc(order, func(id string) bool { return inactive[id] })
 	}
+	// Sammeln (1.0.1): Mail und SMS warten ab dem ersten Ereignis AlertCollect
+	// und schicken dann alles in einer Nachricht.
+	s.collect.keep(byChannel)
+	collecting, err := s.collectingChannels(ctx, order)
+	if err != nil {
+		return 0, 0, err
+	}
+	order = slices.DeleteFunc(order, func(id string) bool {
+		return collecting[id] && !s.collect.due(id, now, s.cfg.AlertCollect)
+	})
 	if len(order) == 0 {
 		return sent, failed, tx.Commit(ctx) // Commit: Abgleich des Alarmprotokolls und der Wartungen
 	}
@@ -816,6 +901,7 @@ func (s *Server) alertRoundR(ctx context.Context) (sent, failed int, err error) 
 	var mu sync.Mutex
 	for _, ch := range chs {
 		list := byChannel[ch.id]
+		ch.collect = collecting[ch.id]
 		sem <- struct{}{}
 		wg.Add(1)
 		go func() {
@@ -831,6 +917,13 @@ func (s *Server) alertRoundR(ctx context.Context) (sent, failed int, err error) 
 				if e := s.commitSent(bg, ch.id, done); e != nil {
 					slog.Warn("Alarme: Versand nicht vermerkt, wird wiederholt", "kanal", ch.id, "fehler", e)
 					return
+				}
+			}
+			if ch.collect {
+				if err != nil {
+					s.collect.restart(ch.id, now) // erst nach dem nächsten Fenster erneut
+				} else {
+					s.collect.clear(ch.id)
 				}
 			}
 			if err != nil {

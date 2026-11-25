@@ -33,6 +33,7 @@ type satzEintragDB struct {
 	Ziel      json.RawMessage `json:"ziel"`
 	Intervall int             `json:"intervall_sekunden"`
 	Notiz     string          `json:"notiz"`
+	Kennfarbe string          `json:"kennfarbe,omitempty"` // 1.0.1
 }
 
 type eigenerSatzOut struct {
@@ -81,13 +82,42 @@ func parseSetIn(in satzIn) (satzIn, []byte, error) {
 			return in, nil, badRequest("Sensor " + itoa(i+1) + ": Name „" + v.Name + "“ kommt doppelt vor.")
 		}
 		seen[key] = true
-		items = append(items, satzEintragDB{Name: v.Name, Typ: v.Typ, Ziel: target, Intervall: v.Intervall, Notiz: v.Notiz})
+		color := ""
+		if v.Kennfarbe != nil && *v.Kennfarbe != "" {
+			if !uuidPattern.MatchString(*v.Kennfarbe) {
+				return in, nil, badRequest("Sensor " + itoa(i+1) + ": Kennfarbe unbekannt.")
+			}
+			color = strings.ToLower(*v.Kennfarbe)
+		}
+		items = append(items, satzEintragDB{Name: v.Name, Typ: v.Typ, Ziel: target, Intervall: v.Intervall, Notiz: v.Notiz, Kennfarbe: color})
 	}
 	raw, err := json.Marshal(items)
 	return in, raw, err
 }
 
 func itoa(n int) string { return strconv.Itoa(n) }
+
+// checkSetColors (1.0.1): Jede Kennfarbe im Satz muss dem Mandanten des Satzes
+// oder einem darüber gehören; sonst sähe sie nicht jeder, der den Satz sieht.
+func checkSetColors(ctx context.Context, tx pgx.Tx, tenant string, raw []byte) error {
+	var items []satzEintragDB
+	if err := json.Unmarshal(raw, &items); err != nil {
+		return err
+	}
+	for i, t := range items {
+		if t.Kennfarbe == "" {
+			continue
+		}
+		var ok bool
+		if err := tx.QueryRow(ctx, `SELECT openwacht.kennfarbe_allowed($1, $2)`, t.Kennfarbe, tenant).Scan(&ok); err != nil {
+			return err
+		}
+		if !ok {
+			return badRequest("Sensor " + itoa(i+1) + ": Die Kennfarbe gehört nicht zu diesem Mandanten oder einem übergeordneten.")
+		}
+	}
+	return nil
+}
 
 func setItemsOut(id string, raw []byte) ([]vorlageOut, error) {
 	var items []satzEintragDB
@@ -98,6 +128,10 @@ func setItemsOut(id string, raw []byte) ([]vorlageOut, error) {
 	for i, t := range items {
 		out[i] = vorlageOut{ID: id + "-" + itoa(i+1), Name: t.Name, Typ: t.Typ, Ziel: t.Ziel, Intervall: t.Intervall, Notiz: t.Notiz,
 			AmAgent: checks.IsAgentKind(t.Typ), BrauchtAdresse: checks.UsesPlaceholder(t.Ziel)}
+		if t.Kennfarbe != "" {
+			k := t.Kennfarbe
+			out[i].Kennfarbe = &k
+		}
 	}
 	return out, nil
 }
@@ -158,6 +192,9 @@ func (s *Server) handleSetCreate(w http.ResponseWriter, r *http.Request) {
 			VALUES ($1, $2, $3, $4) RETURNING id::text`, tid, in.Name, in.Notiz, items).Scan(&id); err != nil {
 			return 0, nil, err // fremder Mandant oder Leser: 42501 → 403; Name doppelt: 409
 		}
+		if err := checkSetColors(ctx, tx, tid, items); err != nil {
+			return 0, nil, err
+		}
 		if err := audit(ctx, tx, &tid, "vorlagensatz.angelegt", map[string]any{"id": id, "name": in.Name, "sensoren": len(in.Sensoren)}); err != nil {
 			return 0, nil, err
 		}
@@ -183,6 +220,9 @@ func (s *Server) handleSetUpdate(w http.ResponseWriter, r *http.Request) {
 		if err := tx.QueryRow(ctx, `UPDATE openwacht.sensor_template_sets SET name = $2, note = $3, items = $4
 			WHERE id = $1 RETURNING tenant_id::text`, id, in.Name, in.Notiz, items).Scan(&tid); err != nil {
 			return 0, nil, err // nicht sichtbar oder nur Leser: 404
+		}
+		if err := checkSetColors(ctx, tx, tid, items); err != nil {
+			return 0, nil, err
 		}
 		if err := audit(ctx, tx, &tid, "vorlagensatz.geaendert", map[string]any{"id": id, "name": in.Name, "sensoren": len(in.Sensoren)}); err != nil {
 			return 0, nil, err
