@@ -432,6 +432,27 @@ func TestSMSVersand(t *testing.T) {
 	if e := lastError(); !strings.Contains(e, "Fingerabdruck") {
 		t.Errorf("Fehler: %q", e)
 	}
+
+	// Sammeln (1.0.1): Die SMS kommt erst nach dem Fenster.
+	owner.Exec(ctx, `UPDATE openwacht.alert_channels SET sms_pin = $2, token_enc = $3 WHERE id = $1`, id, gw.Pin,
+		mustSeal(t, s.boxKey, brevistest.Password, smsAAD(id, tid, gw.Gateway, brevistest.User, gw.Pin)))
+	record("ok", "")
+	round("vor dem Sammeln")
+	f.Reset()
+	s.cfg.AlertCollect = time.Minute
+	clock := time.Now()
+	s.now = func() time.Time { return clock }
+	record("crit", "w")
+	record("crit", "w")
+	round("Sammeln: Fenster beginnt")
+	if len(f.Requests()) != 0 {
+		t.Fatalf("Sammeln: SMS vor Ablauf des Fensters: %+v", f.Requests())
+	}
+	clock = clock.Add(61 * time.Second)
+	round("Sammeln: Fenster abgelaufen")
+	if len(f.Sent()) != 2 {
+		t.Fatalf("Sammeln: nach dem Fenster %+v", f.Requests())
+	}
 }
 
 func mustSeal(t *testing.T, key []byte, pt string, aad []byte) []byte {

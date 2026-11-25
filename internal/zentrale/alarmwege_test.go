@@ -511,3 +511,161 @@ func TestAlarmwegeMailEinstellung(t *testing.T) {
 	expectStatus(t, "Fertigung liest", fw.do("GET", "/api/v1/einstellungen/mail", nil), 403)
 	expectStatus(t, "Fertigung testet", fw.do("POST", "/api/v1/einstellungen/mail/test", nil), 403)
 }
+
+// 1.0.1: Mail-Kanäle mit „Sammeln“ warten ab dem ersten Ereignis ein Fenster
+// lang und schicken dann eine Sammelmail; ein kurzer Aussetzer im Fenster
+// meldet nichts; ohne Schalter geht die Mail sofort.
+func TestAlarmwegeSammeln(t *testing.T) {
+	verwaltungSetup(t)
+	ctx := context.Background()
+	smtp := smtptest.Start(t, false, "relay", "relay-pass")
+	cfg := vServer.cfg
+	cfg.AlertCollect = time.Minute
+	s, err := New(cfg, pool, testKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clock := time.Now()
+	s.now = func() time.Time { return clock }
+	enc, _ := auth.Seal(s.smtpKey(), []byte("relay-pass"), smtpAAD("127.0.0.1", "relay"))
+	if _, err := owner.Exec(ctx, `UPDATE openwacht.settings SET smtp_host = '127.0.0.1', smtp_port = $1, smtp_tls = 'starttls',
+		smtp_from = 'openwacht@test.invalid', smtp_user = 'relay', smtp_pass_enc = $2, smtp_ca = $3`, smtp.Port, enc, smtp.CAPEM); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ReloadSettings(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var tid, uid, dev, ch string
+	owner.QueryRow(ctx, `INSERT INTO openwacht.tenants (parent_id, name) VALUES ($1, 'Sammeln S') RETURNING id::text`, ids["IT"]).Scan(&tid)
+	owner.QueryRow(ctx, `INSERT INTO openwacht.users (tenant_id, email, display_name) VALUES ($1, 'sammeln@test.invalid', 'Sammeln')
+		RETURNING id::text`, tid).Scan(&uid)
+	owner.Exec(ctx, `INSERT INTO openwacht.role_assignments (user_id, tenant_id, role) VALUES ($1, $2, 'leser')`, uid, tid)
+	owner.QueryRow(ctx, `INSERT INTO openwacht.devices (tenant_id, name) VALUES ($1, 'sammel-srv') RETURNING id::text`, tid).Scan(&dev)
+	if err := owner.QueryRow(ctx, `INSERT INTO openwacht.alert_channels (tenant_id, name, kind, all_users)
+		VALUES ($1, 'Sammel-Mail', 'mail', true) RETURNING id::text`, tid).Scan(&ch); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		owner.Exec(ctx, `UPDATE openwacht.settings SET smtp_host = NULL, smtp_port = NULL, smtp_tls = NULL, smtp_from = NULL,
+			smtp_user = NULL, smtp_pass_enc = NULL, smtp_ca = NULL`)
+		owner.Exec(ctx, `DELETE FROM openwacht.alert_channels WHERE tenant_id = $1`, tid)
+		owner.Exec(ctx, `DELETE FROM openwacht.alarms WHERE tenant_id = $1`, tid)
+		owner.Exec(ctx, `DELETE FROM openwacht.checks WHERE tenant_id = $1`, tid)
+		owner.Exec(ctx, `DELETE FROM openwacht.devices WHERE tenant_id = $1`, tid)
+		owner.Exec(ctx, `DELETE FROM openwacht.users WHERE id = $1`, uid)
+		owner.Exec(ctx, `DELETE FROM openwacht.tenants WHERE id = $1`, tid)
+	})
+	var collect bool
+	owner.QueryRow(ctx, `SELECT collect FROM openwacht.alert_channels WHERE id = $1`, ch).Scan(&collect)
+	if !collect {
+		t.Fatal("Sammeln ist für neue Kanäle nicht an")
+	}
+	check := func(name string) string {
+		var id string
+		if err := owner.QueryRow(ctx, `INSERT INTO openwacht.checks (device_id, name, kind, target, interval_s)
+			VALUES ($1, $2, 'ping', '{"host":"x.lan"}', 60) RETURNING id::text`, dev, name).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		return id
+	}
+	c1, c2, c3 := check("Ping A"), check("Ping B"), check("Ping C")
+	record := func(id, status string) {
+		t.Helper()
+		for range 2 { // zwei Fehlschläge bis zum Alarm
+			var ok bool
+			if err := pool.QueryRow(ctx, `SELECT openwacht.check_record($1, 1, $2, 'keine Antwort', '', NULL)`, id, status).Scan(&ok); err != nil || !ok {
+				t.Fatalf("check_record: %v %v", ok, err)
+			}
+		}
+	}
+	round := func(after time.Duration) int {
+		t.Helper()
+		clock = clock.Add(after)
+		if _, failed, err := s.alertRoundR(ctx); err != nil || failed != 0 {
+			t.Fatalf("Durchlauf: %v, %d gescheitert", err, failed)
+		}
+		n := len(smtp.Messages())
+		return n
+	}
+
+	// Zwei Probleme: erst nach einer Minute, dann eine Sammelmail.
+	record(c1, "crit")
+	record(c2, "warn")
+	if n := round(0); n != 0 {
+		t.Fatalf("sofort %d Mails, erwartet 0 (Fenster)", n)
+	}
+	if n := round(30 * time.Second); n != 0 {
+		t.Fatalf("nach 30 s %d Mails, erwartet 0", n)
+	}
+	if n := round(31 * time.Second); n != 1 {
+		t.Fatalf("nach 61 s %d Mails, erwartet 1", n)
+	}
+	if d := smtp.Messages()[0].Data; !strings.Contains(d, "Subject: OpenWacht Sammeln S: 2 Probleme") || !strings.Contains(d, "Ping A") || !strings.Contains(d, "Ping B") {
+		t.Errorf("Sammelmail:\n%.800s", d)
+	}
+	if n := round(15 * time.Second); n != 1 {
+		t.Fatalf("doppelt gemeldet: %d Mails", n)
+	}
+
+	// Entwarnungen gesammelt.
+	record(c1, "ok")
+	record(c2, "ok")
+	round(0)
+	if n := round(61 * time.Second); n != 2 {
+		t.Fatalf("Entwarnung: %d Mails, erwartet 2", n)
+	}
+	if d := smtp.Messages()[1].Data; !strings.Contains(d, "Subject: OpenWacht Sammeln S: 2 wieder OK") {
+		t.Errorf("Entwarnungsmail:\n%.800s", d)
+	}
+
+	// Aussetzer innerhalb des Fensters: keine Mail.
+	record(c3, "crit")
+	round(0)
+	record(c3, "ok")
+	if n := round(61 * time.Second); n != 2 {
+		t.Fatalf("Aussetzer gemeldet: %d Mails, erwartet 2", n)
+	}
+
+	// Schalter aus: sofort einzeln.
+	owner.Exec(ctx, `UPDATE openwacht.alert_channels SET collect = false WHERE id = $1`, ch)
+	record(c3, "crit")
+	if n := round(0); n != 3 {
+		t.Fatalf("ohne Sammeln: %d Mails, erwartet 3", n)
+	}
+
+	// Schalter über die API (Admin des Mandanten; an einem Kanal der Fertigung,
+	// weil der Audit-Eintrag den Mandanten festhält).
+	var fwCh, hookCh string
+	owner.QueryRow(ctx, `INSERT INTO openwacht.alert_channels (tenant_id, name, kind, all_users)
+		VALUES ($1, 'Sammel-API', 'mail', true) RETURNING id::text`, ids["Fertigung"]).Scan(&fwCh)
+	if hookErr := owner.QueryRow(ctx, `INSERT INTO openwacht.alert_channels (tenant_id, name, kind, server, token_enc)
+		VALUES ($1, 'Sammel-Teams', 'teams', 'https://hook.test.invalid', decode(repeat('00', 32), 'hex')) RETURNING id::text`,
+		ids["Fertigung"]).Scan(&hookCh); hookErr != nil {
+		t.Fatalf("Teams-Kanal: %v", hookErr)
+	}
+	if fwCh == "" || hookCh == "" {
+		t.Fatal("Kanäle der Fertigung nicht angelegt")
+	}
+	t.Cleanup(func() {
+		owner.Exec(ctx, `DELETE FROM openwacht.alert_channels WHERE id = ANY($1::uuid[])`, []string{fwCh, hookCh})
+	})
+	put := func(user, id string, on bool) response {
+		return as(t, user).do("PUT", "/api/v1/alarm-kanaele/"+id+"/zustellung", map[string]any{"sammeln": on})
+	}
+	expectStatus(t, "Leser schaltet", put("v_lz", fwCh, false), 404)
+	expectStatus(t, "Geschwister schaltet", put("v_oa", fwCh, false), 404)
+	if r := put("v_fw", hookCh, true); r.status != 400 || !strings.Contains(r.raw, "nur für Mail- und SMS") {
+		t.Errorf("Teams sammelt: %d %s", r.status, r.raw)
+	}
+	expectStatus(t, "Admin schaltet aus", put("v_fw", fwCh, false), 200)
+	if r := as(t, "v_fw").do("GET", "/api/v1/alarm-kanaele?mandant="+ids["Fertigung"], nil); !strings.Contains(r.raw, `"sammeln":false`) {
+		t.Errorf("Liste zeigt den Schalter nicht: %s", r.raw)
+	}
+	// ohne Feld „sammeln“ bleibt der Schalter, wie er ist
+	expectStatus(t, "ohne Feld", as(t, "v_fw").do("PUT", "/api/v1/alarm-kanaele/"+fwCh+"/zustellung", map[string]any{}), 200)
+	var on bool
+	owner.QueryRow(ctx, `SELECT collect FROM openwacht.alert_channels WHERE id = $1`, fwCh).Scan(&on)
+	if on {
+		t.Error("PUT ohne Feld hat den Schalter verändert")
+	}
+}

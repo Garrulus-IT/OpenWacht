@@ -90,6 +90,9 @@ type Config struct {
 	AlertThreshold int
 	// AlertReminder: Erinnerung bei anhaltendem Fehler (Standard 12 h; negativ = aus).
 	AlertReminder time.Duration
+	// AlertCollect: so lange sammeln Mail- und SMS-Kanäle mit Schalter „Sammeln“
+	// ab dem ersten Ereignis (Standard 1 min; negativ = nie sammeln).
+	AlertCollect time.Duration
 	// HostSilentAfter: Ab wann ein Agent ohne Meldung als stumm gilt
 	// (Standard 3 min, mindestens zwei Meldeintervalle).
 	HostSilentAfter time.Duration
@@ -186,6 +189,9 @@ func (c *Config) setDefaults() {
 	if c.AlertReminder == 0 {
 		c.AlertReminder = 12 * time.Hour
 	}
+	if c.AlertCollect == 0 {
+		c.AlertCollect = time.Minute
+	}
 	if c.HostSilentAfter == 0 {
 		c.HostSilentAfter = 3 * time.Minute
 	}
@@ -232,6 +238,7 @@ func (c *Config) checkHostLimits() error {
 // Server ist die Zentrale.
 type Server struct {
 	cfg     Config
+	collect collectWindow // 1.0.1: Sammelfenster je Mail-/SMS-Kanal
 	pool    *pgxpool.Pool
 	key     []byte // Hauptschlüssel aus der Schlüsseldatei
 	csrfKey []byte // abgeleitet, nur für CSRF-Token
@@ -503,6 +510,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("PUT /api/v1/kennfarben/{id}", protected(s.handleKennfarbeUpdate))
 	mux.Handle("DELETE /api/v1/kennfarben/{id}", protected(s.handleKennfarbeDelete))
 	mux.Handle("PUT /api/v1/sensoren/kennfarbe", protected(s.handleSensorKennfarbe))
+	mux.Handle("PUT /api/v1/sensoren/herkunft-kennfarbe", protected(s.handleOriginKennfarbe))
 	mux.Handle("POST /api/v1/sensoren/ausnehmen", protected(s.handleSensorExclude))
 	mux.Handle("POST /api/v1/sensoren/einbeziehen", protected(s.handleSensorInclude))
 

@@ -224,6 +224,7 @@ export interface Vorlage {
   am_agent: boolean;
   braucht_adresse: boolean;
   geaendert?: string;
+  kennfarbe_id?: string; // 1.0.1: nur in eigenen Vorlagensätzen
 }
 
 export interface Check {
@@ -327,6 +328,7 @@ export interface Alarmkanal {
   eskalation: { nach_minuten: number; kanal: string } | null;
   // Etappe 25: Monatsbericht als PDF an die Empfänger (nur Mail)
   monatsbericht: boolean;
+  sammeln: boolean; // 1.0.1: Mail und SMS sammeln eine Minute
   // 0.43.0: SMS über ein brevis.one-Gateway (server = https://Gateway)
   sms_benutzer?: string;
   fingerabdruck?: string;

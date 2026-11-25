@@ -482,3 +482,77 @@ func (s *Server) runCheck(ctx context.Context, c claimedCheck) {
 		slog.Warn("Checks: Ergebnis nicht gespeichert", "check", c.id, "fehler", err)
 	}
 }
+
+// handleOriginKennfarbe (1.0.1): Kennfarbe für alle Sensoren einer Herkunft
+// (Vorlage oder Vorlagensatz) setzen oder entfernen, an einem Gerät oder an
+// allen Geräten, die der Aufrufer ändern darf (RLS wie beim einzelnen Sensor).
+// Sensoren in Mandanten, zu denen die Kennfarbe nicht passt, bleiben, wie sie
+// sind, und werden gezählt.
+func (s *Server) handleOriginKennfarbe(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Herkunft  string  `json:"herkunft"`
+		Kennfarbe *string `json:"kennfarbe_id"` // null = entfernen
+		Geraet    string  `json:"geraet"`       // leer = alle Geräte
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	origin, err := cleanOrigin(in.Herkunft)
+	if err != nil || origin == nil {
+		writeError(w, http.StatusBadRequest, "Herkunft fehlt oder ist ungültig.")
+		return
+	}
+	if in.Kennfarbe != nil && !uuidPattern.MatchString(*in.Kennfarbe) {
+		writeError(w, http.StatusBadRequest, "Kennfarbe unbekannt.")
+		return
+	}
+	if in.Geraet != "" && !uuidPattern.MatchString(in.Geraet) {
+		writeError(w, http.StatusBadRequest, "Gerät: ungültige ID.")
+		return
+	}
+	s.handle(w, r, "kennfarbe einer herkunft", func(ctx context.Context, tx pgx.Tx) (int, any, error) {
+		if in.Kennfarbe != nil {
+			var x string
+			if err := tx.QueryRow(ctx, `SELECT id::text FROM openwacht.kennfarben WHERE id = $1`, *in.Kennfarbe).Scan(&x); err != nil {
+				return 0, nil, err // nicht sichtbar: 404
+			}
+		}
+		rows, err := tx.Query(ctx, `UPDATE openwacht.checks SET kennfarbe_id = $2::uuid
+			WHERE origin = $1 AND ($3 = '' OR device_id = $3::uuid)
+			  AND ($2::uuid IS NULL OR openwacht.kennfarbe_allowed($2::uuid, tenant_id))
+			RETURNING id::text, tenant_id::text`, *origin, in.Kennfarbe, in.Geraet)
+		if err != nil {
+			return 0, nil, err // Leser: 42501 → 403
+		}
+		byTenant := map[string][]string{}
+		n := 0
+		for rows.Next() {
+			var id, tid string
+			if err := rows.Scan(&id, &tid); err != nil {
+				rows.Close()
+				return 0, nil, err
+			}
+			byTenant[tid] = append(byTenant[tid], id)
+			n++
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return 0, nil, err
+		}
+		var other int
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM openwacht.checks WHERE origin = $1 AND ($2 = '' OR device_id = $2::uuid)
+			AND kennfarbe_id IS DISTINCT FROM $3::uuid`, *origin, in.Geraet, in.Kennfarbe).Scan(&other); err != nil {
+			return 0, nil, err
+		}
+		if n == 0 && other == 0 {
+			return 0, nil, errNotFound
+		}
+		for tid, ids := range byTenant {
+			if err := audit(ctx, tx, &tid, "check.herkunft_kennfarbe", map[string]any{"herkunft": *origin, "kennfarbe": in.Kennfarbe,
+				"geraet": in.Geraet, "anzahl": len(ids), "checks": ids[:min(len(ids), 100)]}); err != nil {
+				return 0, nil, err
+			}
+		}
+		return http.StatusOK, map[string]any{"geaendert": n, "unveraendert": other}, nil
+	})
+}

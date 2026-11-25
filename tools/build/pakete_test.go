@@ -279,6 +279,10 @@ func TestMSI(t *testing.T) {
 		if find(db["AppSearch"], "Property", "OW_WIN10")["Signature_"] != "OwWinZehn" {
 			t.Error("AppSearch fehlt")
 		}
+		// AppSearch liest immer die Tabelle Signature; ohne sie Fehler 2228/1603 (1.0.0).
+		if sig, ok := db["Signature"]; !ok || len(sig) != 0 {
+			t.Errorf("Tabelle Signature fehlt oder ist nicht leer: %v", sig)
+		}
 		for _, sq := range []string{"InstallExecuteSequence", "InstallUISequence"} {
 			n := func(a string) int { v, _ := strconv.Atoi(find(db[sq], "Action", a)["Sequence"]); return v }
 			if !(n("AppSearch") > 0 && n("AppSearch") < n("LaunchConditions")) {

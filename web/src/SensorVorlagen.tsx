@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { api, type CheckTyp, type CheckZiel, type Geraet, type Gruppe, type Vorlage, type VorlagenSatz } from "./api";
 import { darfPflegen, mandantName, type Bereich } from "./bereich";
 import { CheckFormular, typText, zielText } from "./Checks";
-import { useVorlagen, type VorlagenListe } from "./SensorenReiter";
+import { useKennfarben, useVorlagen, type VorlagenListe } from "./SensorenReiter";
 import { Kennfarben } from "./Kennfarben";
 
 const intervallKurz = (s: number) => (s % 3600 === 0 ? `${s / 3600}\u00a0Std.` : s % 60 === 0 ? `${s / 60}\u00a0Min.` : `${s}\u00a0s`);
@@ -340,6 +340,8 @@ function SatzFormular(props: {
   const [name, setName] = useState(satz ? (kopie ? `${satz.name} (eigen)` : satz.name) : "");
   const [notiz, setNotiz] = useState(satz?.notiz ?? "");
   const [eintraege, setEintraege] = useState<Vorlage[]>(satz?.sensoren ?? []);
+  // Kennfarbe je Eintrag (1.0.1); beim Anwenden bekommt der Sensor sie mit
+  const kennfarben = useKennfarben(() => {});
   const [wahl, setWahl] = useState("");
   const [fehler, setFehler] = useState("");
   const [sendet, setSendet] = useState(false);
@@ -363,6 +365,7 @@ function SatzFormular(props: {
         ziel: v.ziel,
         intervall_sekunden: v.intervall_sekunden,
         notiz: v.notiz,
+        ...(v.kennfarbe_id ? { kennfarbe_id: v.kennfarbe_id } : {}),
       })),
     };
     try {
@@ -400,6 +403,22 @@ function SatzFormular(props: {
                 <span>
                   {v.name} <span className="klein">({typText[v.typ]})</span>
                 </span>
+                {kennfarben.liste.length > 0 && (
+                  <select
+                    aria-label={`Kennfarbe für ${v.name}`}
+                    value={v.kennfarbe_id ?? ""}
+                    onChange={(e) =>
+                      setEintraege(eintraege.map((x, j) => (j === i ? { ...x, kennfarbe_id: e.target.value || undefined } : x)))
+                    }
+                  >
+                    <option value="">keine Kennfarbe</option>
+                    {kennfarben.liste.map((k) => (
+                      <option key={k.id} value={k.id}>
+                        {k.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <button
                   type="button"
                   className="knopf knopf-klein"

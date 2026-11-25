@@ -639,7 +639,8 @@ func (s *Server) deliverMail(ctx context.Context, ch sendChannel, list []pending
 		return err
 	}
 	reports := d.reportsOf(list)
-	if len(list) >= alarm.SummaryLimit {
+	// Sammelnde Kanäle (1.0.1) schicken ab zwei Ereignissen eine Sammelmail.
+	if len(list) >= alarm.SummaryLimit || ch.collect && len(list) > 1 {
 		if err := send(alarm.BuildSummary(ch.tenantName, ch.name, reports, s.alarmsLink())); err != nil {
 			return nil, err
 		}

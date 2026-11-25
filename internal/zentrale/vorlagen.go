@@ -39,6 +39,8 @@ type vorlageOut struct {
 	// Ziel braucht die Adresse des Geräts ({adresse})
 	BrauchtAdresse bool       `json:"braucht_adresse"`
 	Geaendert      *time.Time `json:"geaendert,omitempty"`
+	// 1.0.1: Kennfarbe eines Eintrags im eigenen Vorlagensatz (beim Anwenden übernommen)
+	Kennfarbe *string `json:"kennfarbe_id,omitempty"`
 }
 
 // builtinTemplates: die gängigsten Sensoren. IDs mit Präfix „std-“.
@@ -313,8 +315,9 @@ var builtinSets = []vorlagenSatz{
 		`openwacht-agent sensoren -arten "dienst,leistungsindikator" -indikatoren "Terminal Services,ICA Session,System"`,
 		[]satzEintrag{
 			{"Citrix VDA: Desktop Service", "dienst", `{"name":"BrokerAgent"}`, "Citrix Desktop Service, meldet den VDA am Controller an", 60},
-			{"Citrix VDA: ICA Service", "dienst", `{"name":"Citrix ICA Service"}`, "Anzeigename; Sitzungen über ICA/HDX", 60},
-			{"Citrix VDA: Group Policy Engine", "dienst", `{"name":"Citrix Group Policy Engine"}`, "Anzeigename; Citrix-Richtlinien", 60},
+			// Dienstnamen statt Anzeigenamen: Diese sind übersetzt („Citrix Desktopdienst“),
+			// und einen „Citrix ICA Service“ gibt es auf VDA 2402/2507 nicht (an einem VDA abgelesen).
+			{"Citrix VDA: Group Policy Engine", "dienst", `{"name":"CitrixCseEngine"}`, "Citrix-Richtlinien", 60},
 			{"Citrix VDA: Remotedesktopdienste", "dienst", `{"name":"TermService"}`, "Remotedesktopdienste (Multi-Session-VDA)", 60},
 			{"Citrix VDA: Sitzungen aktiv", "leistungsindikator", `{"objekt":"Terminal Services","indikator":"Active Sessions"}`,
 				"aktive Sitzungen (nur Anzeige, ohne Namen)", 60},
@@ -446,6 +449,7 @@ type vorlageIn struct {
 	Ziel      json.RawMessage `json:"ziel"`
 	Intervall int             `json:"intervall_sekunden"`
 	Notiz     string          `json:"notiz"`
+	Kennfarbe *string         `json:"kennfarbe_id"` // nur in eigenen Vorlagensätzen (1.0.1)
 }
 
 func parseTemplateIn(in vorlageIn) (vorlageIn, []byte, error) {
@@ -756,9 +760,12 @@ func (s *Server) handleTemplateApply(w http.ResponseWriter, r *http.Request) {
 					return 0, nil, err
 				}
 				var id string
-				err = tx.QueryRow(ctx, `INSERT INTO openwacht.checks (device_id, name, kind, target, interval_s, enabled, origin)
-				VALUES ($1, $2, $3, $4, $5, true, $6) ON CONFLICT DO NOTHING RETURNING id::text`,
-					d.id, templateSensorName(t.Name), t.Typ, target, t.Intervall, origin).Scan(&id)
+				// Kennfarbe aus dem eigenen Satz (1.0.1) nur, wenn sie zum Mandanten des Geräts passt.
+				err = tx.QueryRow(ctx, `INSERT INTO openwacht.checks (device_id, name, kind, target, interval_s, enabled, origin, kennfarbe_id)
+				VALUES ($1, $2, $3, $4, $5, true, $6,
+					CASE WHEN openwacht.kennfarbe_allowed($7::uuid, $8::uuid) THEN $7::uuid END)
+				ON CONFLICT DO NOTHING RETURNING id::text`,
+					d.id, templateSensorName(t.Name), t.Typ, target, t.Intervall, origin, t.Kennfarbe, d.tenant).Scan(&id)
 				var pe *pgconn.PgError
 				switch {
 				case errors.Is(err, pgx.ErrNoRows):
