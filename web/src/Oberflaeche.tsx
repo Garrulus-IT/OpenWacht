@@ -19,6 +19,7 @@ import { Berichte } from "./Berichte";
 import { Einstellungen } from "./Einstellungen";
 import { WartungSeite } from "./WartungSeite";
 import { PasskeyDialog, WiederherstellungsDialog } from "./ZweiFaktor";
+import { Schnellsuche } from "./Schnellsuche";
 import { RandHinweise, TON_VORGABE, TonDialog } from "./Ton";
 import { Topologie } from "./Topologie";
 import { Zertifikate } from "./Zertifikate";
@@ -109,6 +110,7 @@ export function Oberflaeche({ ich, onAbmelden, onAbgelaufen, thema, onThema }: P
   const [codesDialog, setCodesDialog] = useState(false);
   const [passkeyDialog, setPasskeyDialog] = useState(false);
   const [tonDialog, setTonDialog] = useState(false);
+  const [suche, setSuche] = useState(false);
   const [hinweiseTon, setHinweiseTon] = useState<HinweiseTon>(ich.hinweise_ton ?? TON_VORGABE);
   // Zusatz in den Brotkrumen (z. B. das gewählte Gerät) und Platz für Knöpfe der Seite im Kopf
   const [krume, setKrume] = useState<ReactNode>(null);
@@ -159,6 +161,18 @@ export function Oberflaeche({ ich, onAbmelden, onAbgelaufen, thema, onThema }: P
   }, [menue]);
 
   useEffect(() => setKrume(null), [ort.reiter]);
+
+  // Schnellsuche (1.0.6): Strg+K bzw. ⌘K, auch aus Eingabefeldern heraus.
+  useEffect(() => {
+    const taste = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSuche(true);
+      }
+    };
+    window.addEventListener("keydown", taste);
+    return () => window.removeEventListener("keydown", taste);
+  }, []);
 
   const bereich = useMemo(
     () => (mandanten ? bereichFuer(mandanten, ort.mandant, ort.mitUnter) : null),
@@ -316,8 +330,16 @@ export function Oberflaeche({ ich, onAbmelden, onAbgelaufen, thema, onThema }: P
               </span>
             )}
           </nav>
+          <button className="kopf-suche" onClick={() => setSuche(true)} aria-keyshortcuts="Control+K Meta+K" title="Schnellsuche (Strg+K)">
+            <Symbol pfad="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-4.35-4.35" />
+            <span className="kopf-suche-text">Suchen</span>
+            <kbd className="kopf-suche-taste">Strg K</kbd>
+          </button>
           <div className="kopf-rechts" ref={setKopfZiel} />
         </header>
+        {suche && mandanten && (
+          <Schnellsuche mandanten={mandanten} betreiber={ich.betreiber} onZu={() => setSuche(false)} gehe={wechseln} />
+        )}
 
         <main className="inhalt" id="inhalt">
           {fehler && (

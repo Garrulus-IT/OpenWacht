@@ -749,6 +749,16 @@ async function seiten(page: Page, api: Api, demo: Demo, geheimnis: string) {
   await page.getByRole("button", { name: "Gruppen ordnen" }).click();
   await foto(page, "gruppen");
 
+  // Schnellsuche (1.0.6): Strg+K, Suchbegriff über Geräte und Sensoren
+  if (gewollt("schnellsuche")) {
+    await gehe(page, "/");
+    await page.keyboard.press("Control+k");
+    await page.locator(".such-feld").fill("srv");
+    await page.locator(".such-treffer").first().waitFor();
+    await foto(page, "schnellsuche");
+    await page.keyboard.press("Escape");
+  }
+
   await gehe(page, "/hosts");
   await page.getByRole("button", { name: "Importieren" }).click();
   await page.locator("textarea").first().fill(
@@ -1166,13 +1176,21 @@ async function kennfarbenDemo(api: Api, demo: Demo) {
 
 // Wandanzeige im Querformat eines Leitstellen-Bildschirms (immer dunkel).
 async function wandanzeige(admin: Page, api: Api, demo: Demo) {
-  if (!gewollt("wandanzeige") && !gewollt("wandanzeige-verwaltung")) return;
+  if (!gewollt("wandanzeige") && !gewollt("wandanzeige-verwaltung") && !gewollt("wandanzeige-namen")) return;
   const a = await api.rufe<{ link: string }>("POST", `/api/v1/mandanten/${demo.haupt}/anzeigen`, { name: "Leitstand", netz: "", mit_untermandanten: true });
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, colorScheme: "dark", locale: "de-DE", timezoneId: "Europe/Berlin" });
   const page = await ctx.newPage();
   await page.goto(a.link);
   await page.locator(".wand-flaeche .sonne").waitFor();
   await foto(page, "wandanzeige", { breite: 1600 });
+  // Ansicht „Namen“ (1.0.6, Taste N): nur die Sonne, jedes Gerät beschriftet;
+  // nach 3 s ohne Bewegung verschwinden die Knöpfe
+  if (gewollt("wandanzeige-namen")) {
+    await page.keyboard.press("n");
+    await page.locator(".wand-namen .sonne").waitFor();
+    await warte(3500);
+    await foto(page, "wandanzeige-namen", { breite: 1600 });
+  }
   await ctx.close();
   // Verwaltung (0.99.2): Name öffnet die Vorschau, „Neuer Link“ mit Bestätigung
   await gehe(admin, "/wandanzeigen");

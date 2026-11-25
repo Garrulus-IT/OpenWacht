@@ -4668,6 +4668,68 @@ td > .kenn-marke:first-child {
   }
 }
 
+/* Wandanzeige: Vollbild und Ansicht „Namen“ (1.0.6) */
+.wand-ruhig {
+  cursor: none;
+}
+.wand-bedienung {
+  position: absolute;
+  left: var(--a4);
+  bottom: var(--a4);
+  z-index: 2;
+  display: flex;
+  gap: var(--a2);
+  transition: opacity 0.4s;
+}
+.wand-bedienung button {
+  padding: var(--a1) var(--a3);
+  border: 1px solid var(--wand-leise);
+  border-radius: var(--r);
+  background: rgb(17 28 41 / 85%);
+  color: var(--wand-tinte);
+  font: inherit;
+  font-size: var(--s-1);
+  cursor: pointer;
+}
+.wand-bedienung button:focus-visible {
+  outline: 2px solid #45c3e6;
+  outline-offset: 2px;
+}
+.wand-bedienung-ruhig {
+  opacity: 0;
+}
+.wand-bedienung-ruhig:focus-within {
+  opacity: 1;
+}
+.wand-namen {
+  flex-direction: column;
+}
+.wand-titelzeile {
+  display: flex;
+  align-items: baseline;
+  gap: var(--a4);
+  padding: var(--a3) var(--a5) 0;
+}
+.wand-titelzeile .wand-name {
+  margin: 0;
+  flex: 1;
+  font-size: var(--s3);
+}
+.wand-titelzeile .wand-vorschau {
+  flex: none;
+}
+.wand-stoerung-oben {
+  margin: var(--a2) var(--a5) 0;
+}
+.wand-namen .wand-flaeche {
+  padding: var(--a3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wand-bedienung {
+    transition: none;
+  }
+}
+
 /* Wandanzeige: Ton erst nach einem Klick (Autoplay-Regeln der Browser) */
 .wand-ton {
   align-self: flex-start;
@@ -4872,4 +4934,124 @@ td > .kenn-marke:first-child {
   overflow: hidden;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+/* --- Schnellsuche (1.0.6) ------------------------------------------------------ */
+.kopf-suche {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--a1);
+  margin-left: auto;
+  padding: var(--a1) var(--a2);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  background: var(--flaeche);
+  color: var(--leise);
+  font: inherit;
+  font-size: var(--s-1);
+  cursor: pointer;
+}
+.kopf-suche:hover {
+  color: var(--tinte);
+}
+.kopf-suche + .kopf-rechts {
+  margin-left: 0;
+}
+.kopf-suche svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+.kopf-suche-taste,
+.such-fuss kbd {
+  padding: 0 0.35em;
+  border: 1px solid var(--linie);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.85em;
+}
+@media (max-width: 40rem) {
+  .kopf-suche-text,
+  .kopf-suche-taste {
+    display: none;
+  }
+}
+.schnellsuche {
+  width: min(40rem, 94vw);
+  margin-top: 12vh;
+}
+.such-feld {
+  width: 100%;
+  padding: var(--a3) var(--a4);
+  border: 0;
+  border-bottom: 1px solid var(--linie);
+  border-radius: 0;
+  background: transparent;
+  color: var(--tinte);
+  font: inherit;
+  font-size: var(--s1);
+}
+.such-feld:focus {
+  outline: none;
+}
+.such-meldung {
+  margin: var(--a2) var(--a4);
+}
+.such-liste {
+  list-style: none;
+  margin: 0;
+  padding: var(--a1) 0;
+  max-height: 55vh;
+  overflow: auto;
+}
+.such-treffer {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  padding: var(--a2) var(--a4);
+  cursor: pointer;
+}
+.such-aktiv {
+  background: var(--zart, rgb(127 127 127 / 12%));
+}
+.such-ohne {
+  flex: none;
+  width: 0.75rem;
+}
+.such-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.such-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.such-sub {
+  color: var(--leise);
+  font-size: var(--s-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.such-art {
+  margin-left: auto;
+  flex: none;
+  color: var(--leise);
+  font-size: var(--s-1);
+}
+.such-leer {
+  padding: var(--a3) var(--a4);
+  color: var(--leise);
+}
+.such-fuss {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--a2);
+  margin: 0;
+  padding: var(--a2) var(--a4);
+  border-top: 1px solid var(--linie);
+  color: var(--leise);
+  font-size: var(--s-1);
 }

@@ -144,6 +144,9 @@ function sektor(r0: number, r1: number, a0: number, a1: number): string {
 const ZEICHEN = 0.56; // mittlere Zeichenbreite in em
 const MAX_SCHRIFT = 19;
 const MIN_SCHRIFT = 6.5;
+// Ansicht „Namen“ der Wandanzeige (1.0.6): Schrift darf kleiner werden, damit
+// jedes Gerät beschriftet ist (aus der Nähe lesbar, am Bildschirm im Vollbild).
+const MIN_SCHRIFT_NAMEN = 3.2;
 
 export interface Beschriftung {
   art: "tangential" | "radial";
@@ -158,7 +161,7 @@ function kuerzen(name: string, platz: number, schrift: number): string | null {
   return name.slice(0, n - 1).trimEnd() + "…";
 }
 
-export function beschriftung(name: string, r0: number, r1: number, a0: number, a1: number): Beschriftung | null {
+export function beschriftung(name: string, r0: number, r1: number, a0: number, a1: number, min = MIN_SCHRIFT): Beschriftung | null {
   const dicke = r1 - r0;
   const mitte = (r0 + r1) / 2;
   const spanne = Math.min(a1 - a0, Math.PI);
@@ -168,7 +171,7 @@ export function beschriftung(name: string, r0: number, r1: number, a0: number, a
   // tangential: Schrifthöhe durch die Ringdicke begrenzt
   {
     const schrift = Math.min(MAX_SCHRIFT, dicke * 0.5);
-    if (schrift >= MIN_SCHRIFT) {
+    if (schrift >= min) {
       const t = kuerzen(name, bogen * 0.88, schrift);
       if (t) kandidaten.push({ art: "tangential", text: t, schrift });
     }
@@ -176,7 +179,7 @@ export function beschriftung(name: string, r0: number, r1: number, a0: number, a
   // radial: Schrifthöhe durch die Bogenbreite am Innenrand begrenzt
   {
     const schrift = Math.min(MAX_SCHRIFT, innenBogen * 0.8);
-    if (schrift >= MIN_SCHRIFT) {
+    if (schrift >= min) {
       const t = kuerzen(name, dicke * 0.9, schrift);
       if (t) kandidaten.push({ art: "radial", text: t, schrift });
     }
@@ -195,8 +198,9 @@ function grad(a: number) {
 }
 
 // mitte: "name" zeigt den Mandanten (Dashboard-Widget), "marke" Bildzeichen
-// und Wortmarke (Wandanzeige, Corporate Design).
-export function Sonne(props: { baum: AnzeigeKnoten; neu: Set<string>; titel: string; mitte?: "name" | "marke" }) {
+// und Wortmarke (Wandanzeige, Corporate Design). alleNamen: auch kleine
+// Segmente beschriften (Ansicht „Namen“ der Wandanzeige).
+export function Sonne(props: { baum: AnzeigeKnoten; neu: Set<string>; titel: string; mitte?: "name" | "marke"; alleNamen?: boolean }) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const { segmente, tiefe } = zerlegen(props.baum);
   const r = radien(tiefe);
@@ -248,7 +252,7 @@ export function Sonne(props: { baum: AnzeigeKnoten; neu: Set<string>; titel: str
       <g className="sonne-texte" aria-hidden="true">
         {segmente.map((s, i) => {
           const [r0, r1] = band(r, s);
-          const b = beschriftung(s.name, r0, r1, s.a0, s.a1);
+          const b = beschriftung(s.name, r0, r1, s.a0, s.a1, props.alleNamen ? MIN_SCHRIFT_NAMEN : MIN_SCHRIFT);
           if (!b) return null;
           const mitte = (r0 + r1) / 2;
           const am = (s.a0 + s.a1) / 2;

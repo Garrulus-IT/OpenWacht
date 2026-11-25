@@ -16,6 +16,11 @@
 - **Beschriebene API:** `docs/api/openapi.json` (OpenAPI 3.1) für die 21 lesenden Endpunkte, die ein API-Token mit der
   Rolle Leser nutzen darf; liegt auch im Paket unter `/usr/share/doc/openwacht-zentrale/`. Ein Test prüft die Datei
   gegen den Code ([Kapitel 11](handbuch/11-api-tokens.md#beschreibung-der-api-openapi)).
+- **Schnellsuche:** Strg+K (⌘K) bzw. „Suchen“ oben rechts sucht über Geräte, Sensoren, Mandanten und Seiten, mit
+  Pfeiltasten und Enter ([Kapitel 4](handbuch/04-hosts.md)).
+- **Wandanzeige im Vollbild:** Knopf bzw. Taste F; Ansicht „Alle Namen“ (Taste N, auch als `?ansicht=namen` in der
+  Adresse) zeigt nur das Sonnendiagramm mit jedem Gerät beschriftet; Zeiger und Knöpfe verschwinden nach drei Sekunden
+  ([Kapitel 4](handbuch/04-hosts.md#dashboard-und-wandanzeige)).
 - **Geräte in einen anderen Mandanten verschieben:** im Menü des Geräts, für Admins beider Mandanten. Agent, Abfragen,
   Sensoren, Alarme und Verlauf ziehen mit, der Agent braucht keine neue Registrierung; Gruppe, Abhängigkeiten,
   Wartungsfenster und nicht geltende Kennfarben fallen weg ([Handbuch Kapitel 4](handbuch/04-hosts.md#in-einen-anderen-mandanten-verschieben)).

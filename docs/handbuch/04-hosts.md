@@ -5,6 +5,14 @@
 Die Seite **Hosts** zeigt alle Geräte des gewählten Mandanten im Gruppenbaum, mit Zustand (Punkt), CPU, RAM und Platte.
 Ein Klick öffnet das Gerät mit den Reitern „Übersicht“ (Werte, Verlauf, Graphen) und „Sensoren“.
 
+**Schnellsuche** (ab 1.0.6): **Strg+K** (am Mac ⌘K) oder „Suchen“ oben rechts öffnet ein Suchfeld über alle Geräte,
+Sensoren, Mandanten und Seiten, die du sehen darfst, unabhängig vom gewählten Mandanten. Mehrere Wörter grenzen ein
+(„db platte“). Treffer am Anfang des Namens stehen vorn, bei gleicher Güte die schlimmsten Zustände. Pfeiltasten wählen,
+Enter öffnet: ein Gerät mit seiner Übersicht, ein Sensor das Gerät mit dem Reiter „Sensoren“, ein Mandant wechselt den
+Mandanten.
+
+![Schnellsuche](bilder/schnellsuche.webp)
+
 ![Gerät mit SNMP](bilder/host-snmp.webp)
 
 ## Host hinzufügen
@@ -129,3 +137,15 @@ Rechts daneben (bei hochkant gestelltem Bildschirm darunter):
   Kennfarbe; höchstens zwölf, der Rest als Zahl.
 - **Kennfarben:** alle Kennfarben, die die Anzeige kennt, mit der Zahl der Geräte, die gerade in dieser Farbe stehen.
   Die Anzeige zeigt weiter nur Namen und Farben, keine Sensoren und keine Meldungen.
+
+**Vollbild und Ansicht „Namen“** (ab 1.0.6), am Bildschirm und in der Vorschau:
+
+- **Vollbild** (Knopf unten links oder Taste **F**) blendet die Leisten des Browsers aus; Esc beendet es.
+- **Alle Namen** (Taste **N**) zeigt nur das Sonnendiagramm, so groß es geht, mit dem Namen der Anzeige und der Uhr
+  darüber. Jedes Gerät ist beschriftet, die Schrift wird dafür bei vielen Geräten kleiner statt wegzufallen. Zahlen,
+  „Aktuell“ und Kennfarben stehen nur in der Übersicht; „Übersicht“ bzw. N schaltet zurück.
+- Die Ansicht steht in der Adresse (`/anzeige?ansicht=namen`): Ein Bildschirm, der mit dieser Adresse startet, zeigt
+  gleich die Namen. Gespeichert wird im Browser nichts.
+- Nach drei Sekunden ohne Maus verschwinden Mauszeiger und Knöpfe.
+
+![Wandanzeige, Ansicht „Namen“](bilder/wandanzeige-namen.webp)
