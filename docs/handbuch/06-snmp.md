@@ -42,6 +42,9 @@ nas-archiv;10.20.0.30;Hauptsitz;;std-ping
 ```
 
 - Kopfzeile Pflicht, nur `name` muss darin stehen; Trennzeichen `;` oder `,`; höchstens 500 Zeilen, 256 KiB.
+- Hat Excel jede Zeile als **ein** Feld in Anführungszeichen gespeichert (passiert, wenn fertige CSV-Zeilen in
+  Spalte A eingefügt wurden), erkennt der Import das und liest den Inhalt der Felder. Einfacher: Text direkt ins
+  Feld „Text einfügen“ kopieren oder die Datei im Editor als UTF-8 speichern.
 - `gruppe` als Pfad `Hauptsitz/Keller`; die Gruppen müssen schon bestehen.
 - `profil`: Name eines SNMP-Profils (nur Admins). Dann fragt die Zentrale per SNMP auf Port 161 alle 60 s ab.
 - `vorlage`: Name einer Sensor-Vorlage oder ID einer eingebauten (`std-ping`). Keine Agent-Vorlagen.
