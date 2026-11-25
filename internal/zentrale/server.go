@@ -471,6 +471,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("PUT /api/v1/einstellungen/mail", protected(s.handleMailSettingsPut))
 	mux.Handle("POST /api/v1/einstellungen/mail/test", protected(s.handleMailSettingsTest))
 	mux.Handle("PUT /api/v1/ich/alarm-mails", protected(s.handleMyAlertMail))
+	mux.Handle("PUT /api/v1/ich/hinweise-ton", protected(s.handleMyAlarmUI))
 	mux.Handle("GET /api/v1/ich/alarm-mobilnummer", protected(s.handleMyAlertMobileGet))
 	mux.Handle("PUT /api/v1/ich/alarm-mobilnummer", protected(s.handleMyAlertMobilePut))
 	mux.Handle("POST /api/v1/geraete/{id}/zusammenfuehren", protected(s.handleDeviceMerge))
@@ -573,6 +574,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /api/v1/mandanten/{id}/anzeigen", protected(s.handleDisplayCreate))
 	mux.Handle("DELETE /api/v1/anzeigen/{id}", protected(s.handleDisplayDelete))
 	mux.Handle("POST /api/v1/anzeigen/{id}/neuer-link", protected(s.handleDisplayNewLink))
+	mux.Handle("PUT /api/v1/anzeigen/{id}/ton", protected(s.handleDisplaySound))
 	mux.Handle("GET /api/v1/anzeigen/{id}/vorschau", protected(s.handleDisplayPreview))
 	// Wandanzeige selbst: ohne Benutzersitzung, nur mit Anzeige-Cookie.
 	mux.HandleFunc("POST /api/v1/anzeige/anmelden", s.handleDisplayLogin)

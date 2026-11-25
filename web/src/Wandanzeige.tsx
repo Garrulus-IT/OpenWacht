@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, type AnzeigeDaten, type AnzeigeKennfarbe, type AnzeigeKnoten, type AnzeigeStatus } from "./api";
 import { segmentStil, Sonne, statusText, zerlegen } from "./Sonne";
+import { spielen, tonFreigeben, tonFrei, tonFuer } from "./Ton";
 
 const TAKT_MS = 30_000;
 // Ohne frische Daten so lange gilt die Anzeige als veraltet.
@@ -170,6 +171,15 @@ function neueGeraete(baum: AnzeigeKnoten, hervor: Set<string>): number {
   return zerlegen(baum).segmente.filter((s) => s.art === "geraet" && hervor.has(s.schluessel)).length;
 }
 
+// Zustand je Gerät für den Ton (1.0.2): nur Warnung und Kritisch, nicht bestätigt.
+function geraeteZustand(baum: AnzeigeKnoten): Map<string, string> {
+  return new Map(
+    zerlegen(baum)
+      .segmente.filter((s) => s.art === "geraet" && (s.status === "crit" || s.status === "warn"))
+      .map((s) => [s.schluessel, s.status]),
+  );
+}
+
 // Schlüssel der Segmente mit Alarm (nicht bestätigt).
 function alarme(baum: AnzeigeKnoten): Set<string> {
   return new Set(
@@ -189,7 +199,9 @@ export function Wandanzeige({ vorschau }: { vorschau?: string } = {}) {
   const [jetzt, setJetzt] = useState(Date.now());
   const [neu, setNeu] = useState<Map<string, number>>(new Map());
   const vorher = useRef<Set<string> | null>(null);
+  const vorherTon = useRef<Map<string, string> | null>(null);
   const aus = useRef(false);
+  const [tonAn, setTonAn] = useState(false);
 
   const holen = useCallback(async () => {
     try {
@@ -205,6 +217,20 @@ export function Wandanzeige({ vorschau }: { vorschau?: string } = {}) {
         });
       }
       vorher.current = jetztAlarme;
+      // Ton: neue oder schlimmer gewordene Geräte, Entwarnung, wenn keins mehr übrig ist.
+      const z = geraeteZustand(d.baum);
+      const altZ = vorherTon.current;
+      vorherTon.current = z;
+      if (altZ && d.ton && tonFrei()) {
+        let art: "krit" | "warn" | "entwarnung" | null = null;
+        for (const [k, st] of z) {
+          if (altZ.get(k) === st || altZ.get(k) === "crit") continue;
+          const a = tonFuer(d.ton.ton, st);
+          if (a === "krit" || (a === "warn" && art === null)) art = a;
+        }
+        if (!art && d.ton.entwarnung && d.ton.ton !== "aus" && altZ.size > 0 && z.size < altZ.size) art = "entwarnung";
+        if (art) spielen(d.ton.klang, d.ton.lautstaerke, art);
+      }
       setZustand({ art: "da", daten: d, geholt: t });
       setStoerung(null);
     } catch (e) {
@@ -299,6 +325,11 @@ export function Wandanzeige({ vorschau }: { vorschau?: string } = {}) {
       </main>
       <aside className="wand-seite" aria-label="Übersicht">
         {vorschau !== undefined && <p className="wand-vorschau">Vorschau in deiner Sitzung – so sieht es der Bildschirm</p>}
+        {vorschau === undefined && daten.ton && daten.ton.ton !== "aus" && !tonAn && (
+          <button type="button" className="wand-ton" onClick={() => void tonFreigeben().then(setTonAn)}>
+            Ton einschalten
+          </button>
+        )}
         <header className="wand-kopf">
           <div>
             <p className="wand-name">{daten.anzeige}</p>

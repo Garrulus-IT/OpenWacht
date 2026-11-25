@@ -248,6 +248,10 @@ In der Liste der Wandanzeigen (nur Admins des Mandanten):
   Anzeige gilt für die Vorschau nicht.
 - **Neuer Link** ersetzt den Link nach Rückfrage: Der alte Link und alle damit angemeldeten Bildschirme gelten sofort
   nicht mehr, der neue erscheint einmal mit QR-Code. Gespeichert ist weiter nur sein Hash; das steht im Audit-Log.
+- **Ton** (1.0.2): ab Werk nur bei Kritisch mit Bling; wahlweise aus oder bei Warnung und Kritisch, mit Klang,
+  Lautstärke und leisem Ton bei Entwarnung. Der Ton klingt, wenn ein Gerät neu in Warnung oder Kritisch geht. Am
+  Bildschirm muss einmal **Ton einschalten** angeklickt werden (rechts oben in der Seitenleiste), sonst spielen Browser
+  keinen Ton ab; nach einem Neuladen der Seite erneut. Das steht im Audit-Log.
 
 ![Wandanzeigen verwalten](bilder/wandanzeige-verwaltung.webp)
 

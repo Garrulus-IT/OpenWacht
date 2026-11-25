@@ -2194,7 +2194,16 @@ button.sparkzeile-knopf:hover,
 }
 
 .wand .sonne-seg {
-  stroke-width: 2;
+  stroke-width: 2.5;
+}
+
+/* 1.0.2: dunkler Grund hinter der Sonne (zeigt die Fugen zwischen den Ringen)
+   und eine dunkle Scheibe in der Mitte, wie in der Klick-Demo. */
+.sonne-grund {
+  fill: var(--wand-fuge);
+}
+.sonne-scheibe {
+  fill: var(--wand-scheibe);
 }
 
 .sonne-seg.kenn {
@@ -2210,6 +2219,7 @@ button.sparkzeile-knopf:hover,
 
 .sonne-text {
   fill: var(--wand-text-dunkel);
+  font-weight: 700;
 }
 .sonne-text-quittiert,
 .sonne-text-unknown {
@@ -2230,7 +2240,7 @@ button.sparkzeile-knopf:hover,
 
 /* Wortmarke in der Mitte der Wandanzeige: „Open“ fett, „Wacht“ normal. */
 .sonne-wortmarke {
-  font-size: 22px;
+  font-size: 32px;
   font-weight: 400;
 }
 
@@ -4537,4 +4547,118 @@ td > .kenn-marke:first-child {
   background: rgb(69 195 230 / 12%);
   color: var(--wand-tinte);
   font-size: var(--s-1);
+}
+
+/* --- Hinweise am Rand (1.0.2) ------------------------------------------------ */
+.rand-hinweise {
+  position: fixed;
+  right: var(--a3);
+  bottom: var(--a3);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: var(--a2);
+  width: min(22rem, calc(100vw - 2 * var(--a3)));
+  pointer-events: none;
+}
+.rand-hinweis,
+.rand-hinweis-mehr {
+  pointer-events: auto;
+}
+.rand-hinweis {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--a2);
+  padding: var(--a2) var(--a3);
+  border: 1px solid var(--linie);
+  border-left: 4px solid var(--unbek);
+  border-radius: var(--r);
+  background: var(--flaeche);
+  box-shadow: var(--schatten);
+  color: var(--tinte);
+  animation: rand-rein 0.25s ease-out;
+}
+.rand-hinweis-crit {
+  border-left-color: var(--krit);
+}
+.rand-hinweis-warn {
+  border-left-color: var(--warn);
+}
+.rand-hinweis-ok {
+  border-left-color: var(--ok);
+}
+.rand-hinweis .signal {
+  flex: none;
+  margin-top: 0.2rem;
+}
+.rand-hinweis-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rand-hinweis-kopf {
+  font-size: var(--s-1);
+  font-weight: 700;
+}
+.rand-hinweis-name,
+.rand-hinweis-gegenstand {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rand-hinweis-gegenstand {
+  color: var(--leise);
+  font-size: var(--s-1);
+}
+.rand-hinweis-zu {
+  flex: none;
+  padding: 0 var(--a1);
+  border: 0;
+  background: none;
+  color: var(--leise);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.rand-hinweis-mehr {
+  align-self: flex-end;
+  padding: var(--a1) var(--a2);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  background: var(--flaeche);
+  color: var(--leise);
+  font: inherit;
+  font-size: var(--s-1);
+  cursor: pointer;
+}
+@keyframes rand-rein {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rand-hinweis {
+    animation: none;
+  }
+}
+
+/* Wandanzeige: Ton erst nach einem Klick (Autoplay-Regeln der Browser) */
+.wand-ton {
+  align-self: flex-start;
+  padding: var(--a1) var(--a3);
+  border: 1px solid var(--wand-leise);
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--wand-tinte);
+  font: inherit;
+  cursor: pointer;
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { api, rollenName, type AgentToken, type Anzeige, type Benutzer, type Ich, type Mandant, type Rolle } from "./api";
+import { api, rollenName, type AgentToken, type Anzeige, type TonEinstellung, type Benutzer, type Ich, type Mandant, type Rolle } from "./api";
 import { darfPflegen, kinderVon, rolleIn, wurzeln, type Bereich } from "./bereich";
 import { QRCode } from "./ZweiFaktor";
 import { Verzeichnisse } from "./Verzeichnisse";
@@ -10,6 +10,8 @@ import { AgentUpdates } from "./AgentUpdates";
 import { vor } from "./zeit";
 import { AntraegeListe, AntragFormular } from "./Antraege";
 import { verwaltungsListe, type Ort, type VerwaltungsReiter } from "./navigation";
+import { Dialog } from "./Startseite";
+import { TonFelder } from "./Ton";
 
 interface Props {
   ich: Ich;
@@ -747,6 +749,7 @@ function AnzeigenListe({ bereich, melden }: { bereich: Bereich; melden: (e: unkn
                     </div>
                   ) : (
                     <div className="aktionen">
+                      <AnzeigeTon a={a} onGeaendert={laden} melden={melden} />
                       <button className="knopf" onClick={() => setErneuern(a.id)}>
                         Neuer Link
                       </button>
@@ -812,5 +815,47 @@ function AnzeigeFormular(props: { mandant: Mandant; onFertig: (e?: { name: strin
         </div>
       </form>
     </div>
+  );
+}
+
+// Ton der Wandanzeige (1.0.2): ab Werk nur bei Kritisch. Am Bildschirm muss
+// einmal „Ton einschalten“ angeklickt werden, sonst spielt der Browser nichts.
+function AnzeigeTon({ a, onGeaendert, melden }: { a: Anzeige; onGeaendert: () => void; melden: (e: unknown) => void }) {
+  const [offen, setOffen] = useState(false);
+  const [w, setW] = useState<TonEinstellung>(a.ton ?? { ton: "krit", klang: "bling", lautstaerke: 70, entwarnung: false });
+  return (
+    <>
+      <button className="knopf" onClick={() => setOffen(true)}>
+        Ton
+      </button>
+      {offen && (
+        <Dialog titel={`Ton: ${a.name}`} onZu={() => setOffen(false)}>
+          <form
+            className="formular"
+            onSubmit={async (ev) => {
+              ev.preventDefault();
+              try {
+                await api("PUT", `/api/v1/anzeigen/${a.id}/ton`, w);
+                setOffen(false);
+                onGeaendert();
+              } catch (err) {
+                melden(err);
+              }
+            }}
+          >
+            <p className="klein">Am Bildschirm einmal „Ton einschalten“ anklicken; Browser spielen sonst keinen Ton ab.</p>
+            <TonFelder wert={w} setWert={setW} name={"anzeige-" + a.id} />
+            <div className="aktionen">
+              <button className="knopf knopf-haupt" type="submit">
+                Speichern
+              </button>
+              <button className="knopf" type="button" onClick={() => setOffen(false)}>
+                Abbrechen
+              </button>
+            </div>
+          </form>
+        </Dialog>
+      )}
+    </>
   );
 }

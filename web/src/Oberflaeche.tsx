@@ -19,6 +19,8 @@ import { Berichte } from "./Berichte";
 import { Einstellungen } from "./Einstellungen";
 import { WartungSeite } from "./WartungSeite";
 import { PasskeyDialog, WiederherstellungsDialog } from "./ZweiFaktor";
+import { RandHinweise, TON_VORGABE, TonDialog } from "./Ton";
+import type { HinweiseTon } from "./api";
 import { quellenLeeren } from "./quelle";
 import { baumReihe, bereichFuer, wurzeln } from "./bereich";
 import { adresse, navGruppen, seitenTitel, useOrt, type NavPunkt, type Ort } from "./navigation";
@@ -101,6 +103,8 @@ export function Oberflaeche({ ich, onAbmelden, onAbgelaufen, thema, onThema }: P
   const [menue, setMenue] = useState(false);
   const [codesDialog, setCodesDialog] = useState(false);
   const [passkeyDialog, setPasskeyDialog] = useState(false);
+  const [tonDialog, setTonDialog] = useState(false);
+  const [hinweiseTon, setHinweiseTon] = useState<HinweiseTon>(ich.hinweise_ton ?? TON_VORGABE);
   // Zusatz in den Brotkrumen (z. B. das gewählte Gerät) und Platz für Knöpfe der Seite im Kopf
   const [krume, setKrume] = useState<ReactNode>(null);
   const [kopfZiel, setKopfZiel] = useState<HTMLElement | null>(null);
@@ -251,6 +255,10 @@ export function Oberflaeche({ ich, onAbmelden, onAbgelaufen, thema, onThema }: P
               Passkeys
             </button>
           )}
+          <button className="knopf-text leiste-codes" onClick={() => setTonDialog(true)}>
+            Hinweise und Ton
+          </button>
+          {tonDialog && <TonDialog wert={hinweiseTon} onGespeichert={setHinweiseTon} onZu={() => setTonDialog(false)} />}
           {passkeyDialog && <PasskeyDialog onZu={() => setPasskeyDialog(false)} />}
           {codesDialog && (
             <WiederherstellungsDialog
@@ -272,6 +280,7 @@ export function Oberflaeche({ ich, onAbmelden, onAbgelaufen, thema, onThema }: P
         </div>
       </aside>
       {menue && <div className="schleier" aria-hidden="true" onClick={() => setMenue(false)} />}
+      <RandHinweise e={hinweiseTon} onAlarme={() => wechseln({ reiter: "alarme", alarm: "aktiv" })} />
 
       <div className="haupt">
         <header className="kopf">

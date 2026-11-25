@@ -1,5 +1,17 @@
 # Release-Notizen OpenWacht
 
+## 1.0.2
+
+- **Wandanzeige:** Sonnendiagramm neu gezeichnet, ruhiger und besser lesbar: Geräte mit Problem treten nach außen vor,
+  klare Fugen, fette Schrift, Zeichen und Wortmarke in der Mitte.
+- **Hinweise am Rand:** kurzer Hinweis unten rechts bei neuen Alarmen, Verschlechterung und Entwarnung, je Benutzer
+  abschaltbar (unten in der Leiste „Hinweise und Ton“).
+- **Ton:** je Benutzer und je Wandanzeige einstellbar: aus, nur Kritisch oder Warnung und Kritisch, Klang Bling, Gong
+  oder Doppelton, Lautstärke, leiser Ton bei Entwarnung. Die Klänge erzeugt der Browser, es werden keine Dateien
+  geladen. Die Wandanzeige spielt Ton nach einem Klick auf „Ton einschalten“
+  ([Handbuch Kapitel 4](handbuch/04-hosts.md) und [Kapitel 8](handbuch/08-alarme-und-wartung.md)).
+- Migration 0052 (läuft beim Update von selbst).
+
 ## 1.0.1
 
 - **Sammeln:** Mail- und SMS-Kanäle sammeln Meldungen eine Minute lang und schicken sie gemeinsam, Entwarnungen

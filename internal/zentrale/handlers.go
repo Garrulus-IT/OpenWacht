@@ -345,12 +345,13 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	var email, name string
 	var operator, alertMail bool
 	var source string
+	var uiRaw []byte
 	codesLeft := 0
 	roles := []roleInfo{}
 	err := s.withUser(ctx, sess.UserID, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, `SELECT email, display_name, openwacht.is_platform_operator(), alert_mail, auth_source
+		if err := tx.QueryRow(ctx, `SELECT email, display_name, openwacht.is_platform_operator(), alert_mail, auth_source, alarm_ui
 			FROM openwacht.users WHERE id = $1`, sess.UserID).
-			Scan(&email, &name, &operator, &alertMail, &source); err != nil {
+			Scan(&email, &name, &operator, &alertMail, &source, &uiRaw); err != nil {
 			return err
 		}
 		if err := tx.QueryRow(ctx, `SELECT openwacht.auth_recovery_left($1)`, sess.UserID).Scan(&codesLeft); err != nil {
@@ -380,6 +381,7 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		"rollen":                 roles,
 		"betreiber":              operator,
 		"alarm_mails":            alertMail,
+		"hinweise_ton":           scanAlarmUI(uiRaw, true), // 1.0.2
 		"zwei_faktor_aktiv":      sess.TOTPEnabled,
 		"zwei_faktor_einrichten": sess.MFARequired,
 		"quelle":                 source, // lokal, ldap oder oidc

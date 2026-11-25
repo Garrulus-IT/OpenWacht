@@ -11,8 +11,15 @@ import type { AnzeigeKnoten, AnzeigeStatus } from "./api";
 import { Zeichen } from "./Zeichen";
 
 // Koordinatensystem: viewBox -500 … 500, Winkel im Bogenmaß ab 12 Uhr im Uhrzeigersinn.
+// 1.0.2 (nach der Klick-Demo): Alle Geräte enden am selben Außenrand AUSSEN;
+// Geräte mit Problem treten um VOR hervor. Zwischen den Ringen liegt eine
+// dunkle Fuge (FUGE), die Mitte ist eine dunkle Scheibe mit dem Zeichen.
 const R = 492;
-const LOCH = 0.2 * R;
+const VOR = 34;
+const AUSSEN = R - VOR;
+const LOCH = 0.27 * R;
+const FUGE = 7;
+const vortreten = new Set<AnzeigeStatus>(["warn", "crit", "quittiert", "unknown"]);
 
 export const statusText: Record<AnzeigeStatus, string> = {
   ok: "OK",
@@ -87,20 +94,30 @@ export function zerlegen(wurzel: AnzeigeKnoten): { segmente: Segment[]; tiefe: n
 // Radien der Ringe: Ring 0 (Mandant) schmal, der äußerste breiter für
 // die radial geschriebenen Gerätenamen.
 export function radien(tiefe: number): number[] {
-  const gewicht = (t: number) => (t === 0 ? 0.55 : t === tiefe && tiefe >= 2 ? 1.7 : 1);
+  const gewicht = (t: number) => (t === 0 ? 0.45 : t === tiefe && tiefe >= 2 ? 1.6 : 1);
   let summe = 0;
   for (let t = 0; t <= tiefe; t++) summe += gewicht(t);
   const r = [LOCH];
   let innen = LOCH;
   for (let t = 0; t <= tiefe; t++) {
-    innen += ((R - LOCH) * gewicht(t)) / summe;
+    innen += ((AUSSEN - LOCH) * gewicht(t)) / summe;
     r.push(innen);
   }
   return r; // Ring t liegt zwischen r[t] und r[t+1]
 }
 
 function ring(r: number[], t: number): [number, number] {
-  return [r[t] ?? LOCH, r[t + 1] ?? R];
+  return [r[t] ?? LOCH, r[t + 1] ?? AUSSEN];
+}
+
+// band: Radien eines Segments mit Fugen. Ein Gerät (Blatt) reicht immer bis
+// zum Außenrand, auch wenn es weiter innen im Baum hängt; mit Problem tritt
+// es hervor.
+export function band(r: number[], s: { tiefe: number; blatt: boolean; status: AnzeigeStatus }): [number, number] {
+  const [r0] = ring(r, s.tiefe);
+  let r1 = s.blatt ? AUSSEN : ring(r, s.tiefe)[1];
+  if (s.blatt && vortreten.has(s.status)) r1 = R;
+  return [r0 + FUGE / 2, r1 - FUGE / 2];
 }
 
 function punkt(r: number, a: number): string {
@@ -125,7 +142,7 @@ function sektor(r0: number, r1: number, a0: number, a1: number): string {
 // Beschriftung: tangential (entlang des Rings) oder radial, je nachdem, wo
 // mehr vom Namen lesbar ist. Gibt null zurück, wenn nichts Sinnvolles passt.
 const ZEICHEN = 0.56; // mittlere Zeichenbreite in em
-const MAX_SCHRIFT = 15;
+const MAX_SCHRIFT = 19;
 const MIN_SCHRIFT = 6.5;
 
 export interface Beschriftung {
@@ -186,21 +203,24 @@ export function Sonne(props: { baum: AnzeigeKnoten; neu: Set<string>; titel: str
   const wurzel = props.baum;
   const wStil = segmentStil(wurzel.farbe);
 
+  const [w0, w1] = ring(r, 0);
   return (
     <svg className="sonne" viewBox="-500 -500 1000 1000" role="img" aria-label={props.titel}>
       <title>{props.titel}</title>
+      <circle className="sonne-grund" cx="0" cy="0" r={AUSSEN + FUGE} />
+      <circle className="sonne-scheibe" cx="0" cy="0" r={LOCH - FUGE / 2} />
       <path
         className={`sonne-seg sonne-${wurzel.status}${wStil.kenn}`}
         style={wStil.style}
-        d={sektor(...ring(r, 0), 0, 2 * Math.PI)}
+        d={sektor(w0 + FUGE / 2, w1 - FUGE / 2, 0, 2 * Math.PI)}
         fillRule="evenodd"
       >
         <title>{`${wurzel.name}: ${statusText[wurzel.status]}${wurzel.kennfarbe ? ` · ${wurzel.kennfarbe}` : ""}`}</title>
       </path>
       {props.mitte === "marke" ? (
         <g aria-hidden="true">
-          <Zeichen x={-38} y={-36} width={76} height={43} />
-          <text className="sonne-mitte sonne-wortmarke" x="0" y="24" textAnchor="middle" dominantBaseline="middle">
+          <Zeichen x={-55} y={-58} width={110} height={62} />
+          <text className="sonne-mitte sonne-wortmarke" x="0" y="34" textAnchor="middle" dominantBaseline="middle">
             <tspan className="sonne-wortmarke-open">Open</tspan>Wacht
           </text>
         </g>
@@ -210,7 +230,7 @@ export function Sonne(props: { baum: AnzeigeKnoten; neu: Set<string>; titel: str
         </text>
       )}
       {segmente.map((s, i) => {
-        const [r0, r1] = ring(r, s.tiefe);
+        const [r0, r1] = band(r, s);
         const neu = props.neu.has(s.schluessel);
         const st = segmentStil(s.farbe);
         return (
@@ -227,7 +247,7 @@ export function Sonne(props: { baum: AnzeigeKnoten; neu: Set<string>; titel: str
       })}
       <g className="sonne-texte" aria-hidden="true">
         {segmente.map((s, i) => {
-          const [r0, r1] = ring(r, s.tiefe);
+          const [r0, r1] = band(r, s);
           const b = beschriftung(s.name, r0, r1, s.a0, s.a1);
           if (!b) return null;
           const mitte = (r0 + r1) / 2;
