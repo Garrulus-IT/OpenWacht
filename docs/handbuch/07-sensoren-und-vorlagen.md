@@ -21,6 +21,7 @@ und Ziel („Ping“, „TCP 443“, „Zertifikat host“); Namen sind je Gerä
 | Docker | Zustand und Health eines Containers über einen nur-lesenden Socket-Proxy | Agent, nach Freigabe |
 | Hyper-V | VM läuft (Name und Zustand) | Windows-Agent, nach Freigabe |
 | Windows-Leistungsindikator | Zahl aus `\Objekt(Instanz)\Indikator` mit Schwellen, optional in Prozent eines zweiten Indikators | Windows-Agent, nach Freigabe je Objekt |
+| Automatische Windows-Dienste | alle Dienste mit Starttyp „Automatisch“ laufen, mit Ausnahmen; meldet nur die Namen gestoppter Dienste | Windows-Agent, nach Freigabe |
 
 Alle Ziele der Zentrale müssen in der Netzfreigabe liegen ([Kapitel 2](02-erste-einrichtung.md#netzfreigabe)).
 Agent-Sensoren laufen höchstens jede Minute; Messwerte vom Agent kommen gesammelt.
@@ -33,6 +34,20 @@ dieser Herkunft am Gerät auf einmal (z. B. einen versehentlich angewandten Satz
 Alarme der gelöschten Sensoren gehen verloren; das Audit-Log nennt Satz, Zahl und Namen.
 
 ![Satz vom Gerät entfernen](bilder/host-sensoren-loeschen.webp)
+
+### Automatische Windows-Dienste
+
+Ein Sensor für alle Dienste statt einem je Dienst: Fehler, sobald ein Dienst mit Starttyp „Automatisch“ steht. Die
+Meldung nennt die gestoppten Dienste mit ihrem Dienstnamen („2 Dienste gestoppt: Spooler, W32Time“).
+
+- **Zählen nicht:** Dienste mit Auslöser („Automatisch (Start durch Auslöser)“; sie beenden sich absichtlich), Dienste
+  je Benutzer, verzögert startende in den ersten 15 Minuten nach dem Systemstart.
+- **Ausnahmen:** je Zeile ein Dienst- oder Anzeigename, Groß/Klein egal, mit `*` am Ende für alle, die so beginnen
+  (`edgeupdate*`). Die Vorlage „Automatische Dienste (Windows)“ bringt `gupdate`, `edgeupdate`, `sppsvc`, `MapsBroker`
+  und `RemoteRegistry` mit; Dienste, die auf euren Servern absichtlich stehen, dort ergänzen.
+- Am Rechner freigeben: `openwacht-agent sensoren -arten "dienst,autodienste"` (Liste der Arten vollständig angeben,
+  siehe [Kapitel 5](05-agent.md#sensoren-auf-dem-rechner-freigeben)). Der Agent liest nur Name, Anzeigename, Starttyp
+  und Zustand, nie Dienstkonto oder Programmpfad.
 
 ### SNMP-Tabellenspalten
 
@@ -51,9 +66,9 @@ Vergleichswert 1 (down), „Fehler über 0“.
 
 ## Vorlagen
 
-**Einrichten → Sensor-Vorlagen**: Vorlagensätze (siehe unten), 20 eingebaute Vorlagen (Ping mit Verlust, HTTPS-Seite, TLS-Zertifikat, SSH-, SMB-, RDP- und
-IMAPS-Port, DNS, NTP, SMTP- und SSH-Banner, Dienste, Docker, Backup-Datei, vzdump, Synology-Status und -Temperatur,
-Hyper-V-VM) und eigene.
+**Einrichten → Sensor-Vorlagen**: Vorlagensätze (siehe unten), 21 eingebaute Vorlagen (Ping mit Verlust, HTTPS-Seite, TLS-Zertifikat, SSH-, SMB-, RDP- und
+IMAPS-Port, DNS, NTP, SMTP- und SSH-Banner, Dienste, automatische Windows-Dienste, Docker, Backup-Datei, vzdump,
+Synology-Status und -Temperatur, Hyper-V-VM) und eigene.
 
 ![Sensor-Vorlagen](bilder/sensor-vorlagen.webp)
 
