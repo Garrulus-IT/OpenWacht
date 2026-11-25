@@ -449,6 +449,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("DELETE /api/v1/agent-updates/{id}", protected(s.handleAgentUpdateDelete))
 	mux.Handle("PUT /api/v1/agents/{id}/update", protected(s.handleAgentUpdateRelease))
 	mux.Handle("DELETE /api/v1/agents/{id}/update", protected(s.handleAgentUpdateRelease))
+	mux.Handle("GET /api/v1/agent-updates/automatik", protected(s.handleAutoList))
+	mux.Handle("PUT /api/v1/mandanten/{id}/agent-updates/automatik", protected(s.handleAutoSet))
 	mux.Handle("POST /api/v1/api-tokens", protected(s.handleAPITokenCreate))
 	mux.Handle("DELETE /api/v1/api-tokens/{id}", protected(s.handleAPITokenRevoke))
 	mux.Handle("POST /api/v1/verzeichnisse", protected(s.handleDirCreate))

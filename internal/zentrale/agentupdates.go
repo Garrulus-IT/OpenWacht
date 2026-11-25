@@ -66,6 +66,8 @@ func (s *Server) updateOffer(ctx context.Context, agentID string, snap *agentpro
 	if !ok || !s.updateKey().Usable() {
 		return nil
 	}
+	// Automatik (1.0.4): ggf. erst eine Freigabe nach der Regel eintragen.
+	s.autoRelease(ctx, agentID, goos, arch, snap.AgentVersion)
 	var ver, sum, sig string
 	var size int64
 	err := s.pool.QueryRow(ctx, `SELECT version, sha256, signature, size FROM openwacht.agent_update_offer($1, $2, $3)`,
@@ -191,7 +193,7 @@ func (s *Server) handleAgentUpdatesGet(w http.ResponseWriter, r *http.Request) {
 		}
 		arows, err := tx.Query(ctx, `SELECT a.id::text, a.tenant_id::text, a.hostname, coalesce(a.snapshot->>'agent', ''),
 			coalesce(a.snapshot->>'plattform', ''), coalesce(a.snapshot->>'update_fehler', ''), a.last_seen,
-			r.version, r.released_at
+			r.version, r.released_at, coalesce(r.auto, false)
 			FROM openwacht.agents a LEFT JOIN openwacht.agent_update_releases r ON r.agent_id = a.id
 			WHERE a.revoked_at IS NULL ORDER BY a.hostname`)
 		if err != nil {
@@ -202,11 +204,12 @@ func (s *Server) handleAgentUpdatesGet(w http.ResponseWriter, r *http.Request) {
 			var id, tid, host, ver, plat, ferr string
 			var seen, relAt *time.Time
 			var rel *string
-			if err := arows.Scan(&id, &tid, &host, &ver, &plat, &ferr, &seen, &rel, &relAt); err != nil {
+			var auto bool
+			if err := arows.Scan(&id, &tid, &host, &ver, &plat, &ferr, &seen, &rel, &relAt, &auto); err != nil {
 				return 0, nil, err
 			}
 			agents = append(agents, map[string]any{"id": id, "mandant": tid, "hostname": host, "version": ver, "plattform": plat,
-				"fehler": ferr, "zuletzt": seen, "freigegeben": rel, "freigegeben_am": relAt})
+				"fehler": ferr, "zuletzt": seen, "freigegeben": rel, "freigegeben_am": relAt, "automatisch": auto})
 		}
 		return http.StatusOK, map[string]any{"schluessel": key, "schluesselbund": schluessel, "widerrufen": widerrufen,
 			"pakete": pakete, "agents": agents}, arows.Err()
@@ -348,8 +351,9 @@ func (s *Server) handleAgentUpdateRelease(w http.ResponseWriter, r *http.Request
 		if !exists {
 			return 0, nil, badRequest("Für diese Version ist kein Paket hochgeladen.")
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO openwacht.agent_update_releases (agent_id, tenant_id, version) VALUES ($1, $2, $3)
-			ON CONFLICT (agent_id) DO UPDATE SET version = EXCLUDED.version`, id, *tenant, in.Version); err != nil {
+		// Von Hand geht vor der Automatik (auto = false).
+		if _, err := tx.Exec(ctx, `INSERT INTO openwacht.agent_update_releases (agent_id, tenant_id, version, auto) VALUES ($1, $2, $3, false)
+			ON CONFLICT (agent_id) DO UPDATE SET version = EXCLUDED.version, auto = false`, id, *tenant, in.Version); err != nil {
 			return 0, nil, err
 		}
 		return http.StatusOK, map[string]any{"freigegeben": in.Version},
