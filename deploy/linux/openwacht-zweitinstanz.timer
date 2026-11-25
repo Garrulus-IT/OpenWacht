@@ -1,0 +1,12 @@
+[Unit]
+Description=OpenWacht: kalte Zweitinstanz (stündlich neueste Sicherung einspielen)
+
+[Timer]
+# Spielt nur ein, wenn eine neue Sicherung im Ordner liegt; sonst prüft der
+# Lauf nur, ob die neueste noch jünger als 26 Stunden ist.
+OnCalendar=*-*-* *:35:00
+RandomizedDelaySec=5m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

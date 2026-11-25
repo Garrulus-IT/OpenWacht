@@ -30,7 +30,8 @@ sudo -u svc_openwacht_db env OPENWACHT_DB_EIGENTUEMER="host=/run/postgresql user
 Vor jedem Update, das das Schema ändert, sichert das Paket zusätzlich selbst (Eintrag „vor dem Update“ in
 der Liste). Diese Sicherung ist der Rückweg, falls das Update scheitert: einspielen und das alte Paket installieren.
 
-Die Dateien zusätzlich auf ein anderes System kopieren (z. B. mit der VM-Sicherung oder rsync).
+Die Dateien zusätzlich auf ein anderes System kopieren (z. B. mit der VM-Sicherung oder rsync). Ein zweiter Rechner,
+der jede Sicherung laufend einspielt und prüft und im Ausfall übernimmt: kalte Zweitinstanz, [Kapitel 16](16-betrieb-und-skalierung.md#ausfallkonzept-kalte-zweitinstanz).
 
 ## Rücksicherung
 

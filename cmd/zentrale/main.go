@@ -65,6 +65,7 @@ Befehle:
   einrichtungslink  neuen Link für den Einrichtungsassistenten im Browser ausgeben (root)
   https-umstieg  ältere Installation (Reverse Proxy) auf HTTPS der Zentrale umstellen (root, -adressen)
   wiederherstellen  Datenbank aus einer Sicherung zurückholen (root; -datei, -ersetzen)
+  zweitinstanz  kalte Zweitinstanz (root; -einrichten -quelle <Ordner>, -lauf, -status, -umschalten)
   sichern      Datenbank sichern, wenn fällig (Timer; -jetzt sofort; OPENWACHT_DB_EIGENTUEMER)
   migrieren    Datenbankschema anlegen oder aktualisieren (OPENWACHT_DB_EIGENTUEMER)
   einrichten   Hauptmandant und ersten Admin anlegen (OPENWACHT_DB_EIGENTUEMER),
@@ -140,6 +141,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdInternPostgres(ctx, args[1:], stdout)
 	case "wiederherstellen":
 		err = cmdRestore(ctx, args[1:], stdout)
+	case "zweitinstanz":
+		err = cmdStandby(ctx, args[1:], stdin, stdout)
 	case "schluessel-wechseln":
 		err = cmdRekey(ctx, args[1:], stdout)
 	case "update-installieren":

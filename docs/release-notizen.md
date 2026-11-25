@@ -2,6 +2,10 @@
 
 ## 1.0.6
 
+- **Kalte Zweitinstanz als geführter Ablauf:** `openwacht-zentrale zweitinstanz -einrichten -quelle <Ordner>` auf einem
+  zweiten Rechner; ein Timer spielt jede neue Sicherung der Hauptinstanz ein und prüft sie (Hauptschlüssel, Schema-Stand,
+  Audit-Kette), `-umschalten` macht die Zweitinstanz mit einem Befehl zur Zentrale. Die Sicherungen kopiert der Betreiber
+  selbst in den Ordner; OpenWacht holt nichts über das Netz ([Handbuch Kapitel 16](handbuch/16-betrieb-und-skalierung.md#ausfallkonzept-kalte-zweitinstanz)).
 - **Geräte in einen anderen Mandanten verschieben:** im Menü des Geräts, für Admins beider Mandanten. Agent, Abfragen,
   Sensoren, Alarme und Verlauf ziehen mit, der Agent braucht keine neue Registrierung; Gruppe, Abhängigkeiten,
   Wartungsfenster und nicht geltende Kennfarben fallen weg ([Handbuch Kapitel 4](handbuch/04-hosts.md#in-einen-anderen-mandanten-verschieben)).

@@ -92,6 +92,16 @@ func internRestore(ctx context.Context, conn *pgx.Conn, socket, step, suffix str
 	case "verwerfen":
 		_, err := conn.Exec(ctx, `DROP DATABASE IF EXISTS `+restoreDB+` WITH (FORCE)`)
 		return err
+	case "alte-verwerfen":
+		// Zweitinstanz: die vorige Bereitschaftskopie nach dem Tausch löschen.
+		if !suffixRe.MatchString(suffix) {
+			return errors.New("ungültiger Zeitstempel")
+		}
+		_, err := conn.Exec(ctx, `DROP DATABASE IF EXISTS openwacht_vor_`+strings.ToLower(suffix)+` WITH (FORCE)`)
+		if err != nil {
+			return err
+		}
+		return json.NewEncoder(out).Encode(map[string]bool{"ok": true})
 	case "tauschen":
 		if !suffixRe.MatchString(suffix) {
 			return errors.New("ungültiger Zeitstempel")
