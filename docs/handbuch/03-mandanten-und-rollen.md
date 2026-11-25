@@ -100,6 +100,22 @@ du nicht verwaltest“. Im Beispiel kann das nur ein Admin der IT. So kann sich 
 den Passwort-Reset fremde Rechte verschaffen. Setzt ein Admin das Passwort, enden alle Sitzungen des Kontos und eine
 begonnene, noch nicht bestätigte Einrichtung der Zwei-Faktor-Anmeldung wird verworfen.
 
+## Konten sperren und löschen
+
+**Sperren** (Benutzer und Mandanten → Benutzer → „Deaktivieren“) beendet die Anmeldung sofort; Rollen und Einstellungen
+bleiben, „Aktivieren“ holt das Konto zurück.
+
+**Löschen (ab 1.0.6):** Ein gesperrtes Konto löscht OpenWacht **90 Tage nach dem Sperren** von selbst; die Liste zeigt
+das Datum („wird am … gelöscht“). Vorher geht es von Hand mit „Löschen …“ in der Zeile des gesperrten Kontos, durch einen
+Admin, der das Konto ganz verwaltet. Nicht gelöscht werden das eigene Konto und Betreiber (erst das Kennzeichen auf der
+Zentrale entziehen).
+
+Mit dem Konto gehen Rollen, Sitzungen, Passkeys, Wiederherstellungscodes, API-Tokens und persönliche Einstellungen weg.
+Bestätigte Alarme behalten den Namen als Text, Wartungen und Anträge verlieren nur den Verweis. Das **Audit-Log bleibt
+unverändert** (`benutzer.geloescht` mit Quelle „hand“ bzw. „frist“): Es ist eine Hash-Kette und fällt erst mit seiner
+Aufbewahrungsfrist weg (Einstellungen → Installation, ab Werk unbegrenzt). Konten aus dem AD legt der Abgleich bei der nächsten Anmeldung neu
+an, wenn sie dort noch aktiv sind; Rollen aus AD-Gruppen kommen dann wieder, von Hand vergebene nicht.
+
 ## Fehlversuche und Sperre
 
 Nach fünf falschen Passwörtern oder Codes sperrt OpenWacht die **Quelle** (IPv4-Adresse bzw. IPv6-Netz /64) für dieses

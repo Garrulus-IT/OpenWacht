@@ -108,6 +108,8 @@ export interface Benutzer {
   email: string;
   anzeigename: string;
   deaktiviert: boolean;
+  // gesperrt: Tag der automatischen Löschung (1.0.6)
+  loescht_am?: string;
   zwei_faktor_aktiv: boolean;
   // aus dem AD (Etappe 22a)
   verzeichnis: boolean;

@@ -500,6 +500,7 @@ function BenutzerZeile(props: { b: Benutzer; ich: Ich; mandant: Mandant; admin: 
   const selbst = b.id === ich.id;
   const [pwModus, setPwModus] = useState(false);
   const [neuesPw, setNeuesPw] = useState("");
+  const [loeschen, setLoeschen] = useState(false);
 
   const aendern = async (fn: () => Promise<unknown>) => {
     try {
@@ -542,7 +543,9 @@ function BenutzerZeile(props: { b: Benutzer; ich: Ich; mandant: Mandant; admin: 
         )}
       </td>
       <td>
-        {b.deaktiviert ? "deaktiviert" : b.verzeichnis ? (b.zwei_faktor_aktiv ? "AD und App" : "AD") : b.zwei_faktor_aktiv ? "Passwort und App" : "nur Passwort"}
+        {b.deaktiviert
+          ? `deaktiviert${b.loescht_am ? `, wird am ${new Date(b.loescht_am).toLocaleDateString("de-DE")} gelöscht` : ""}`
+          : b.verzeichnis ? (b.zwei_faktor_aktiv ? "AD und App" : "AD") : b.zwei_faktor_aktiv ? "Passwort und App" : "nur Passwort"}
       </td>
       {admin && (
         <td>
@@ -583,6 +586,22 @@ function BenutzerZeile(props: { b: Benutzer; ich: Ich; mandant: Mandant; admin: 
               <button className="knopf" onClick={() => void aendern(() => api("PATCH", `/api/v1/benutzer/${b.id}`, { deaktiviert: !b.deaktiviert }))}>
                 {b.deaktiviert ? "Aktivieren" : "Deaktivieren"}
               </button>
+              {b.deaktiviert &&
+                (loeschen ? (
+                  <span className="bestaetigung" role="alertdialog" aria-label={`Konto ${b.email} löschen`}>
+                    Endgültig löschen? Rollen, Passkeys und API-Tokens gehen verloren; das Audit-Log bleibt.{" "}
+                    <button className="knopf knopf-gefahr" onClick={() => void aendern(() => api("DELETE", `/api/v1/benutzer/${b.id}`))}>
+                      Löschen
+                    </button>{" "}
+                    <button className="knopf" onClick={() => setLoeschen(false)}>
+                      Abbrechen
+                    </button>
+                  </span>
+                ) : (
+                  <button className="knopf knopf-gefahr" onClick={() => setLoeschen(true)}>
+                    Löschen …
+                  </button>
+                ))}
             </div>
           )}
         </td>

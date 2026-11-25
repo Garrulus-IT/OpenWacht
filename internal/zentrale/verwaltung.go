@@ -310,14 +310,16 @@ type roleOut struct {
 }
 
 type userOut struct {
-	ID              string    `json:"id"`
-	MandantID       string    `json:"mandant_id"`
-	Email           string    `json:"email"`
-	Anzeigename     string    `json:"anzeigename"`
-	Deaktiviert     bool      `json:"deaktiviert"`
-	ZweiFaktorAktiv bool      `json:"zwei_faktor_aktiv"`
-	Verzeichnis     bool      `json:"verzeichnis"` // Konto aus dem AD: Rechte und Passwort kommen von dort
-	Rollen          []roleOut `json:"rollen"`
+	ID          string `json:"id"`
+	MandantID   string `json:"mandant_id"`
+	Email       string `json:"email"`
+	Anzeigename string `json:"anzeigename"`
+	Deaktiviert bool   `json:"deaktiviert"`
+	// LoeschtAm: gesperrt, wird an diesem Tag automatisch gelöscht (90 Tage nach dem Sperren)
+	LoeschtAm       *time.Time `json:"loescht_am,omitempty"`
+	ZweiFaktorAktiv bool       `json:"zwei_faktor_aktiv"`
+	Verzeichnis     bool       `json:"verzeichnis"` // Konto aus dem AD: Rechte und Passwort kommen von dort
+	Rollen          []roleOut  `json:"rollen"`
 }
 
 func (s *Server) handleUserList(w http.ResponseWriter, r *http.Request) {
@@ -327,7 +329,8 @@ func (s *Server) handleUserList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.handle(w, r, "benutzer", func(ctx context.Context, tx pgx.Tx) (int, any, error) {
-		rows, err := tx.Query(ctx, `SELECT u.id::text, u.tenant_id::text, u.email, u.display_name, u.disabled, u.totp_enabled, u.directory_id IS NOT NULL
+		rows, err := tx.Query(ctx, `SELECT u.id::text, u.tenant_id::text, u.email, u.display_name, u.disabled, u.totp_enabled, u.directory_id IS NOT NULL,
+			       CASE WHEN u.disabled AND NOT u.platform_operator THEN u.disabled_at + interval '90 days' END
 			FROM openwacht.users u
 			WHERE u.tenant_id IN (SELECT openwacht.visible_tenants())
 			  AND u.auth_source <> 'token' -- API-Tokens stehen unter Verwaltung › API-Tokens
@@ -338,7 +341,7 @@ func (s *Server) handleUserList(w http.ResponseWriter, r *http.Request) {
 		}
 		users, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (userOut, error) {
 			var u userOut
-			err := row.Scan(&u.ID, &u.MandantID, &u.Email, &u.Anzeigename, &u.Deaktiviert, &u.ZweiFaktorAktiv, &u.Verzeichnis)
+			err := row.Scan(&u.ID, &u.MandantID, &u.Email, &u.Anzeigename, &u.Deaktiviert, &u.ZweiFaktorAktiv, &u.Verzeichnis, &u.LoeschtAm)
 			u.Rollen = []roleOut{}
 			return u, err
 		})
@@ -455,6 +458,49 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 			return 0, nil, err
 		}
 		return http.StatusCreated, userOut{ID: id, MandantID: in.MandantID, Email: email, Anzeigename: name, Rollen: []roleOut{}}, nil
+	})
+}
+
+// handleUserDelete löscht ein gesperrtes Konto endgültig (1.0.6). Nur ein
+// Admin, der das Konto ganz verwaltet (wie beim Sperren), nie sich selbst und
+// keinen Betreiber; das Konto muss vorher gesperrt sein.
+func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	if id == sessionFrom(r.Context()).UserID {
+		writeError(w, http.StatusBadRequest, "Du kannst dich nicht selbst löschen.")
+		return
+	}
+	s.handle(w, r, "benutzer löschen", func(ctx context.Context, tx pgx.Tx) (int, any, error) {
+		var tenant, email string
+		var manageable, disabled, operator bool
+		if err := tx.QueryRow(ctx, `SELECT tenant_id::text, email, disabled, platform_operator, openwacht.user_manageable(id)
+			FROM openwacht.users
+			WHERE id = $1 AND tenant_id IN (SELECT openwacht.admin_tenants()) AND auth_source <> 'token'`, id).
+			Scan(&tenant, &email, &disabled, &operator, &manageable); err != nil {
+			return 0, nil, err
+		}
+		switch {
+		case !manageable:
+			return 0, nil, errForeignRoles
+		case operator:
+			return 0, nil, &apiError{http.StatusConflict, "Das Konto ist Betreiber. Erst auf der Zentrale das Kennzeichen entziehen (openwacht-zentrale betreiber -entziehen)."}
+		case !disabled:
+			return 0, nil, &apiError{http.StatusConflict, "Nur gesperrte Konten lassen sich löschen. Bitte das Konto zuerst sperren."}
+		}
+		tag, err := tx.Exec(ctx, `DELETE FROM openwacht.users WHERE id = $1 AND disabled`, id)
+		if err != nil {
+			return 0, nil, err
+		}
+		if tag.RowsAffected() != 1 {
+			return 0, nil, errNotFound
+		}
+		if err := audit(ctx, tx, &tenant, "benutzer.geloescht", map[string]any{"id": id, "email": email, "quelle": "hand"}); err != nil {
+			return 0, nil, err
+		}
+		return http.StatusNoContent, nil, nil
 	})
 }
 

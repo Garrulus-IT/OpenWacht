@@ -72,6 +72,20 @@ func (s *Server) MaintainMetrics(ctx context.Context) error {
 	return err
 }
 
+// purgeUsers löscht Konten, die seit 90 Tagen gesperrt sind (1.0.6).
+func (s *Server) purgeUsers(ctx context.Context) {
+	var n int
+	if err := s.pool.QueryRow(ctx, `SELECT openwacht.users_purge()`).Scan(&n); err != nil {
+		if ctx.Err() == nil {
+			slog.Warn("Konten: Löschen nach Frist fehlgeschlagen", "fehler", err)
+		}
+		return
+	}
+	if n > 0 {
+		slog.Info("Konten: nach 90 Tagen Sperre gelöscht", "anzahl", n)
+	}
+}
+
 // RunMetrics ruft die Wartung sofort und danach alle fünf Minuten auf, bis ctx endet.
 func (s *Server) RunMetrics(ctx context.Context) {
 	tick := time.NewTicker(5 * time.Minute)
@@ -80,6 +94,7 @@ func (s *Server) RunMetrics(ctx context.Context) {
 		if err := s.MaintainMetrics(ctx); err != nil && ctx.Err() == nil {
 			slog.Warn("Verlauf: Wartung fehlgeschlagen", "fehler", err)
 		}
+		s.purgeUsers(ctx)
 		select {
 		case <-ctx.Done():
 			return

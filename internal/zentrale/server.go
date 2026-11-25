@@ -430,6 +430,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/v1/benutzer", protected(s.handleUserList))
 	mux.Handle("POST /api/v1/benutzer", protected(s.handleUserCreate))
 	mux.Handle("PATCH /api/v1/benutzer/{id}", protected(s.handleUserUpdate))
+	mux.Handle("DELETE /api/v1/benutzer/{id}", protected(s.handleUserDelete))
 	mux.Handle("PUT /api/v1/benutzer/{id}/passwort", protected(s.handlePasswordSet))
 	mux.Handle("PUT /api/v1/benutzer/{id}/rollen/{mandant}", protected(s.handleRoleSet))
 	mux.Handle("DELETE /api/v1/benutzer/{id}/rollen/{mandant}", protected(s.handleRoleDelete))
