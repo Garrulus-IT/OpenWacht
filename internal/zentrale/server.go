@@ -492,6 +492,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/v1/ich/alarm-mobilnummer", protected(s.handleMyAlertMobileGet))
 	mux.Handle("PUT /api/v1/ich/alarm-mobilnummer", protected(s.handleMyAlertMobilePut))
 	mux.Handle("POST /api/v1/geraete/{id}/zusammenfuehren", protected(s.handleDeviceMerge))
+	mux.Handle("POST /api/v1/geraete/{id}/verschieben", protected(s.handleDeviceMove))
 	mux.Handle("POST /api/v1/geraete/gruppe", protected(s.handleDeviceGroupAssign))
 	mux.Handle("GET /api/v1/gruppen", protected(s.handleGroupList))
 	mux.Handle("POST /api/v1/mandanten/{id}/gruppen", protected(s.handleGroupCreate))

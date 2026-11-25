@@ -18,7 +18,7 @@ import { HostVerlauf } from "./Verlauf";
 import { GeraetSensoren, useSparklines } from "./Sparkline";
 import { SensorenReiter } from "./SensorenReiter";
 import { bereichFilter, prognoseNach, prognoseSchluessel, PrognoseZeile, type PlattenPrognose, type PrognoseAntwort } from "./Prognose";
-import { darfPflegen, mandantName, rolleIn, type Bereich } from "./bereich";
+import { baumReihe, darfPflegen, mandantName, rolleIn, type Bereich } from "./bereich";
 import { GeraeteImport } from "./GeraeteImport";
 import { SnmpFelder, SnmpFormular, SnmpTeil, snmpDaten, snmpKurz, snmpStart } from "./Snmp";
 import { ProxmoxFormular, ProxmoxTeil, proxmoxKurz } from "./Proxmox";
@@ -383,6 +383,7 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
                   zentrale={zentrale}
                   darf={darfPflegen(bereich, s.g.mandant_id)}
                   darfAdmin={rolleIn(bereich, s.g.mandant_id) === "admin"}
+                  mandanten={[...bereich.nachId.values()]}
                   mandant={bereich.mehrere ? mandantName(bereich, s.g.mandant_id) : ""}
                   prognose={daten.prognose}
                   onGeaendert={laden}
@@ -408,6 +409,7 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
               zentrale={zentrale}
               darf={darfPflegen(bereich, gewaehlt.g.mandant_id)}
               darfAdmin={rolleIn(bereich, gewaehlt.g.mandant_id) === "admin"}
+              mandanten={[...bereich.nachId.values()]}
               mandant={bereich.mehrere ? mandantName(bereich, gewaehlt.g.mandant_id) : ""}
               prognose={daten.prognose}
               onGeaendert={laden}
@@ -548,6 +550,8 @@ function GeraetZeile(props: {
   onAnsicht?: (r: GeraetReiter) => void;
   darf: boolean;
   darfAdmin: boolean;
+  // alle sichtbaren Mandanten (Ziele zum Verschieben: die mit Rolle Admin)
+  mandanten: Mandant[];
   // Name des Mandanten, wenn der Bereich mehrere umfasst
   mandant: string;
   prognose: Map<string, PlattenPrognose>;
@@ -561,7 +565,7 @@ function GeraetZeile(props: {
   const platte = m ? vollstePlatte(m) : null;
   const detailId = `geraet-${g.id}`;
   const [modus, setModus] = useState<
-    "" | "bearbeiten" | "check" | "agent" | "snmp" | "proxmox" | "vcenter" | "fritzbox" | "netapp" | "xenserver" | "loeschen" | "wartung" | "schwellen" | "entfernen"
+    "" | "bearbeiten" | "check" | "agent" | "snmp" | "proxmox" | "vcenter" | "fritzbox" | "netapp" | "xenserver" | "loeschen" | "wartung" | "schwellen" | "entfernen" | "verschieben"
   >("");
   const q = s.snmp;
   const istVc = q?.version === "vcenter";
@@ -924,6 +928,17 @@ function GeraetZeile(props: {
           melden={props.melden}
         />
       )}
+      {modus === "verschieben" && (
+        <GeraetVerschieben
+          g={g}
+          mandanten={props.mandanten}
+          onFertig={(verschoben) => {
+            setModus("");
+            if (verschoben) props.onGeaendert();
+          }}
+          melden={props.melden}
+        />
+      )}
       {modus === "schwellen" && <GeraetSchwellen geraetId={g.id} name={g.name} onFertig={() => setModus("")} melden={props.melden} />}
       <WartungSteuerung
         pfad={`/api/v1/geraete/${g.id}`}
@@ -973,6 +988,9 @@ function GeraetZeile(props: {
                 { text: "Gerät bearbeiten", onWahl: () => setModus("bearbeiten") },
                 { text: "Schwellen …", onWahl: () => setModus("schwellen"), titel: "Schwellen für Platte, RAM, CPU und „stumm nach“" },
                 ...(q && props.darfAdmin ? [{ text: `${quelleName} bearbeiten`, onWahl: () => setModus(quelleModus) }] : []),
+                ...(props.darfAdmin && props.mandanten.some((m) => m.rolle === "admin" && m.id !== g.mandant_id)
+                  ? [{ text: "In anderen Mandanten verschieben …", onWahl: () => setModus("verschieben") }]
+                  : []),
               ],
               g.wartung
                 ? [
@@ -1065,6 +1083,80 @@ function GeraetZeile(props: {
         </div>
       )}
     </li>
+  );
+}
+
+// Gerät in einen anderen Mandanten verschieben (1.0.6): nur in Mandanten, die
+// der Benutzer verwaltet; die Zentrale prüft das ebenso (Admin beider Mandanten).
+function GeraetVerschieben(props: { g: Geraet; mandanten: Mandant[]; onFertig: (verschoben: boolean) => void; melden: (e: unknown) => void }) {
+  const { g } = props;
+  const ziele = baumReihe(props.mandanten).filter((x) => x.m.rolle === "admin" && x.m.id !== g.mandant_id);
+  const [ziel, setZiel] = useState(ziele[0]?.m.id ?? "");
+  const [laeuft, setLaeuft] = useState(false);
+  const [ergebnis, setErgebnis] = useState<Record<string, number | boolean> | null>(null);
+  if (ergebnis) {
+    const n = (k: string) => Number(ergebnis[k] ?? 0);
+    const weg = [
+      n("wartungen_entfernt") ? `${n("wartungen_entfernt")} Wartung(en)` : "",
+      n("abhaengigkeiten_geloest") ? `${n("abhaengigkeiten_geloest")} Abhängigkeit(en)` : "",
+      n("kennfarben_entfernt") ? `${n("kennfarben_entfernt")} Kennfarbe(n)` : "",
+    ].filter(Boolean);
+    return (
+      <div className="einschub" role="status">
+        <p>
+          „{g.name}“ ist verschoben: {n("sensoren")} Sensor(en), {n("abfragen")} Abfrage(n){ergebnis.agent ? ", Agent" : ""} und {n("alarme")} Alarm(e) sind mitgezogen.
+          {weg.length > 0 && ` Entfernt: ${weg.join(", ")}.`}
+        </p>
+        <div className="aktionen">
+          <button className="knopf knopf-haupt" onClick={() => props.onFertig(true)}>
+            Fertig
+          </button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="einschub">
+      <form
+        className="formular formular-flach"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!ziel) return;
+          setLaeuft(true);
+          try {
+            setErgebnis(await api<Record<string, number | boolean>>("POST", `/api/v1/geraete/${g.id}/verschieben`, { mandant_id: ziel }));
+          } catch (err) {
+            props.melden(err);
+          }
+          setLaeuft(false);
+        }}
+      >
+        <h3 className="einschub-titel">„{g.name}“ in einen anderen Mandanten verschieben</h3>
+        <label className="feld">
+          <span>Neuer Mandant</span>
+          <select value={ziel} onChange={(e) => setZiel(e.target.value)} required>
+            {ziele.map((x) => (
+              <option key={x.m.id} value={x.m.id}>
+                {"\u00a0\u00a0".repeat(x.tiefe)}
+                {x.m.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="hinweis klein formular-voll">
+          Mit dem Gerät ziehen Agent, Abfragen, Sensoren, Schwellen, Trap-Regeln, Alarme und Verlauf um; der Agent braucht keine neue Registrierung. Weg fallen Gruppe,
+          Abhängigkeiten, Wartungsfenster und Kennfarben, die im neuen Mandanten nicht gelten. Wer nur den alten Mandanten sieht, sieht das Gerät danach nicht mehr.
+        </p>
+        <div className="aktionen">
+          <button className="knopf knopf-haupt" disabled={!ziel || laeuft}>
+            Verschieben
+          </button>
+          <button type="button" className="knopf" onClick={() => props.onFertig(false)}>
+            Abbrechen
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 

@@ -170,15 +170,23 @@ func TestAnmeldeMeldungen(t *testing.T) {
 		t.Fatalf("Meldungen nach Sperre: %v", k)
 	}
 
+	// Andere Tests können eigene Meldungen im Ausgang hinterlassen: nur die
+	// Mails an dieses Konto zählen.
+	mine := func() []smtptest.Message {
+		var out []smtptest.Message
+		for _, m := range smtp.Messages() {
+			if slices.Contains(m.To, "mel_konto@test.invalid") {
+				out = append(out, m)
+			}
+		}
+		return out
+	}
 	s.sendAuthNotices(ctx)
-	msgs := smtp.Messages()
+	msgs := mine()
 	if len(msgs) != 2 {
 		t.Fatalf("Mails: %d", len(msgs))
 	}
 	for _, m := range msgs {
-		if !slices.Contains(m.To, "mel_konto@test.invalid") {
-			t.Errorf("nicht an das Konto: %v", m.To)
-		}
 		for _, addr := range []string{"203.0.113.40", "192.0.2.50", "198.51.100.30"} {
 			if strings.Contains(m.Data, addr) {
 				t.Errorf("Adresse %s in der Mail", addr)
@@ -194,8 +202,8 @@ func TestAnmeldeMeldungen(t *testing.T) {
 	}
 	// Verschickt: kein zweites Mal.
 	s.sendAuthNotices(ctx)
-	if len(smtp.Messages()) != 2 {
-		t.Errorf("doppelt verschickt: %d", len(smtp.Messages()))
+	if n := len(mine()); n != 2 {
+		t.Errorf("doppelt verschickt: %d", n)
 	}
 
 	// Shell-Befehle melden sich ebenfalls.

@@ -38,6 +38,23 @@ Mandant, keine Kreise). Ist das Elterngerät nicht erreichbar (Ping kritisch, Ag
 gibt es für die Geräte darunter keine eigenen Alarme; Hosts zeigt „nicht erreichbar wegen …“. Entwarnungen gehen
 weiter raus.
 
+## In einen anderen Mandanten verschieben
+
+Ab 1.0.6, im Menü des Geräts: **In anderen Mandanten verschieben …**, neuen Mandanten wählen, „Verschieben“. Das dürfen
+nur Admins, die **beide** Mandanten verwalten (z. B. ein Admin des gemeinsamen übergeordneten Mandanten).
+
+- **Zieht mit um:** Agent (ohne neue Registrierung: Das Zertifikat enthält nur die ID des Agents, den Mandanten kennt
+  die Zentrale), Abfrage (SNMP, Proxmox, vCenter, FRITZ!Box, NetApp, XenServer; die Zugangsdaten werden für den neuen
+  Mandanten neu verschlüsselt), Sensoren, Schwellen, Trap-Regeln des Geräts, Ausnahmen, offene und beendete Alarme,
+  Verlauf und Messwerte.
+- **Fällt weg:** Gruppe, Abhängigkeiten in beide Richtungen, Wartungen und Wartungsfenster des Geräts, Kennfarben, die im
+  neuen Mandanten nicht gelten, Freigaben für Agent-Updates und unbenutzte Registrierungs-Tokens.
+- **Abgelehnt** mit Hinweis, wenn die Abfrage über den Sammler eines anderen Geräts läuft oder der Agent des Geräts für
+  andere Geräte sammelt, wenn ein SNMP-Profil im neuen Mandanten nicht gilt oder wenn eine Trap-Regel über „beendet“ mit
+  einer Regel ohne dieses Gerät verbunden ist. Erst lösen, dann verschieben.
+- Danach gelten die **Netze des neuen Mandanten**: Liegt ein Ziel dort nicht in den freigegebenen Netzen, schlagen die
+  betroffenen Sensoren fehl. Im Audit-Log beider Mandanten steht `geraet.verschoben`.
+
 ## Topologie
 
 **Topologie** in der Seitenleiste zeigt die Abhängigkeiten als Bäume, je Mandant: oben das Gerät, von dem andere
