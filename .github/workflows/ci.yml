@@ -1,11 +1,22 @@
-# Prüfungen für jeden Pull Request und jeden Stand auf main.
+# Prüfungen für jeden Pull Request auf main und jeden Stand auf main.
 # Actions sind per Commit-SHA gepinnt (Lieferkette), Rechte minimal.
+#
+# Pull Requests prüfen nur das Nötige (Formatierung, vet, Tests, Datenbank,
+# govulncheck), damit sie schnell durch sind. Fuzzing und das Bauen aller
+# Pakete laufen nach dem Merge auf main und von Hand (Actions → CI → Run
+# workflow). Ein neuer Push bricht den alten Lauf desselben Zweigs ab.
 name: CI
 
 on:
   pull_request:
+    branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -88,10 +99,12 @@ jobs:
       - name: go vet für Windows
         run: GOOS=windows go vet ./...
       - name: Bauen für alle Zielplattformen
+        if: github.event_name != 'pull_request'
         run: go run ./tools/build -ziele alle
       # Die Binaries für die Inbetriebnahme. Der Build ist reproduzierbar: Wer denselben
       # Commit selbst baut, muss dieselben Prüfsummen (dist/SHA256SUMS) erhalten.
       - name: Binaries als Artefakt ablegen
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: openwacht-${{ github.sha }}
@@ -146,6 +159,7 @@ jobs:
   # Ein Fund bricht den Lauf ab; die Eingabe steht dann im Log (testdata/fuzz/…).
   # PostgreSQL braucht nur das Paket zentrale (TestMain).
   fuzz:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
