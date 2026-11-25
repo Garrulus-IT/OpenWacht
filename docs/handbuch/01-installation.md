@@ -111,12 +111,85 @@ Weiter mit der [ersten Einrichtung](02-erste-einrichtung.md).
 
 ## Update
 
-Ein Update ist derselbe Befehl mit dem neuen Paket (Weg A) bzw. `sudo sh installieren.sh` aus dem neuen Offline-Paket
-(Weg B). Fehlende Migrationen laufen dabei automatisch, die Dienste starten neu. Das Paket sichert die
-Datenbank vorher selbst (Zeile „Vor dem Update gesichert“), wenn das Update das Schema ändert; schlägt das fehl, wird
-nichts migriert. Migrationen sind nicht umkehrbar: Zurück geht es nur mit dieser Sicherung und dem alten Paket
-([Kapitel 13](13-sicherung.md)) oder mit einem Snapshot der VM bzw. des Containers von vorher.
-Details je Version: [Release-Notizen](../release-notizen.md).
+Ein Update betrifft nur die **Zentrale**. Agents laufen an einer neueren Zentrale weiter und müssen nicht gleichzeitig
+mit (siehe unten). Fehlende Migrationen laufen beim Update von selbst, die Dienste starten neu. Migrationen sind nicht
+umkehrbar: Zurück geht es nur mit einer Sicherung und dem alten Paket.
+
+**1. Lesen, was kommt.** [Release-Notizen](../release-notizen.md) der neuen Version: neue Migrationen, geänderte
+Einstellungen, bekannte Grenzen. Wer mehrere Versionen überspringt, liest alle dazwischen; ein Sprung ist erlaubt.
+
+**2. Paket holen und prüfen.** Paket, `SHA256SUMS` und `SHA256SUMS.sig` in einen Ordner legen und vergleichen:
+
+```bash
+sha256sum -c --ignore-missing SHA256SUMS
+```
+
+Unter Windows, bevor das Paket auf den Server geht:
+
+```powershell
+Get-FileHash .\openwacht-zentrale_<version>_amd64.deb -Algorithm SHA256
+Select-String -Path .\SHA256SUMS -Pattern "openwacht-zentrale_<version>_amd64.deb"
+```
+
+Beide Werte müssen gleich sein (Groß- und Kleinschreibung zählt nicht). Die Echtheit von `SHA256SUMS` selbst zeigt die
+Signatur mit dem Update-Schlüssel (Kennungen in [Kapitel 12](12-agent-updates.md)); das Offline-Paket prüft sie selbst.
+
+**3. Auf den Server kopieren**, z. B. `scp openwacht-zentrale_<version>_amd64.deb admin@openwacht.beispiel.example:/tmp/`,
+und dort mit `sha256sum /tmp/openwacht-zentrale_<version>_amd64.deb` noch einmal vergleichen.
+
+**4. Von Hand sichern.** Das Paket sichert vor einer Migration zwar selbst, eine eigene Sicherung kostet aber nur
+Sekunden und ist der sichere Rückweg:
+
+```bash
+sudo -u svc_openwacht_db env OPENWACHT_DB_EIGENTUEMER="host=/run/postgresql user=openwacht_owner dbname=openwacht" \
+  openwacht-zentrale sichern -verzeichnis /var/backups/openwacht -jetzt
+sudo ls -lt /var/backups/openwacht | head -3
+```
+
+Läuft die Zentrale in einer VM oder einem Container, zusätzlich einen Snapshot anlegen.
+
+**5. Installieren.**
+
+- Weg A (Debian-Spiegel): `sudo apt install /tmp/openwacht-zentrale_<version>_amd64.deb`
+- Weg B (ohne Internet): neues Offline-Paket entpacken, darin `sudo sh installieren.sh` (beim Update ohne
+  `-abdruck`: die installierte Zentrale prüft die Signatur mit ihrem eigenen Schlüssel)
+
+Das Paket schreibt „Vor dem Update gesichert“, wenn sich das Schema ändert; schlägt diese Sicherung fehl, wird nichts
+migriert und die alte Version läuft weiter.
+
+**6. Kontrollieren.**
+
+```bash
+dpkg-query -W openwacht-zentrale
+systemctl is-active openwacht-zentrale openwacht-traps.socket
+sudo journalctl -u openwacht-zentrale --since "10 min ago" --no-pager | tail -20
+```
+
+Erwartet: die neue Version, zweimal `active`, im Journal „Zentrale gestartet version=…“ und keine Fehler. In der
+Oberfläche (einmal mit Strg+F5 neu laden) steht die Version unten links in der Leiste. Kurz prüfen: Dashboard,
+Agents melden sich (Spalte „zuletzt da“ unter Hosts), unter Alarme → Kanäle bei einem Kanal „Testen“.
+
+**7. Rückweg, falls nötig.** Am einfachsten den Snapshot von vorher zurückspielen. Ohne Snapshot erst das alte Paket
+installieren, dann mit dessen Programm die Sicherung von vorher einspielen (in dieser Reihenfolge: `wiederherstellen`
+führt am Ende die Migrationen des installierten Programms aus):
+
+```bash
+sudo apt install --allow-downgrades ./openwacht-zentrale_<alte-version>_amd64.deb
+sudo openwacht-zentrale wiederherstellen -datei /var/backups/openwacht/openwacht-<zeit>.dump -ersetzen
+```
+
+`wiederherstellen` hält die Dienste selbst an, behält die bisherige Datenbank als `openwacht_vor_<zeit>` und startet die
+Dienste wieder. Einzelheiten zur Rücksicherung: [Kapitel 13](13-sicherung.md).
+
+### Agents nach einem Update
+
+- **Müssen nicht mit.** Eine neuere Zentrale nimmt Meldungen älterer Agents an. Neue Sensorarten oder Korrekturen im
+  Agent stehen in den Release-Notizen; erst dann lohnt das Update der Agents.
+- **Windows:** neues MSI über das alte installieren (GPO, Intune, Softwareverteilung oder per Skript); Registrierung und
+  Freigaben bleiben ([Kapitel 5](05-agent.md#msi-unter-windows-gpo-intune)).
+- **Linux:** neues `.deb` bzw. `.rpm` installieren; Registrierung und Freigaben bleiben.
+- **Selbst-Update:** Mit signierten Paketen holen sich ausgewählte Agents die neue Version beim nächsten Melden selbst
+  ([Kapitel 12](12-agent-updates.md)).
 
 ## Deinstallieren
 
