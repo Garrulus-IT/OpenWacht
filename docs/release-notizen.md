@@ -1,5 +1,24 @@
 # Release-Notizen OpenWacht
 
+## 1.0.6
+
+- **Geräte in einen anderen Mandanten verschieben:** im Menü des Geräts, für Admins beider Mandanten. Agent, Abfragen,
+  Sensoren, Alarme und Verlauf ziehen mit, der Agent braucht keine neue Registrierung; Gruppe, Abhängigkeiten,
+  Wartungsfenster und nicht geltende Kennfarben fallen weg ([Handbuch Kapitel 4](handbuch/04-hosts.md#in-einen-anderen-mandanten-verschieben)).
+- **Meldungen bei verdächtigen Anmeldungen:** Mail an das Konto bei einer Anmeldung von einem neuen Rechner; bei Sperren
+  nach Fehlversuchen und bei Notfall-Befehlen auf der Zentrale auch an den Betreiber. Braucht den eingerichteten
+  Mailversand ([Kapitel 3](handbuch/03-mandanten-und-rollen.md)).
+- **Zweiter Faktor kontoweit gebremst:** Zehn falsche Codes binnen 15 Minuten sperren die Anmeldung mit Code für
+  15 Minuten, egal von wie vielen Rechnern; Passkeys gehen weiter.
+- **Notfall-Befehl `passwort-setzen`:** neues Passwort für ein lokales Konto auf der Zentrale, z. B. wenn das einzige
+  Admin-Passwort verloren ist ([Kapitel 3](handbuch/03-mandanten-und-rollen.md)).
+- **Automatische Windows-Dienste:** Dienste, deren Einstellungen der Agent nicht lesen darf, werden nicht mehr still
+  übersprungen; die Meldung nennt ihre Zahl, steht einer davon, gibt es eine Warnung. Braucht den Agent 1.0.6.
+- Beim Anlegen eines Benutzers lautet die Meldung für eine vergebene Adresse immer gleich; höchstens 20 solcher
+  Ablehnungen je Admin und Stunde.
+- Die Warnung beim Start ohne Alarmziele nennt richtig, was gesperrt ist (Mail geht weiter).
+- Migrationen 0056 bis 0058 (laufen beim Update von selbst).
+
 ## 1.0.5
 
 - **Sensor „Automatische Windows-Dienste“:** ein Sensor prüft alle Dienste mit Starttyp „Automatisch“ und meldet die
