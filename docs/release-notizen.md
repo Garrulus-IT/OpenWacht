@@ -1,5 +1,20 @@
 # Release-Notizen OpenWacht
 
+## 1.0.3
+
+- **Kürzere Alarm-Mails:** Der Betreff nennt nur noch Zustand, Gerät und Sensor (höchstens 90 Zeichen), die Meldung steht
+  groß oben im Text. Sammelmails haben den schlimmsten Zustand vorn im Betreff und getrennte Abschnitte „Probleme“ und
+  „Wieder in Ordnung“ ([Handbuch Kapitel 8](handbuch/08-alarme-und-wartung.md)).
+- **Topologie:** neue Seite mit den Abhängigkeiten der Geräte als Bäume, Zustand je Gerät, Klick öffnet das Gerät
+  ([Kapitel 4](handbuch/04-hosts.md)).
+- **Windows-Benachrichtigungen:** neue Alarme, Verschlechterungen und Entwarnungen auf Wunsch zusätzlich als
+  Benachrichtigung des Systems, wenn OpenWacht im Hintergrund ist; OpenWacht lässt sich in Edge und Chrome als App
+  installieren ([Kapitel 8](handbuch/08-alarme-und-wartung.md)).
+- **CSV-Import:** Dateien, in denen Excel jede Zeile in Anführungszeichen gesetzt hat, werden erkannt und gelesen.
+- **Handbuch:** neues Kapitel 19 „Anbindungen“ (Proxmox, vCenter, NetApp, XenServer, FRITZ!Box, Hyper-V, Docker, Windows
+  ohne Agent) und der Update-Ablauf Schritt für Schritt in Kapitel 1.
+- Keine Migration. Agents müssen nicht aktualisiert werden.
+
 ## 1.0.2
 
 - **Wandanzeige:** Sonnendiagramm neu gezeichnet, ruhiger und besser lesbar: Geräte mit Problem treten nach außen vor,

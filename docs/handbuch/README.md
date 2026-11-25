@@ -1,7 +1,7 @@
 # Handbuch OpenWacht
 
 OpenWacht überwacht Server, Netzwerkgeräte und Dienste für mehrere Mandanten (z. B. Standorte, Abteilungen oder Kunden) von einer
-Zentrale aus. Es läuft vollständig im eigenen Netz, auch ganz ohne Internet. Dieses Handbuch beschreibt Version 1.0.2.
+Zentrale aus. Es läuft vollständig im eigenen Netz, auch ganz ohne Internet. Dieses Handbuch beschreibt Version 1.0.3.
 
 ![Dashboard](bilder/dashboard.webp)
 

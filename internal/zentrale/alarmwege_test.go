@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"mime"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -600,7 +601,20 @@ func TestAlarmwegeSammeln(t *testing.T) {
 	if n := round(31 * time.Second); n != 1 {
 		t.Fatalf("nach 61 s %d Mails, erwartet 1", n)
 	}
-	if d := smtp.Messages()[0].Data; !strings.Contains(d, "Subject: OpenWacht Sammeln S: 2 Probleme") || !strings.Contains(d, "Ping A") || !strings.Contains(d, "Ping B") {
+	// Betreff (1.0.3): schlimmster Zustand vorn; mit „·“ ist er MIME-kodiert.
+	betreff := func(d string) string {
+		for _, z := range strings.Split(d, "\r\n") {
+			if v, ok := strings.CutPrefix(z, "Subject: "); ok {
+				out, err := new(mime.WordDecoder).DecodeHeader(v)
+				if err != nil {
+					return v
+				}
+				return out
+			}
+		}
+		return ""
+	}
+	if d := smtp.Messages()[0].Data; betreff(d) != "KRIT · OpenWacht: 2 Probleme" || !strings.Contains(d, "Ping A") || !strings.Contains(d, "Ping B") {
 		t.Errorf("Sammelmail:\n%.800s", d)
 	}
 	if n := round(15 * time.Second); n != 1 {
@@ -614,7 +628,7 @@ func TestAlarmwegeSammeln(t *testing.T) {
 	if n := round(61 * time.Second); n != 2 {
 		t.Fatalf("Entwarnung: %d Mails, erwartet 2", n)
 	}
-	if d := smtp.Messages()[1].Data; !strings.Contains(d, "Subject: OpenWacht Sammeln S: 2 wieder OK") {
+	if d := smtp.Messages()[1].Data; betreff(d) != "OK · OpenWacht: 2 wieder OK" {
 		t.Errorf("Entwarnungsmail:\n%.800s", d)
 	}
 
