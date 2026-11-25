@@ -770,6 +770,7 @@ async function seiten(page: Page, api: Api, demo: Demo, geheimnis: string) {
     await gehe(page, "/topologie");
     await foto(page, "topologie");
   }
+  if (gewollt("zertifikate")) await zertifikate(page, api, demo);
   if (gewollt("hinweise-ton")) {
     await gehe(page, "/alarme");
     await page.getByRole("button", { name: "Hinweise und Ton" }).click();
@@ -1017,6 +1018,40 @@ async function vorlagensaetze(page: Page, demo: Demo) {
   await foto(page, "host-sensoren-loeschen", { element: page.locator(".sensoren-reiter"), breite: 1000 });
   await page.getByRole("button", { name: "Abbrechen" }).first().click();
   await page.setViewportSize({ width: 1280, height: 800 });
+}
+
+// Zertifikate (1.0.5): ein paar TLS-Sensoren mit festen Ergebnissen.
+async function zertifikate(page: Page, api: Api, demo: Demo) {
+  const tag = (n: number) => {
+    const d = new Date(Date.now() + n * 86_400_000);
+    return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`;
+  };
+  const liste: [string, string, number, string, string][] = [
+    ["srv-app01", "intranet.beispiel.example", 9, "warn", `läuft in 9 Tagen ab (${tag(9)}), Aussteller Beispiel GmbH Issuing CA`],
+    ["srv-file01", "dateien.beispiel.example", 54, "ok", `gültig bis ${tag(54)} (noch 54 Tage), Aussteller Beispiel GmbH Issuing CA`],
+    ["srv-db01", "db.beispiel.example", 300, "ok", `gültig bis ${tag(300)} (noch 300 Tage), Aussteller Beispiel GmbH Root CA`],
+    ["srv-tel01", "tel.beispiel.example", 120, "crit", `Name passt nicht zum Zertifikat; gültig bis ${tag(120)}, Aussteller Beispiel GmbH Issuing CA`],
+    ["sw-core", "sw-core.beispiel.example", -3, "crit", `abgelaufen am ${tag(-3)}, Aussteller sw-core.beispiel.example`],
+  ];
+  for (const [geraet, host, , status, meldung] of liste) {
+    const g = demo.geraete[geraet];
+    if (!g) continue;
+    const { id } = await api.rufe<{ id: string }>("POST", `/api/v1/geraete/${g}/checks`, {
+      name: `Zertifikat ${host}`,
+      typ: "tls",
+      ziel: { host, port: 443, verbinde: "127.0.20.25", warnung_tage: 21, kritisch_tage: 7 },
+      intervall_sekunden: 3600,
+      aktiv: true,
+    });
+    psql(
+      `UPDATE ${SCHEMA}.checks SET status = '${status}', message = '${meldung}', since = now() - interval '2 hours',
+         last_run = now(), next_run = now() + interval '1 day' WHERE id = '${id}'`,
+      "bilder",
+    );
+  }
+  await gehe(page, "/zertifikate");
+  await page.locator(".zertifikate table").waitFor();
+  await foto(page, "zertifikate");
 }
 
 // Panel der Seite Einstellungen über seine Überschrift (innerste section).

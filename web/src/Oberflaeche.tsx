@@ -21,6 +21,7 @@ import { WartungSeite } from "./WartungSeite";
 import { PasskeyDialog, WiederherstellungsDialog } from "./ZweiFaktor";
 import { RandHinweise, TON_VORGABE, TonDialog } from "./Ton";
 import { Topologie } from "./Topologie";
+import { Zertifikate } from "./Zertifikate";
 import type { HinweiseTon } from "./api";
 import { quellenLeeren } from "./quelle";
 import { baumReihe, bereichFuer, wurzeln } from "./bereich";
@@ -59,6 +60,7 @@ const symbolPfad: Record<NavPunkt["id"], string> = {
   hosts: "M3 4h18v6H3zM3 14h18v6H3zM6 7h3M6 17h3",
   // Baum: oben ein Gerät, darunter zwei
   topologie: "M9 3h6v5H9zM3 16h6v5H3zM15 16h6v5h-6zM12 8v4M6 12h12M6 12v4M18 12v4",
+  zertifikate: "M4 4h16v11H4zM8 8h8M8 11h5M15 15v6l2-1.5 2 1.5v-6",
   // Glocke: Kreisbogen, senkrechte Flanken, 45°-Krempe
   alarme: "M6 17v-6a6 6 0 0 1 12 0v6l2 2H4zM10 21h4",
   berichte: "M5 3h10l4 4v14H5zM15 3v4h4M8 12h8M8 16h8",
@@ -353,6 +355,8 @@ export function Oberflaeche({ ich, onAbmelden, onAbgelaufen, thema, onThema }: P
             <SnmpProfile key={bereich.mandant.id} bereich={bereich} melden={melden} />
           ) : ort.reiter === "einstellungen" ? (
             <Einstellungen ich={ich} melden={melden} />
+          ) : ort.reiter === "zertifikate" ? (
+            <Zertifikate bereich={bereich} onOeffnen={(geraet) => wechseln({ reiter: "hosts", geraet })} />
           ) : ort.reiter === "topologie" ? (
             <Topologie bereich={bereich} onOeffnen={(geraet) => wechseln({ reiter: "hosts", geraet })} />
           ) : ort.reiter === "berichte" ? (
