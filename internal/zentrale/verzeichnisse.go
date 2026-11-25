@@ -454,7 +454,11 @@ func (s *Server) handleDirList(w http.ResponseWriter, r *http.Request) {
 func (s *Server) testDir(ctx context.Context, tenant string, in *dirIn, pass string) error {
 	if in.Art == "oidc" {
 		c := oidc.Config{Issuer: in.URL, ClientID: in.BindDN, ClientSecret: pass, CAPEM: in.CA, Dial: s.ldapDial(tenant)}
-		if _, err := c.Discover(ctx); err != nil {
+		ep, err := c.Discover(ctx)
+		if err == nil {
+			_, err = c.CheckKeys(ctx, ep)
+		}
+		if err != nil {
 			return &apiError{http.StatusBadGateway, "Verbindung zum Identity Provider: " + err.Error() + "."}
 		}
 		return nil
@@ -785,8 +789,12 @@ func (s *Server) handleDirTest(w http.ResponseWriter, r *http.Request) {
 	}
 	if d.Kind == "oidc" {
 		c, err := s.oidcConfig(d)
+		var ep oidc.Endpoints
 		if err == nil {
-			_, err = c.Discover(r.Context())
+			ep, err = c.Discover(r.Context())
+		}
+		if err == nil {
+			_, err = c.CheckKeys(r.Context(), ep)
 		}
 		if err != nil {
 			writeJSON(w, http.StatusOK, map[string]any{"ok": false, "fehler": "Verbindung zum Identity Provider: " + err.Error() + "."})

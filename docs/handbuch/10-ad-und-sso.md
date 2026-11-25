@@ -33,6 +33,16 @@ den Server ändert, muss das Passwort neu eingeben (so kann niemand es an einen 
 4. Benutzer geben ihre Adresse ein und klicken „Mit Firmen-Login anmelden (SSO)“. SSO geht nur über die eingestellte
    Hauptadresse der Zentrale.
 
+**Prüfung des ID-Tokens:** OpenWacht holt das ID-Token selbst am Token-Endpunkt über geprüftes TLS und prüft
+zusätzlich seine **Signatur** gegen die Schlüssel des IdP (`jwks_uri` aus dem Discovery-Dokument). Erlaubt sind nur
+**RS256** (RSA ab 2048 Bit) und **ES256** (P-256); Tokens mit `none`, HS256, PS256 oder einem Schlüssel im Token selbst
+werden abgelehnt. Keycloak, ADFS und Entra ID signieren ab Werk mit RS256; ist in Keycloak für den Client ein anderes
+Verfahren eingestellt („ID Token Signature Algorithm“), auf RS256 oder ES256 stellen. Die Schlüssel hält die Zentrale bis
+zu einer Stunde vor. Rotiert der IdP seine Schlüssel, lädt sie die Liste beim ersten unbekannten `kid` neu (höchstens
+einmal je Minute); ist der Schlüssel-Endpunkt kurz nicht erreichbar, gelten die vorgehaltenen bis zum Ablauf weiter.
+„Verbindung prüfen“ lädt die Schlüssel mit. Der Schlüssel-Endpunkt muss wie der IdP in der Netzfreigabe liegen (bei
+Entra ID liegt er unter `login.microsoftonline.com`).
+
 **Adresse des Kontos:** Die Adresse kommt aus genau einem Claim, eingestellt je Anbindung unter „Adresse
 des Kontos aus dem Claim“: `email` (Standard), `upn` oder `preferred_username`. Einen Rückfall auf andere Claims gibt
 es nicht. Steht `email_verified` im Token und ist nicht `true`, lehnt OpenWacht die Anmeldung ab. Nimm

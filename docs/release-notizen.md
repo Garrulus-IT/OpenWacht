@@ -6,6 +6,10 @@
   zweiten Rechner; ein Timer spielt jede neue Sicherung der Hauptinstanz ein und prüft sie (Hauptschlüssel, Schema-Stand,
   Audit-Kette), `-umschalten` macht die Zweitinstanz mit einem Befehl zur Zentrale. Die Sicherungen kopiert der Betreiber
   selbst in den Ordner; OpenWacht holt nichts über das Netz ([Handbuch Kapitel 16](handbuch/16-betrieb-und-skalierung.md#ausfallkonzept-kalte-zweitinstanz)).
+- **SSO: Signatur des ID-Tokens geprüft:** zusätzlich zur geprüften TLS-Verbindung zum Token-Endpunkt gegen die
+  Schlüssel des Identity Providers (JWKS), nur RS256 und ES256, mit Zwischenspeicher und Schlüsselwechsel beim IdP.
+  **Vor dem Update prüfen:** Ein IdP, der ID-Tokens mit HS256 oder PS256 signiert, wird danach abgelehnt
+  ([Kapitel 10](handbuch/10-ad-und-sso.md#firmen-login-per-oidc-keycloak-adfs-entra-id)).
 - **Geräte in einen anderen Mandanten verschieben:** im Menü des Geräts, für Admins beider Mandanten. Agent, Abfragen,
   Sensoren, Alarme und Verlauf ziehen mit, der Agent braucht keine neue Registrierung; Gruppe, Abhängigkeiten,
   Wartungsfenster und nicht geltende Kennfarben fallen weg ([Handbuch Kapitel 4](handbuch/04-hosts.md#in-einen-anderen-mandanten-verschieben)).

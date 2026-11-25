@@ -2,9 +2,10 @@
 
 // Package oidc meldet Benutzer per OpenID Connect an (Authorization Code mit
 // PKCE, Etappe 22b). Nur Standardbibliothek: Das ID-Token kommt direkt vom
-// Token-Endpunkt über eine geprüfte TLS-Verbindung; nach OpenID Connect Core
-// 3.1.3.7 ersetzt diese Prüfung die Signaturprüfung. Geprüft werden Issuer,
-// Audience, azp, Ablauf und Nonce.
+// Token-Endpunkt über eine geprüfte TLS-Verbindung (nach OpenID Connect Core
+// 3.1.3.7 reicht das schon). Seit 1.0.6 wird zusätzlich die Signatur gegen die
+// Schlüssel des IdP geprüft (jwks.go, nur RS256 und ES256). Geprüft werden
+// außerdem Issuer, Audience, azp, Ablauf und Nonce.
 package oidc
 
 import (
@@ -40,6 +41,8 @@ type Config struct {
 	// Dial verbindet (Netzfreigabe der Zentrale); nil = net.Dialer.
 	Dial func(ctx context.Context, network, addr string) (net.Conn, error)
 	Now  func() time.Time
+	// Keys: Cache für die Schlüssel des IdP; nil = gemeinsamer Cache.
+	Keys *KeyCache
 }
 
 // Endpoints aus dem Discovery-Dokument.
@@ -47,6 +50,7 @@ type Endpoints struct {
 	Authorization string `json:"authorization_endpoint"`
 	Token         string `json:"token_endpoint"`
 	Issuer        string `json:"issuer"`
+	JWKS          string `json:"jwks_uri"`
 }
 
 // Claims des angemeldeten Benutzers.
@@ -149,6 +153,9 @@ func (c Config) Discover(ctx context.Context) (Endpoints, error) {
 			return ep, errors.New("Discovery: Endpunkte müssen https sein")
 		}
 	}
+	if err := checkJWKSURI(ep.JWKS); err != nil {
+		return ep, err
+	}
 	return ep, nil
 }
 
@@ -217,10 +224,14 @@ func (c Config) Exchange(ctx context.Context, ep Endpoints, code, verifier, redi
 	if err := readJSON(resp, &tok); err != nil {
 		return out, fmt.Errorf("Token-Endpunkt: %w", err)
 	}
+	if err := c.VerifySignature(ctx, ep, tok.IDToken); err != nil {
+		return out, err
+	}
 	return c.Verify(tok.IDToken, nonce)
 }
 
-// Verify prüft die Claims eines ID-Tokens (ohne Signatur, siehe Paketdoku).
+// Verify prüft die Claims eines ID-Tokens. Die Signatur prüft
+// VerifySignature (Exchange ruft beides auf).
 func (c Config) Verify(idToken, nonce string) (Claims, error) {
 	var out Claims
 	parts := strings.Split(idToken, ".")
