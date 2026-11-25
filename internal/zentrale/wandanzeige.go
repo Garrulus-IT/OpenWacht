@@ -311,7 +311,8 @@ func (s *Server) requireDisplay(next http.Handler) http.Handler {
 // withDisplay führt fn mit dem Datenbankkontext der Anzeige aus.
 func (s *Server) withDisplay(ctx context.Context, displayID string, fn func(pgx.Tx) error) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `SELECT set_config('app.display_id', $1, true)`, displayID); err != nil {
+		if _, err := tx.Exec(ctx, `SELECT set_config('app.display_id', $1, true), set_config('statement_timeout', $2, true)`,
+			displayID, userStatementTimeout); err != nil {
 			return err
 		}
 		return fn(tx)

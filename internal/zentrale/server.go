@@ -55,6 +55,9 @@ type Config struct {
 	MaxConcurrentHashes int
 	// LoginsPerMinutePerIP begrenzt Anmeldeversuche je Client-Adresse.
 	LoginsPerMinutePerIP int
+	// UserRequestsPerMinute begrenzt Anfragen je angemeldetem Benutzer
+	// (Sitzung oder API-Token, 1.0.5); 0 = 1200.
+	UserRequestsPerMinute int
 
 	// AgentNames: Hostnamen/IPs, unter denen Agents die Zentrale erreichen
 	// (stehen im Server-Zertifikat des Agent-Ports).
@@ -164,6 +167,9 @@ func (c *Config) setDefaults() {
 	}
 	if c.MaxConcurrentHashes == 0 {
 		c.MaxConcurrentHashes = 4
+	}
+	if c.UserRequestsPerMinute <= 0 {
+		c.UserRequestsPerMinute = userRate
 	}
 	if c.LoginsPerMinutePerIP == 0 {
 		c.LoginsPerMinutePerIP = 20
@@ -289,6 +295,7 @@ type Server struct {
 	live            liveSettings
 	https           *HTTPS
 	apiTokenRate    *rateWindow
+	users           *userGate // Grenzen je Benutzer (H4)
 	// nur für Tests: Verbindung zum Verzeichnis ohne Netzfreigabe
 	ldapDialOverride func(ctx context.Context, network, addr string) (net.Conn, error)
 	// Etappe 31: Audit-Export, Lebenszeichen der Hintergrundläufe
@@ -327,6 +334,7 @@ func New(cfg Config, pool *pgxpool.Pool, key []byte) (*Server, error) {
 		loginWait:    sleepCtx,
 		hashSem:      make(chan struct{}, cfg.MaxConcurrentHashes),
 		apiTokenRate: newRateWindow(apiTokenLimit),
+		users:        newUserGate(cfg.UserRequestsPerMinute),
 		limiter:      newIPLimiter(cfg.LoginsPerMinutePerIP, time.Minute),
 		dummyHash:    dummy,
 		now:          time.Now,
@@ -601,7 +609,9 @@ func (s *Server) Handler() http.Handler {
 // Alles, was mandantenbezogene Daten liest oder schreibt, läuft hierüber.
 func (s *Server) withUser(ctx context.Context, userID string, fn func(pgx.Tx) error) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `SELECT set_config('app.user_id', $1, true)`, userID); err != nil {
+		// statement_timeout (H4): eine Abfrage eines Benutzers läuft nicht ewig.
+		if _, err := tx.Exec(ctx, `SELECT set_config('app.user_id', $1, true), set_config('statement_timeout', $2, true)`,
+			userID, userStatementTimeout); err != nil {
 			return err
 		}
 		return fn(tx)

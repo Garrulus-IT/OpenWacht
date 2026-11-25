@@ -98,7 +98,7 @@ func newTestServerNoCleanup() (*Server, *httptest.Server) {
 	srv.Start()
 	u := mustURL(srv.URL)
 	vNtfy = newFakeNtfy()
-	s, err := New(Config{BaseURL: u, PasswordParams: &testParams, LoginsPerMinutePerIP: 1000, AlertCollect: -1,
+	s, err := New(Config{BaseURL: u, PasswordParams: &testParams, LoginsPerMinutePerIP: 1000, UserRequestsPerMinute: 1 << 30, AlertCollect: -1,
 		AlertTargets: alarm.NewTargets(vNtfy.URL, "https://ntfy.test.invalid", "http://127.0.0.1:9")}, pool, testKey)
 	if err != nil {
 		panic(err)
