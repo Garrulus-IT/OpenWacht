@@ -4756,3 +4756,12 @@ td > .kenn-marke:first-child {
   grid-template-columns: 1fr;
   gap: var(--a3);
 }
+/* Agent-Updates: Regel „automatisch übernehmen“ (1.0.4) */
+.auto-regel {
+  margin: var(--a3) 0;
+}
+.auto-regel .tage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a3);
+}

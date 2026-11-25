@@ -1,0 +1,13 @@
+# Update der Zentrale aus der Oberfläche (1.0.4): Legt der Webdienst einen
+# Auftrag ab (nach Prüfung von Signatur, Prüfsumme und Version), startet
+# openwacht-zentrale-update.service. Der Webdienst selbst wird nie root.
+[Unit]
+Description=OpenWacht: auf ein Update der Zentrale aus der Oberfläche warten
+Documentation=https://github.com/garrulus-it/openwacht
+
+[Path]
+PathExists=/var/lib/openwacht-update/auftrag
+Unit=openwacht-zentrale-update.service
+
+[Install]
+WantedBy=paths.target

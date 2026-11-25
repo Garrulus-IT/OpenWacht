@@ -1,0 +1,17 @@
+# Installiert ein in der Oberfläche hochgeladenes Update der Zentrale (1.0.4).
+# Läuft als root, weil apt das braucht. Vorher prüft das Programm selbst noch
+# einmal mit den Schlüsseln, die in ihm stecken: Signatur von SHA256SUMS,
+# Prüfsumme der eigenen Kopie des Pakets, Plattform, nur neuere Versionen.
+# Die Dateien in /var/lib/openwacht-update gelten als nicht vertrauenswürdig
+# (sie gehören dem Webdienst). Vor Migrationen sichert das Paket die
+# Datenbank selbst. Ergebnis: /var/lib/openwacht-update/ergebnis.json und
+# journalctl -u openwacht-zentrale-update.
+[Unit]
+Description=OpenWacht: Update der Zentrale installieren (aus der Oberfläche)
+Documentation=https://github.com/garrulus-it/openwacht
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/openwacht-zentrale update-installieren -verzeichnis /var/lib/openwacht-update
+TimeoutStartSec=30min

@@ -4,7 +4,7 @@
 
 ```bash
 apt install postgresql
-apt install ./openwacht-zentrale_1.0.3_amd64.deb
+apt install ./openwacht-zentrale_1.0.4_amd64.deb
 ```
 
 `postinst` ruft `openwacht-zentrale installieren` auf: Systembenutzer, `/etc/openwacht` mit Hauptschlüssel,

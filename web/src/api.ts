@@ -26,7 +26,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T = unknown>(method: string, path: string, body?: unknown, extra?: { raw: Blob; headers: Record<string, string> }): Promise<T> {
+export async function api<T = unknown>(method: string, path: string, body?: unknown, extra?: { raw: Blob | FormData; headers: Record<string, string> }): Promise<T> {
   const headers: Record<string, string> = { ...(extra?.headers ?? {}) };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (method !== "GET" && csrfToken) headers["X-CSRF-Token"] = csrfToken;

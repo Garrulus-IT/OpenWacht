@@ -7,7 +7,7 @@ package deploylinux
 
 import "embed"
 
-//go:embed *.service *.socket *.timer
+//go:embed *.service *.socket *.timer *.path
 var units embed.FS
 
 // UnitNames: alle Units in fester Reihenfolge.
@@ -19,6 +19,8 @@ var UnitNames = []string{
 	"openwacht-traps.socket",
 	"openwacht-zentrale.service",
 	"openwacht-zentrale.socket",
+	"openwacht-zentrale-update.path",
+	"openwacht-zentrale-update.service",
 }
 
 // Unit liefert den Inhalt einer Unit.

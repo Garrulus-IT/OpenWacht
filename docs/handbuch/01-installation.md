@@ -30,7 +30,7 @@ sudo locale-gen && sudo update-locale LANG=de_DE.UTF-8
 
 ```bash
 sudo apt install postgresql
-sudo apt install ./openwacht-zentrale_1.0.3_amd64.deb
+sudo apt install ./openwacht-zentrale_1.0.4_amd64.deb
 ```
 
 **Empfohlen bei einer neuen Maschine:** den noch leeren Cluster einmal neu anlegen, mit Prüfsummen für die Datenseiten
@@ -52,8 +52,8 @@ Das Offline-Paket enthält die Zentrale **und** PostgreSQL mit allen Abhängigke
 in [Kapitel 14](14-betrieb-ohne-internet.md#offline-paket-bauen).
 
 ```bash
-tar xf openwacht-offline_1.0.3_debian-13_amd64.tar
-cd openwacht-offline_1.0.3_debian-13_amd64
+tar xf openwacht-offline_1.0.4_debian-13_amd64.tar
+cd openwacht-offline_1.0.4_debian-13_amd64
 sudo sh installieren.sh -pruefen -abdruck <kennung>   # nur prüfen, nichts ändern
 sudo sh installieren.sh -abdruck <kennung>            # erste Installation
 sudo sh installieren.sh                               # Update einer bestehenden Installation
@@ -114,6 +114,30 @@ Weiter mit der [ersten Einrichtung](02-erste-einrichtung.md).
 Ein Update betrifft nur die **Zentrale**. Agents laufen an einer neueren Zentrale weiter und müssen nicht gleichzeitig
 mit (siehe unten). Fehlende Migrationen laufen beim Update von selbst, die Dienste starten neu. Migrationen sind nicht
 umkehrbar: Zurück geht es nur mit einer Sicherung und dem alten Paket.
+
+### In der Oberfläche (ab 1.0.4)
+
+Ist die Zentrale als Debian-Paket installiert, geht das Update auch ohne Shell: **Einstellungen → Update der Zentrale**
+(nur der Betreiber).
+
+1. Aus demselben Build das Paket `openwacht-zentrale_<version>_amd64.deb` (bzw. `_arm64`), `SHA256SUMS` und
+   `SHA256SUMS.sig` wählen und den Code aus der Authenticator-App eingeben.
+2. **Prüfen und installieren:** Die Zentrale prüft die Signatur von `SHA256SUMS` mit dem Update-Schlüssel
+   ([Kapitel 12](12-agent-updates.md)), dass das Paket dort mit seiner Prüfsumme steht, die Plattform und dass die
+   Version neuer ist. Erst dann legt sie es ab. Ein Paket ohne gültige Signatur oder eine ältere Version lehnt sie ab;
+   das steht im Audit-Log (`zentrale.update_abgelehnt`).
+3. Den Rest macht ein **getrennter Dienst mit root-Rechten** (`openwacht-zentrale-update`): Er prüft dasselbe noch
+   einmal an einer eigenen Kopie, mit den Schlüsseln seines eigenen, von root installierten Programms, und ruft dann
+   `apt-get install` auf. Der Webdienst selbst bekommt nie root-Rechte. Das Paket sichert vor Änderungen an der
+   Datenbank wie immer selbst.
+4. Die Zentrale startet dabei neu; die Seite ist eine halbe Minute nicht erreichbar und zeigt danach das Ergebnis mit der
+   Ausgabe von apt. Unten links steht die neue Version.
+
+Vorher einen Snapshot der VM anlegen. Schlägt apt fehl, läuft die bisherige Version weiter; Einzelheiten in der Ausgabe
+und mit `journalctl -u openwacht-zentrale-update`. **Das erste Mal, auf 1.0.4, geht es noch wie unten von Hand**: Erst
+ab 1.0.4 ist der Dienst dafür installiert.
+
+### Von Hand
 
 **1. Lesen, was kommt.** [Release-Notizen](../release-notizen.md) der neuen Version: neue Migrationen, geänderte
 Einstellungen, bekannte Grenzen. Wer mehrere Versionen überspringt, liest alle dazwischen; ein Sprung ist erlaubt.

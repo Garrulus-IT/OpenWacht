@@ -70,6 +70,13 @@ Die Zentrale macht HTTPS selbst; ein Reverse Proxy ist nicht nötig. Wenn doch (
   Anker gegen nachträgliche Änderungen (Kapitel 13).
 - Updates des Betriebssystems und von PostgreSQL regelmäßig einspielen; beim Offline-Paket heißt das: neu bauen.
 - `systemd-analyze security openwacht-zentrale` sollte „OK“ (≤ 2) zeigen; eigene Drop-ins nicht lockern.
+- **Update aus der Oberfläche (ab 1.0.4):** Einziger Dienst mit root-Rechten ist `openwacht-zentrale-update`. Er startet
+  nur, wenn der Webdienst einen Auftrag in `/var/lib/openwacht-update` ablegt, und installiert nur ein Paket, dessen
+  `SHA256SUMS` mit dem Update-Schlüssel signiert ist und das neuer ist als die laufende Version; die Prüfung macht er
+  selbst, mit den Schlüsseln seines eigenen Programms. Wer das nicht will:
+  `systemctl disable --now openwacht-zentrale-update.path` (Updates dann wieder von Hand, Kapitel 1).
+- **Desktop-App:** nur Tokens mit der Rolle **Leser** verwenden, je Person ein eigenes, mit Ablaufdatum; beim
+  Ausscheiden widerrufen (Kapitel 11).
 
 ## 5. Agents
 

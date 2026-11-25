@@ -28,10 +28,10 @@ Rechner auch gleich und startet den Dienst. Als root:
 ```bash
 # Debian, Ubuntu
 OPENWACHT_ZENTRALE=https://openwacht.beispiel.example:8444 OPENWACHT_TOKEN=owa1.… \
-  apt install ./openwacht-agent_1.0.3_amd64.deb
+  apt install ./openwacht-agent_1.0.4_amd64.deb
 # RHEL, Rocky, Alma, SUSE
 OPENWACHT_ZENTRALE=https://openwacht.beispiel.example:8444 OPENWACHT_TOKEN=owa1.… \
-  dnf install ./openwacht-agent-1.0.3-1.x86_64.rpm
+  dnf install ./openwacht-agent-1.0.4-1.x86_64.rpm
 ```
 
 Das Token nicht in die Befehlszeile tippen, wenn die Shell-Historie mitschreibt, sondern vorher geschützt einlesen und
@@ -41,7 +41,7 @@ kurz prüfen (ein vollständiges Token hat **92 Zeichen** und beginnt mit `owa1.
 read -rs OPENWACHT_TOKEN
 echo "${#OPENWACHT_TOKEN} ${OPENWACHT_TOKEN:0:5}"     # erwartet: 92 owa1.
 OPENWACHT_ZENTRALE=https://openwacht.beispiel.example:8444 OPENWACHT_TOKEN="$OPENWACHT_TOKEN" \
-  apt install ./openwacht-agent_1.0.3_amd64.deb
+  apt install ./openwacht-agent_1.0.4_amd64.deb
 unset OPENWACHT_TOKEN
 ```
 
@@ -67,7 +67,7 @@ Das MSI installiert nach `C:\Program Files\OpenWacht` und ruft danach als SYSTEM
 auf. Stille Installation:
 
 ```powershell
-msiexec /i openwacht-agent_1.0.3_amd64.msi /qn ZENTRALE=https://openwacht.beispiel.example:8444 TOKEN=owa1.…
+msiexec /i openwacht-agent_1.0.4_amd64.msi /qn ZENTRALE=https://openwacht.beispiel.example:8444 TOKEN=owa1.…
 ```
 
 - `TOKEN` ist eine versteckte Eigenschaft: Sie erscheint nicht im Installationsprotokoll (`/l*v`), die Befehlszeile der

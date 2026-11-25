@@ -46,7 +46,8 @@ const debPrerm = `#!/bin/sh
 set -e
 if [ "$1" = remove ] && [ -d /run/systemd/system ]; then
     systemctl disable --now openwacht-zentrale.socket openwacht-zentrale.service \
-        openwacht-traps.socket openwacht-traps.service openwacht-sicherung.timer >/dev/null 2>&1 || true
+        openwacht-traps.socket openwacht-traps.service openwacht-sicherung.timer \
+        openwacht-zentrale-update.path >/dev/null 2>&1 || true
 fi
 exit 0
 `

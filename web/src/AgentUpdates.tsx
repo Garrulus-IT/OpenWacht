@@ -6,7 +6,7 @@
 // Schlüssel im Build sind Updates aus.
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { api, type Ich, type Mandant } from "./api";
+import { api, type Gruppe, type Ich, type Mandant } from "./api";
 import type { Bereich } from "./bereich";
 import { vor } from "./zeit";
 
@@ -28,6 +28,143 @@ interface AgentZeile {
   fehler: string;
   zuletzt: string | null;
   freigegeben: string | null;
+  // nach der Regel des Mandanten eingetragen (1.0.4)
+  automatisch?: boolean;
+}
+
+// Regel „automatisch übernehmen“ je Mandant (1.0.4)
+interface AutoRegel {
+  mandant_id: string;
+  aktiv: boolean;
+  pilotgruppe: string | null;
+  wartezeit_stunden: number;
+  tage: number[]; // 1 = Montag … 7 = Sonntag
+  von: number;
+  bis: number;
+}
+
+const TAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+const AUTO_VORGABE = (m: string): AutoRegel => ({ mandant_id: m, aktiv: false, pilotgruppe: null, wartezeit_stunden: 24, tage: [1, 2, 3, 4, 5, 6, 7], von: 0, bis: 0 });
+
+// Pfad einer Gruppe für die Auswahl („Server / Pilot“)
+function gruppenPfade(gruppen: Gruppe[], mandant: string): { id: string; pfad: string }[] {
+  const nachId = new Map(gruppen.map((g) => [g.id, g]));
+  const pfad = (g: Gruppe): string => (g.eltern_id && nachId.get(g.eltern_id) ? pfad(nachId.get(g.eltern_id)!) + " / " : "") + g.name;
+  return gruppen
+    .filter((g) => g.mandant_id === mandant)
+    .map((g) => ({ id: g.id, pfad: pfad(g) }))
+    .sort((a, b) => a.pfad.localeCompare(b.pfad, "de"));
+}
+
+function Automatik(props: { mandant: Mandant; melden: (e: unknown) => void }) {
+  const { mandant, melden } = props;
+  const [r, setR] = useState<AutoRegel | null>(null);
+  const [gruppen, setGruppen] = useState<Gruppe[]>([]);
+  const [stand, setStand] = useState("");
+  const darf = mandant.rolle === "admin";
+  useEffect(() => {
+    Promise.all([api<{ regeln: AutoRegel[] }>("GET", "/api/v1/agent-updates/automatik"), api<{ gruppen: Gruppe[] }>("GET", "/api/v1/gruppen")])
+      .then(([a, g]) => {
+        setR(a.regeln.find((x) => x.mandant_id === mandant.id) ?? AUTO_VORGABE(mandant.id));
+        setGruppen(g.gruppen);
+      })
+      .catch(melden);
+  }, [mandant.id, melden]);
+  if (!r) return null;
+  const pfade = gruppenPfade(gruppen, mandant.id);
+  const speichern = async (e: FormEvent) => {
+    e.preventDefault();
+    setStand("");
+    try {
+      setR(await api<AutoRegel>("PUT", `/api/v1/mandanten/${mandant.id}/agent-updates/automatik`, r));
+      setStand("Gespeichert.");
+    } catch (err) {
+      setStand(err instanceof Error ? err.message : String(err));
+    }
+  };
+  return (
+    <form className="formular formular-flach auto-regel" onSubmit={speichern}>
+      <fieldset className="feld-gruppe formular-voll" disabled={!darf}>
+        <legend>Automatisch übernehmen ({mandant.name})</legend>
+        <p className="klein">
+          Neue signierte Versionen gehen zuerst an die Agents der Pilotgruppe, nach der Wartezeit an alle übrigen dieses
+          Mandanten, aber nur, wenn kein Pilot einen Fehler meldet und mindestens ein Pilot die neue Version schon fährt.
+          Installiert wird nur im Zeitfenster. Eine Freigabe von Hand geht immer vor.
+        </p>
+        <label className="haken">
+          <input type="checkbox" checked={r.aktiv} onChange={(e) => setR({ ...r, aktiv: e.target.checked })} />
+          <span>Neue Versionen automatisch übernehmen</span>
+        </label>
+        <div className="formular-zeile">
+          <label className="feld">
+            <span>Pilotgruppe</span>
+            <select value={r.pilotgruppe ?? ""} onChange={(e) => setR({ ...r, pilotgruppe: e.target.value || null })}>
+              <option value="">keine (alle nach der Wartezeit)</option>
+              {pfade.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.pfad}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="feld feld-schmal">
+            <span>Wartezeit (Stunden)</span>
+            <input
+              type="number"
+              min={0}
+              max={720}
+              value={r.wartezeit_stunden}
+              onChange={(e) => setR({ ...r, wartezeit_stunden: Math.max(0, Math.min(720, Number(e.target.value) || 0)) })}
+            />
+          </label>
+        </div>
+        <div className="tage" role="group" aria-label="Wochentage">
+          {TAGE.map((t, i) => (
+            <label key={t} className="haken">
+              <input
+                type="checkbox"
+                checked={r.tage.includes(i + 1)}
+                onChange={(e) => setR({ ...r, tage: e.target.checked ? [...r.tage, i + 1].sort() : r.tage.filter((x) => x !== i + 1) })}
+              />
+              <span>{t}</span>
+            </label>
+          ))}
+        </div>
+        <div className="formular-zeile">
+          <label className="feld feld-schmal">
+            <span>von (Uhr)</span>
+            <select value={r.von} onChange={(e) => setR({ ...r, von: Number(e.target.value) })}>
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>
+                  {String(h).padStart(2, "0")}:00
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="feld feld-schmal">
+            <span>bis (Uhr)</span>
+            <select value={r.bis} onChange={(e) => setR({ ...r, bis: Number(e.target.value) })}>
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>
+                  {String(h).padStart(2, "0")}:00
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="klein">{r.von === r.bis ? "ganzer Tag" : r.von > r.bis ? "über Mitternacht" : ""}</p>
+        </div>
+        {darf && (
+          <div className="aktionen">
+            <button className="knopf knopf-haupt" disabled={r.tage.length === 0}>
+              Speichern
+            </button>
+            {stand && <span className="klein">{stand}</span>}
+          </div>
+        )}
+        {!darf && <p className="klein">Ändern können Admins dieses Mandanten.</p>}
+      </fieldset>
+    </form>
+  );
 }
 
 interface Schluessel {
@@ -146,6 +283,7 @@ export function AgentUpdates(props: { ich: Ich; mandant: Mandant; bereich: Berei
         </p>
       )}
       {ich.betreiber && <PaketVerwaltung d={d} onGeaendert={laden} melden={melden} />}
+      <Automatik mandant={props.mandant} melden={melden} />
       {agents.length === 0 ? (
         <p className="leer">Keine Agents in diesem Bereich.</p>
       ) : (
@@ -216,7 +354,10 @@ export function AgentUpdates(props: { ich: Ich; mandant: Mandant; bereich: Berei
                     </div>
                   </td>
                   <td className="mono">{a.version || "–"}</td>
-                  <td className="mono">{a.freigegeben ?? "–"}</td>
+                  <td className="mono">
+                    {a.freigegeben ?? "–"}
+                    {a.freigegeben && a.automatisch && <div className="klein">automatisch</div>}
+                  </td>
                   <td>
                     {a.fehler ? (
                       <span className="text-warn">{a.fehler}</span>

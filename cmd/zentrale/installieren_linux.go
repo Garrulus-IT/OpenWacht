@@ -721,6 +721,10 @@ func (in *installer) startServices() error {
 	if err := sc("enable", "--now", "openwacht-sicherung.timer", "openwacht-traps.socket"); err != nil {
 		return fmt.Errorf("systemctl enable --now (Timer, Trap-Socket): %w", err)
 	}
+	// Update aus der Oberfläche (1.0.4): wartet auf einen Auftrag des Webdienstes.
+	if err := sc("enable", "--now", "openwacht-zentrale-update.path"); err != nil {
+		in.note("Update aus der Oberfläche nicht eingerichtet (openwacht-zentrale-update.path): %v", err)
+	}
 	if legacy {
 		// Port 443 gehört dem Reverse Proxy (Caddy); Socket aus.
 		sc("disable", "--now", "openwacht-zentrale.socket")

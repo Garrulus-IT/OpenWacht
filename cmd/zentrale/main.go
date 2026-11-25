@@ -80,6 +80,7 @@ Befehle:
   zweifaktor-zuruecksetzen  Zwei-Faktor-Anmeldung eines Kontos zurücksetzen, z. B. bei verlorenem
                Gerät ohne Wiederherstellungscode (-email; OPENWACHT_DB_EIGENTUEMER)
   pruefe-signatur  Signatur von SHA256SUMS eines Pakets prüfen (-summen; -abdruck)
+  update-installieren  Update aus der Oberfläche installieren (root, über openwacht-zentrale-update.service)
   agent-ca     Agent-CA anzeigen oder wechseln (-neu, -umstellen, -alte-entfernen; OPENWACHT_DB_EIGENTUEMER)
   audit-pruefen  Hash-Kette des Audit-Logs prüfen, auf Wunsch gegen einen Export
                (-datei audit.jsonl; OPENWACHT_DB_EIGENTUEMER)
@@ -137,6 +138,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdRestore(ctx, args[1:], stdout)
 	case "schluessel-wechseln":
 		err = cmdRekey(ctx, args[1:], stdout)
+	case "update-installieren":
+		err = cmdZentraleUpdate(ctx, args[1:], stdout)
 	case "pruefe-signatur":
 		err = cmdVerifySums(args[1:], stdout)
 	case "agent-ca":
@@ -722,7 +725,8 @@ func cmdServe(ctx context.Context, args []string) error {
 		DiskWarn: off(*diskWarn), DiskCrit: off(*diskCrit), MemWarn: off(*memWarn), MemCrit: off(*memCrit),
 		CPUWarn: off(*cpuWarn), CPUCrit: off(*cpuCrit), DeadManURL: deadManURL,
 		SettingsFromDB: true, Pinned: pinned, HTTPS: httpsStore, Origins: origins, Restart: restartFn,
-		AuditFile: *auditFile, AuditSyslog: auditSys, SecurityContacts: secContacts, SecurityTxtOff: !*secTxt}, pool, key)
+		AuditFile: *auditFile, AuditSyslog: auditSys, SecurityContacts: secContacts, SecurityTxtOff: !*secTxt,
+		ZentraleUpdateDir: zentraleUpdateAblage()}, pool, key)
 	if err != nil {
 		return err
 	}
