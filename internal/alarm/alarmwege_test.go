@@ -44,7 +44,8 @@ func sampleReport(now time.Time) alarm.Report {
 func TestReportSubjectFacts(t *testing.T) {
 	now := time.Date(2026, 11, 21, 15, 0, 0, 0, time.UTC)
 	r := sampleReport(now)
-	if got, want := r.Subject("IT"), "KRIT · pve-1 · Platte /var: 96 % belegt (kritisch ab 95 %)"; got != want {
+	// Kurz (1.0.3): Zustand, Gerät, Sensor; die Meldung steht im Text.
+	if got, want := r.Subject("IT"), "KRIT · pve-1 · Platte /var"; got != want {
 		t.Errorf("Betreff %q, erwartet %q", got, want)
 	}
 	if got := r.Subject("Firma"); !strings.HasPrefix(got, "KRIT · IT / pve-1 · ") {
@@ -52,7 +53,7 @@ func TestReportSubjectFacts(t *testing.T) {
 	}
 	r2 := r
 	r2.Event, r2.Status, r2.Message = alarm.Recovered, alarm.OK, ""
-	if got := r2.Subject("IT"); got != "OK · pve-1 · Platte /var: wieder in Ordnung" {
+	if got := r2.Subject("IT"); got != "OK · pve-1 · Platte /var" {
 		t.Errorf("Entwarnung: %q", got)
 	}
 	r3 := r
@@ -65,6 +66,12 @@ func TestReportSubjectFacts(t *testing.T) {
 	r4.Device = "pve\r\nBcc: x@y"
 	if s := r4.Subject("IT"); strings.ContainsAny(s, "\r\n") {
 		t.Errorf("Umbruch im Betreff: %q", s)
+	}
+	// Lange Namen werden gekürzt, der Betreff bleibt kurz.
+	r5 := r
+	r5.Device, r5.Sensor = strings.Repeat("g", 120), strings.Repeat("s", 120)
+	if s := r5.Subject("Firma"); len([]rune(s)) > alarm.SubjectMax || !strings.HasPrefix(s, "KRIT · IT / ggg") {
+		t.Errorf("langer Betreff (%d Zeichen): %q", len([]rune(s)), s)
 	}
 	facts := map[string]string{}
 	for _, f := range r.Facts("IT", now, berlin) {
@@ -194,6 +201,13 @@ func TestBuildMailMIME(t *testing.T) {
 	if !strings.Contains(text, "Prognose: voll in etwa 3 Tagen") || !strings.Contains(text, "In OpenWacht öffnen: https://openwacht.example/hosts?geraet=x") {
 		t.Errorf("Text:\n%s", text)
 	}
+	// Die Meldung steht oben (zweite Zeile), nicht noch einmal unter den Angaben.
+	if lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n"); len(lines) < 2 || lines[1] != "96 % belegt (kritisch ab 95 %)" || strings.Contains(text, "Meldung:") {
+		t.Errorf("Meldung oben:\n%s", text)
+	}
+	if !strings.Contains(html, "96 % belegt (kritisch ab 95 %)") {
+		t.Error("Meldung fehlt im HTML")
+	}
 	if strings.Contains(html, "<script>") || !strings.Contains(html, "&lt;script&gt;") {
 		t.Error("HTML nicht maskiert")
 	}
@@ -219,11 +233,18 @@ func TestSummaryMail(t *testing.T) {
 		rs = append(rs, r)
 	}
 	m := alarm.BuildSummary("IT", "x", rs, "https://w/alarme")
-	if m.Subject != "OpenWacht IT: 8 Probleme, 4 wieder OK" {
+	if m.Subject != "KRIT · OpenWacht: 8 Probleme, 4 wieder OK" {
 		t.Errorf("Betreff %q", m.Subject)
 	}
-	if len(m.Images) != 0 || strings.Count(m.Text, "KRIT · pve-1") != 8 {
+	if len(m.Images) != 0 || strings.Count(m.Text, "KRIT · pve-1") != 8 || !strings.Contains(m.Text, "Probleme (8)") ||
+		!strings.Contains(m.Text, "Wieder in Ordnung (4)") || strings.Index(m.Text, "Probleme (8)") > strings.Index(m.Text, "Wieder in Ordnung (4)") {
 		t.Errorf("Sammelmail:\n%s", m.Text)
+	}
+	if !strings.Contains(m.HTML, "Probleme (8)") || !strings.Contains(m.HTML, "Wieder in Ordnung (4)") {
+		t.Error("Abschnitte fehlen im HTML")
+	}
+	if e := alarm.BuildSummary("IT", "x", nil, "https://w/alarme"); e.HTML == "" {
+		t.Error("leere Sammelmail")
 	}
 }
 
