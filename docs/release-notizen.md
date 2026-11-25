@@ -10,8 +10,10 @@
   einer Herkunft, an einem Gerät oder auf allen ([Handbuch Kapitel 7](handbuch/07-sensoren-und-vorlagen.md)).
 - **Korrektur MSI:** Das MSI des Windows-Agents brach unter Windows mit Fehler 1603 ab (Fehler 2228, Tabelle `Signature`
   fehlte); Installation und Update per MSI gehen wieder.
-- **Korrektur Vorlagensatz „Citrix Worker (VDA)“:** Dienste nach festen Dienstnamen statt übersetzter Anzeigenamen;
-  den Dienst „Citrix ICA Service“ gibt es auf aktuellen VDAs nicht, der Sensor entfällt.
+- **Vorlagensätze für Citrix-Worker:** „Citrix Worker (VDA, Agent)“ (bisher „Citrix Worker (VDA)“) prüft Dienste nach
+  festen Dienstnamen statt übersetzter Anzeigenamen; den Dienst „Citrix ICA Service“ gibt es auf aktuellen VDAs nicht,
+  der Sensor entfällt. Neu „Citrix Worker (VDA, SNMP)“ für Worker ohne Agent, etwa aus PVS oder MCS: CPU, Arbeitsspeicher
+  und Neustarts über SNMP, dazu Neustart verpasst, Ping, ICA und Sitzungszuverlässigkeit.
 - **Doku:** Befehl für die Sicherung von Hand vor einem Update ergänzt.
 - Migrationen 0050 und 0051 (laufen beim Update von selbst).
 
