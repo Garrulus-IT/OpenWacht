@@ -233,6 +233,8 @@ func (s *Spec) normalizeAgent(kind string) error {
 		}
 	case "leistungsindikator":
 		return s.normalizePerf()
+	case "autodienste":
+		return s.normalizeExceptions()
 	case "datei":
 		p, err := CleanPath(s.Path)
 		if err != nil {
@@ -462,4 +464,45 @@ func Substitute(raw []byte, addr string) []byte {
 		raw = bytes.ReplaceAll(raw, []byte("://"+Placeholder), []byte("://["+addr+"]"))
 	}
 	return bytes.ReplaceAll(raw, []byte(Placeholder), []byte(host))
+}
+
+// MaxExceptions: so viele Ausnahmen hat ein Sensor „automatische Dienste“.
+const MaxExceptions = 100
+
+// normalizeExceptions prüft die Ausnahmen (Dienst- oder Anzeigename, am Ende
+// optional „*“) und entfernt Doppelte ohne Rücksicht auf Groß/Klein.
+func (s *Spec) normalizeExceptions() error {
+	if len(s.Exceptions) > MaxExceptions {
+		return fmt.Errorf("Ausnahmen: höchstens %d", MaxExceptions)
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, e := range s.Exceptions {
+		e = strings.TrimSpace(e)
+		if !serviceName.MatchString(strings.TrimSuffix(e, "*")) {
+			return errors.New("Ausnahme: Name eines Windows-Dienstes (Buchstaben, Ziffern, Leerzeichen, : _ . @ $ ( ) -), am Ende optional *")
+		}
+		if k := strings.ToLower(e); !seen[k] {
+			seen[k] = true
+			out = append(out, e)
+		}
+	}
+	s.Exceptions = out
+	return nil
+}
+
+// ExceptionMatch meldet, ob ein Dienst unter eine Ausnahme fällt.
+func ExceptionMatch(exceptions []string, name, display string) bool {
+	n, d := strings.ToLower(name), strings.ToLower(display)
+	for _, e := range exceptions {
+		e = strings.ToLower(e)
+		if p, ok := strings.CutSuffix(e, "*"); ok {
+			if strings.HasPrefix(n, p) || (d != "" && strings.HasPrefix(d, p)) {
+				return true
+			}
+		} else if n == e || (d != "" && d == e) {
+			return true
+		}
+	}
+	return false
 }

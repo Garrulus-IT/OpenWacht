@@ -188,6 +188,7 @@ type sensorEnv struct {
 	processes func(ctx context.Context) ([]string, error)
 	hyperv    func(ctx context.Context) ([]hypervVM, error)                    // nil: gibt es hier nicht
 	perf      func(ctx context.Context, paths []string) ([][]perfValue, error) // nil: nur Windows
+	autoSvc   func(ctx context.Context) ([]autoService, time.Duration, error)  // nil: nur Windows; Dauer = seit Start
 	now       func() time.Time
 
 	hvMu   sync.Mutex // kurzer Zwischenspeicher der VM-Liste
@@ -246,8 +247,56 @@ func (e *sensorEnv) measure(ctx context.Context, rel *agentproto.SensorRelease, 
 				" am Rechner nicht freigegeben (openwacht-agent sensoren -indikatoren …)"}
 		}
 		return e.perfCounter(ctx, s)
+	case "autodienste":
+		if e.autoSvc == nil {
+			return checks.Result{Status: checks.Unknown, Message: "nur Windows-Agent"}
+		}
+		list, up, err := e.autoSvc(ctx)
+		if err != nil {
+			return checks.Result{Status: checks.Unknown, Message: clipText(err.Error(), 250)}
+		}
+		return autoServicesResult(list, up, s.Exceptions)
 	}
 	return checks.Result{Status: checks.Unknown, Message: "unbekannte Art"}
+}
+
+// autoService: ein Dienst mit Starttyp „Automatisch“. Mehr als Name,
+// Anzeigename und Zustand liest der Agent nicht (kein Konto, kein Pfad).
+type autoService struct {
+	Name, Display string
+	Running       bool
+	Delayed       bool // „Automatisch (verzögerter Start)“
+	Trigger       bool // startet und endet bei Ereignissen, darf stehen
+}
+
+// delayedGrace: so lange nach dem Systemstart zählen verzögert startende
+// Dienste noch nicht als gestoppt.
+const delayedGrace = 15 * time.Minute
+
+// autoServicesResult: Fehler, wenn ein automatisch startender Dienst steht.
+// Gemeldet werden nur Dienstnamen (höchstens 250 Zeichen) und die Anzahl.
+func autoServicesResult(list []autoService, uptime time.Duration, exceptions []string) checks.Result {
+	var stopped []string
+	n := 0
+	for _, x := range list {
+		if x.Trigger || checks.ExceptionMatch(exceptions, x.Name, x.Display) {
+			continue
+		}
+		n++
+		if x.Running || (x.Delayed && uptime < delayedGrace) {
+			continue
+		}
+		stopped = append(stopped, x.Name)
+	}
+	slices.SortFunc(stopped, func(a, b string) int { return strings.Compare(strings.ToLower(a), strings.ToLower(b)) })
+	metric := fmt.Sprintf("%d gestoppt", len(stopped))
+	switch len(stopped) {
+	case 0:
+		return checks.Result{Status: checks.OK, Message: fmt.Sprintf("alle %d automatisch startenden Dienste laufen", n), Metric: metric}
+	case 1:
+		return checks.Result{Status: checks.Crit, Message: clipText("Dienst gestoppt: "+stopped[0], 250), Metric: metric}
+	}
+	return checks.Result{Status: checks.Crit, Message: clipText(fmt.Sprintf("%d Dienste gestoppt: %s", len(stopped), strings.Join(stopped, ", ")), 250), Metric: metric}
 }
 
 // processMatch: Linux kürzt Prozessnamen (comm) auf 15 Zeichen, Windows

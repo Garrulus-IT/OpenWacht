@@ -290,7 +290,7 @@ func splitList(s string) []string {
 func cmdSensors(args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("sensoren", flag.ContinueOnError)
 	dir := fs.String("verzeichnis", agent.DefaultDir, "Verzeichnis aus der Registrierung")
-	kinds := fs.String("arten", "", "freigegebene Arten, kommagetrennt: dienst, prozess, datei, docker, hyperv, leistungsindikator (die letzten beiden nur Windows)")
+	kinds := fs.String("arten", "", "freigegebene Arten, kommagetrennt: dienst, prozess, datei, docker, hyperv, leistungsindikator, autodienste (die letzten drei nur Windows)")
 	folders := fs.String("ordner", "", "Ordner, unter denen Datei-Sensoren messen dürfen, kommagetrennt (absolute Pfade)")
 	counters := fs.String("indikatoren", "", "Objekte der Leistungsindikatoren, kommagetrennt, z. B. \"SwyxServer,Swyx Trunk,APP_POOL_WAS\" (für die Art leistungsindikator)")
 	docker := fs.String("docker", "", "Adresse des lokalen, nur-lesenden Docker-Socket-Proxys, z. B. http://127.0.0.1:2375 (für die Art docker)")

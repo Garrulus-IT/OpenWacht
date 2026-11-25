@@ -317,3 +317,32 @@ func TestDurationText(t *testing.T) {
 		t.Errorf("%+v", r)
 	}
 }
+
+func TestAutodiensteSpec(t *testing.T) {
+	s, err := Parse("autodienste", []byte(`{"ausnahmen":[" gupdate ","GUPDATE","edge*","MSSQL$SQLEXPRESS"]}`))
+	if err != nil || len(s.Exceptions) != 3 || s.Exceptions[0] != "gupdate" {
+		t.Fatalf("%v %q", err, s.Exceptions)
+	}
+	if _, err := Parse("autodienste", []byte(`{}`)); err != nil {
+		t.Errorf("ohne Ausnahmen: %v", err)
+	}
+	if DefaultName("autodienste", s) != "Automatische Dienste" {
+		t.Errorf("Name %q", DefaultName("autodienste", s))
+	}
+	for _, bad := range []string{`{"ausnahmen":["*"]}`, `{"ausnahmen":["a*b"]}`, `{"ausnahmen":["a\nb"]}`, `{"ausnahmen":[""]}`, `{"name":"x"}`} {
+		if _, err := Parse("autodienste", []byte(bad)); err == nil {
+			t.Errorf("angenommen: %s", bad)
+		}
+	}
+	many := `{"ausnahmen":["a0"`
+	for i := 1; i <= MaxExceptions; i++ {
+		many += `,"a` + strconv.Itoa(i) + `"`
+	}
+	if _, err := Parse("autodienste", []byte(many+`]}`)); err == nil {
+		t.Error("zu viele Ausnahmen angenommen")
+	}
+	if !ExceptionMatch([]string{"Edge*"}, "edgeupdatem", "") || ExceptionMatch([]string{"edge"}, "edgeupdate", "") ||
+		!ExceptionMatch([]string{"druckwarteschlange"}, "Spooler", "Druckwarteschlange") {
+		t.Error("ExceptionMatch")
+	}
+}

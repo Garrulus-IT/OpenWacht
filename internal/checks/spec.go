@@ -22,12 +22,12 @@ import (
 	"unicode/utf8"
 )
 
-// Kinds: die erlaubten Check-Typen. Die letzten drei misst der Agent.
+// Kinds: die erlaubten Check-Typen. Die Arten ab „dienst“ misst der Agent.
 var Kinds = []string{"ping", "tcp", "http", "tls", "dns", "http_json", "tcp_banner", "ntp", "snmp_oid",
-	"dienst", "prozess", "datei", "docker", "hyperv", "leistungsindikator"}
+	"dienst", "prozess", "datei", "docker", "hyperv", "leistungsindikator", "autodienste"}
 
 // AgentKinds misst der Agent auf seinem Rechner, nicht die Zentrale.
-var AgentKinds = []string{"dienst", "prozess", "datei", "docker", "hyperv", "leistungsindikator"}
+var AgentKinds = []string{"dienst", "prozess", "datei", "docker", "hyperv", "leistungsindikator", "autodienste"}
 
 // IsSNMPKind: Wert wird mit der SNMP-Abfrage des Geräts gelesen (Zentrale
 // oder Sammler), nicht vom Planer der Checks.
@@ -99,6 +99,10 @@ type Spec struct {
 	Relative  string `json:"bezug,omitempty"`
 	// SNMP-Spalte (0.47.0): Vergleichswert für anzahl_gleich/anzahl_ungleich
 	Compare *int64 `json:"vergleichswert,omitempty"`
+
+	// 1.0.5: automatisch startende Windows-Dienste; diese Dienste zählen
+	// nicht (Dienst- oder Anzeigename, ein „*“ am Ende passt auf den Anfang).
+	Exceptions []string `json:"ausnahmen,omitempty"`
 }
 
 const (
@@ -173,6 +177,7 @@ var allowedFields = map[string][]string{
 	"hyperv":  {"name"},
 	"leistungsindikator": {"objekt", "indikator", "instanz", "zusammenfassung", "bezug",
 		"warnung_ueber", "kritisch_ueber", "warnung_unter", "kritisch_unter"},
+	"autodienste": {"ausnahmen"},
 }
 
 func (s *Spec) setFields() []string {
@@ -225,6 +230,7 @@ func (s *Spec) setFields() []string {
 	add(s.Aggregate != "", "zusammenfassung")
 	add(s.Relative != "", "bezug")
 	add(s.Compare != nil, "vergleichswert")
+	add(len(s.Exceptions) > 0, "ausnahmen")
 	return f
 }
 

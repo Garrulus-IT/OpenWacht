@@ -19,7 +19,8 @@ import (
 )
 
 func defaultSensorEnv() *sensorEnv {
-	return &sensorEnv{docker: dockerContainerState, service: windowsService, processes: windowsProcesses, hyperv: windowsHyperV, perf: windowsPerf, now: time.Now}
+	return &sensorEnv{docker: dockerContainerState, service: windowsService, processes: windowsProcesses, hyperv: windowsHyperV, perf: windowsPerf,
+		autoSvc: windowsAutoServices, now: time.Now}
 }
 
 // windowsService fragt nur den Zustand ab: Dienststeuerung mit
@@ -62,6 +63,109 @@ func windowsService(_ context.Context, name string) checks.Result {
 		return checks.Result{Status: checks.Warn, Message: "Dienst angehalten"}
 	}
 	return checks.Result{Status: checks.Warn, Message: "Dienst wechselt den Zustand"}
+}
+
+// maxServices: mehr Dienste liest der Sensor „automatische Dienste“ nicht.
+const maxServices = 4000
+
+// windowsAutoServices listet die Dienste mit Starttyp „Automatisch“. Nur
+// lesend: SC_MANAGER_ENUMERATE_SERVICE, je Dienst SERVICE_QUERY_CONFIG.
+// Dienste je Benutzer (Vorlage und Instanzen) zählen nicht: Sie hängen an
+// Anmeldungen und tragen eine Sitzungskennung im Namen.
+func windowsAutoServices(context.Context) ([]autoService, time.Duration, error) {
+	scm, err := windows.OpenSCManager(nil, nil, windows.SC_MANAGER_CONNECT|windows.SC_MANAGER_ENUMERATE_SERVICE)
+	if err != nil {
+		return nil, 0, errors.New("Dienststeuerung nicht erreichbar: " + clipText(err.Error(), 120))
+	}
+	defer windows.CloseServiceHandle(scm)
+	var need, count, resume uint32
+	var buf []byte
+	for range 4 {
+		var p *byte
+		if len(buf) > 0 {
+			p = &buf[0]
+		}
+		err = windows.EnumServicesStatusEx(scm, windows.SC_ENUM_PROCESS_INFO, windows.SERVICE_WIN32, windows.SERVICE_STATE_ALL,
+			p, uint32(len(buf)), &need, &count, &resume, nil)
+		if !errors.Is(err, windows.ERROR_MORE_DATA) {
+			break
+		}
+		if need > 16<<20 {
+			return nil, 0, errors.New("Dienstliste zu groß")
+		}
+		buf = make([]byte, need+4096)
+		resume = 0
+	}
+	if err != nil {
+		return nil, 0, errors.New("Dienste nicht lesbar: " + clipText(err.Error(), 120))
+	}
+	if count == 0 {
+		return nil, windows.DurationSinceBoot(), nil
+	}
+	if count > maxServices {
+		count = maxServices
+	}
+	entries := unsafe.Slice((*windows.ENUM_SERVICE_STATUS_PROCESS)(unsafe.Pointer(&buf[0])), count)
+	var out []autoService
+	for _, e := range entries {
+		if e.ServiceStatusProcess.ServiceType&(serviceUserService|serviceUserServiceInstance) != 0 {
+			continue
+		}
+		name := windows.UTF16PtrToString(e.ServiceName)
+		auto, delayed, trigger, ok := serviceStart(scm, e.ServiceName)
+		if !ok || !auto {
+			continue
+		}
+		out = append(out, autoService{
+			Name: name, Display: windows.UTF16PtrToString(e.DisplayName),
+			Running: e.ServiceStatusProcess.CurrentState == windows.SERVICE_RUNNING,
+			Delayed: delayed, Trigger: trigger,
+		})
+	}
+	return out, windows.DurationSinceBoot(), nil
+}
+
+// Diensttypen für Dienste je Benutzer (fehlen in x/sys/windows).
+const (
+	serviceUserService         = 0x40
+	serviceUserServiceInstance = 0x80
+)
+
+// serviceStart liest Starttyp, verzögerten Start und Auslöser eines Dienstes.
+// ok = false: nicht lesbar (zählt nicht, statt einen Fehlalarm auszulösen).
+func serviceStart(scm windows.Handle, name *uint16) (auto, delayed, trigger, ok bool) {
+	h, err := windows.OpenService(scm, name, windows.SERVICE_QUERY_CONFIG)
+	if err != nil {
+		return false, false, false, false
+	}
+	defer windows.CloseServiceHandle(h)
+	var need uint32
+	_ = windows.QueryServiceConfig(h, nil, 0, &need)
+	if need == 0 || need > 64<<10 {
+		return false, false, false, false
+	}
+	b := make([]byte, need)
+	cfg := (*windows.QUERY_SERVICE_CONFIG)(unsafe.Pointer(&b[0]))
+	if windows.QueryServiceConfig(h, cfg, need, &need) != nil {
+		return false, false, false, false
+	}
+	if cfg.StartType != windows.SERVICE_AUTO_START {
+		return false, false, false, true
+	}
+	var d windows.SERVICE_DELAYED_AUTO_START_INFO
+	if windows.QueryServiceConfig2(h, windows.SERVICE_CONFIG_DELAYED_AUTO_START_INFO,
+		(*byte)(unsafe.Pointer(&d)), uint32(unsafe.Sizeof(d)), &need) == nil {
+		delayed = d.IsDelayedAutoStartUp != 0
+	}
+	// SERVICE_TRIGGER_INFO beginnt mit der Zahl der Auslöser (uint32).
+	_ = windows.QueryServiceConfig2(h, windows.SERVICE_CONFIG_TRIGGER_INFO, nil, 0, &need)
+	if need >= 4 && need <= 64<<10 {
+		t := make([]byte, need)
+		if windows.QueryServiceConfig2(h, windows.SERVICE_CONFIG_TRIGGER_INFO, &t[0], need, &need) == nil {
+			trigger = *(*uint32)(unsafe.Pointer(&t[0])) > 0
+		}
+	}
+	return true, delayed, trigger, true
 }
 
 var procGetServiceKeyName = windows.NewLazySystemDLL("advapi32.dll").NewProc("GetServiceKeyNameW")
