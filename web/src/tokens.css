@@ -181,14 +181,17 @@
   --wand-best: #a8615c;
   --wand-unbek: #6c7682;
   --wand-wartung: #9a7fd0;
+  --wand-scheibe: #102238; /* Mitte der Sonne: Nachtblau des Corporate Designs */
 }
 
 /* Als Widget im Dashboard: Fugen und Mitte passend zur Fläche. */
 .sonne {
   --wand-fuge: var(--flaeche);
   --wand-mitte: var(--tinte);
+  --wand-scheibe: var(--flaeche);
 }
 .wand .sonne {
   --wand-fuge: var(--wand-grund);
   --wand-mitte: var(--wand-tinte);
+  --wand-scheibe: #102238;
 }

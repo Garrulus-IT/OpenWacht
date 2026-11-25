@@ -2194,7 +2194,16 @@ button.sparkzeile-knopf:hover,
 }
 
 .wand .sonne-seg {
-  stroke-width: 2;
+  stroke-width: 2.5;
+}
+
+/* 1.0.2: dunkler Grund hinter der Sonne (zeigt die Fugen zwischen den Ringen)
+   und eine dunkle Scheibe in der Mitte, wie in der Klick-Demo. */
+.sonne-grund {
+  fill: var(--wand-fuge);
+}
+.sonne-scheibe {
+  fill: var(--wand-scheibe);
 }
 
 .sonne-seg.kenn {
@@ -2210,6 +2219,7 @@ button.sparkzeile-knopf:hover,
 
 .sonne-text {
   fill: var(--wand-text-dunkel);
+  font-weight: 700;
 }
 .sonne-text-quittiert,
 .sonne-text-unknown {
@@ -2230,7 +2240,7 @@ button.sparkzeile-knopf:hover,
 
 /* Wortmarke in der Mitte der Wandanzeige: „Open“ fett, „Wacht“ normal. */
 .sonne-wortmarke {
-  font-size: 22px;
+  font-size: 32px;
   font-weight: 400;
 }
 
