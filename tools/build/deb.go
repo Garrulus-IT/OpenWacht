@@ -178,9 +178,15 @@ func buildDeb(out, binName, goarch, ver string, mtime time.Time) (string, error)
 	if err != nil {
 		return "", err
 	}
+	api, err := repoFile(filepath.Join("docs", "api", "openapi.json"))
+	if err != nil {
+		return "", err
+	}
 	data := []debFile{
 		{"usr/bin/openwacht-zentrale", bin, 0o755},
 		{"usr/share/doc/openwacht-zentrale/copyright", copyrightFile("openwacht-zentrale"), 0o644},
+		// Beschreibung der lesenden API (Handbuch Kapitel 11), auch ohne Repository
+		{"usr/share/doc/openwacht-zentrale/openapi.json", api, 0o644},
 	}
 	for _, n := range deploylinux.UnitNames {
 		u, err := deploylinux.Unit(n)

@@ -40,3 +40,13 @@ func copyrightFile(pkg string) []byte {
 	head := fmt.Sprintf("OpenWacht (%s)\nCopyright (C) 2026 %s\nLizenz: %s (GNU Affero General Public License, Version 3)\nQuellcode: https://github.com/garrulus-it/openwacht\n\n", pkg, copyrightHolder, licenseSPDX)
 	return append([]byte(head), licenseText...)
 }
+
+// repoFile liest eine Datei relativ zur Wurzel des Repositorys (tools/build
+// läuft dort, die Tests im Paketordner).
+func repoFile(rel string) ([]byte, error) {
+	b, err := os.ReadFile(rel)
+	if err != nil {
+		b, err = os.ReadFile(filepath.Join("..", "..", rel))
+	}
+	return b, err
+}

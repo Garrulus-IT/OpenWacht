@@ -13,6 +13,9 @@
 - **Offline-Paket mit Zusatzpaketen:** `paket-bauen.sh -zusatz realmd,sssd,adcli,…` nimmt weitere Debian-Pakete samt
   Abhängigkeiten auf, z. B. für den Beitritt zur Domäne ohne Internet; `installieren.sh` installiert sie mit
   ([Kapitel 14](handbuch/14-betrieb-ohne-internet.md#zusatzpakete-z-b-für-den-beitritt-zur-domäne)).
+- **Beschriebene API:** `docs/api/openapi.json` (OpenAPI 3.1) für die 21 lesenden Endpunkte, die ein API-Token mit der
+  Rolle Leser nutzen darf; liegt auch im Paket unter `/usr/share/doc/openwacht-zentrale/`. Ein Test prüft die Datei
+  gegen den Code ([Kapitel 11](handbuch/11-api-tokens.md#beschreibung-der-api-openapi)).
 - **Geräte in einen anderen Mandanten verschieben:** im Menü des Geräts, für Admins beider Mandanten. Agent, Abfragen,
   Sensoren, Alarme und Verlauf ziehen mit, der Agent braucht keine neue Registrierung; Gruppe, Abhängigkeiten,
   Wartungsfenster und nicht geltende Kennfarben fallen weg ([Handbuch Kapitel 4](handbuch/04-hosts.md#in-einen-anderen-mandanten-verschieben)).
