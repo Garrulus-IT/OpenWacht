@@ -63,7 +63,9 @@ sudo sh installieren.sh                               # Update einer bestehenden
 von `SHA256SUMS` (`SHA256SUMS.sig`), dann **alle** Prüfsummen (und lehnt Dateien ab, die nicht in
 `SHA256SUMS` stehen), prüft System und Architektur und ruft dann `apt` mit einer eigenen
 Paketliste auf, die nur dieses Paket kennt. Die normalen Paketquellen des Systems werden dabei weder gefragt noch
-geändert. apt installiert nur, was fehlt oder älter ist; nichts wird zurückgestuft.
+geändert. apt installiert nur, was fehlt oder älter ist; nichts wird zurückgestuft. Enthält das Paket Zusatzpakete
+(z. B. für den Beitritt zur Domäne, [Kapitel 14](14-betrieb-ohne-internet.md#zusatzpakete-z-b-für-den-beitritt-zur-domäne)),
+installiert es sie danach mit; `-ohne-zusatz` lässt sie weg.
 
 **Woher die Signatur ihr Vertrauen hat.** Der Schlüssel im Paket allein beweist nichts; wer das Paket ändert, kann
 auch ihn tauschen. Deshalb:

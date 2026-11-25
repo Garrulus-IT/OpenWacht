@@ -32,6 +32,11 @@
 #                      (z. B. ein Spiegel im Firmennetz; zum Testen auch Ubuntu)
 #   -ziel <name>       Kennung des Zielsystems, Standard "debian-13"; muss zu
 #                      -quellen passen (ID-VERSION_ID aus /etc/os-release)
+#   -zusatz <liste>    weitere Debian-Pakete samt Abhängigkeiten mitnehmen,
+#                      durch Komma getrennt, z. B. für den Beitritt zur Domäne:
+#                      realmd,sssd,sssd-tools,adcli,libnss-sss,libpam-sss,samba-common-bin
+#                      installieren.sh installiert sie mit (abschaltbar mit
+#                      -ohne-zusatz)
 #
 # Ergebnis: <aus>/openwacht-offline_<version>_<ziel>_<arch>.tar und
 # dieselbe Datei mit .sha256. Beides zum Kunden bringen, dort auspacken und
@@ -56,6 +61,7 @@ quellen=
 ziel=debian-13
 signatur=
 fertig=
+zusatz=
 
 fehler() {
 	echo "paket-bauen: $*" >&2
@@ -71,7 +77,8 @@ while [ $# -gt 0 ]; do
 	-ziel) ziel=${2:?}; shift 2 ;;
 	-signatur) signatur=${2:?}; shift 2 ;;
 	-paket) fertig=${2:?}; shift 2 ;;
-	-h | -hilfe | --help) sed -n '2,50p' "$0"; exit 0 ;;
+	-zusatz) zusatz=${2:?}; shift 2 ;;
+	-h | -hilfe | --help) sed -n '2,56p' "$0"; exit 0 ;;
 	*) fehler "unbekannte Option $1" ;;
 	esac
 done
@@ -107,6 +114,28 @@ fi
 
 case "$arch" in amd64 | arm64) ;; *) fehler "Architektur $arch wird nicht unterstützt (amd64, arm64)" ;; esac
 case "$ziel" in *[!a-z0-9.-]* | "") fehler "ungültiges Ziel $ziel" ;; esac
+# Zusatzpakete: nur Paketnamen nach Debian-Regel (Kleinbuchstaben, Ziffern,
+# + - .; erstes Zeichen Buchstabe oder Ziffer), keine Versionen, keine
+# Optionen für apt. Doppelte fallen weg.
+zusatzliste=
+if [ -n "$zusatz" ]; then
+	alt_ifs=$IFS
+	IFS=,
+	set -f # keine Platzhalter: "*" darf nicht zu Dateinamen werden
+	for z in $zusatz; do
+		IFS=$alt_ifs
+		case "$z" in
+		"" | [!a-z0-9]* | *[!a-z0-9+.-]*) fehler "-zusatz: ungültiger Paketname \"$z\" (nur Namen, durch Komma getrennt)" ;;
+		esac
+		[ "${#z}" -le 100 ] || fehler "-zusatz: Paketname zu lang"
+		case " $zusatzliste " in *" $z "*) ;; *) zusatzliste="${zusatzliste:+$zusatzliste }$z" ;; esac
+	done
+	IFS=$alt_ifs
+	# shellcheck disable=SC2086
+	set -- $zusatzliste
+	set +f
+	[ "$#" -le 50 ] || fehler "-zusatz: höchstens 50 Pakete"
+fi
 
 for p in apt-get apt-ftparchive sha256sum tar; do
 	command -v "$p" >/dev/null 2>&1 || fehler "$p fehlt (Debian: apt install apt-utils coreutils tar)"
@@ -172,8 +201,14 @@ set -- -q \
 echo "== Paketlisten laden"
 apt-get "$@" update
 echo "== PostgreSQL und Abhängigkeiten herunterladen"
-# Die Abhängigkeiten von openwacht-zentrale (Depends: postgresql, passwd).
-apt-get "$@" -y --download-only install postgresql passwd
+# Die Abhängigkeiten von openwacht-zentrale (Depends: postgresql, passwd),
+# dazu die Zusatzpakete: eine Auflösung für alles, damit die Versionen
+# zueinander passen.
+[ -z "$zusatzliste" ] || echo "   Zusatzpakete: $zusatzliste"
+set -f
+# shellcheck disable=SC2086
+apt-get "$@" -y --download-only install postgresql passwd $zusatzliste
+set +f
 n=0
 for f in "$apt/cache/archives"/*.deb; do
 	[ -f "$f" ] || continue
@@ -187,6 +222,12 @@ cp "$deb" "$paket/pakete/"
 (cd "$paket/pakete" && apt-ftparchive -q packages . >Packages)
 grep -q "^Package: postgresql$" "$paket/pakete/Packages" || fehler "postgresql fehlt im Paketindex"
 grep -q "^Package: openwacht-zentrale$" "$paket/pakete/Packages" || fehler "openwacht-zentrale fehlt im Paketindex"
+for z in $zusatzliste; do
+	grep -q "^Package: $z$" "$paket/pakete/Packages" ||
+		fehler "Zusatzpaket $z fehlt im Paketindex (virtuelles Paket? dann das konkrete Paket nennen)"
+done
+# Liste für installieren.sh (steht in SHA256SUMS und ist damit mitsigniert).
+[ -z "$zusatzliste" ] || echo "$zusatzliste" | tr ' ' '\n' >"$paket/ZUSATZ"
 cp "$(dirname "$0")/installieren.sh" "$paket/installieren.sh"
 # Öffentliche Signaturschlüssel für die erste Installation (installieren.sh
 # nimmt nur den, dessen Kennung der Kunde mit -abdruck angibt).
@@ -203,6 +244,11 @@ echo "$ziel $arch" >"$paket/ZIEL"
 	echo "                                           Signaturschlüssels aus dem Handbuch)"
 	echo "Nur prüfen, nichts ändern:"
 	echo "  sh installieren.sh -pruefen"
+	if [ -n "$zusatzliste" ]; then
+		echo
+		echo "Zusatzpakete (installiert installieren.sh mit, außer mit -ohne-zusatz):"
+		echo "  $zusatzliste"
+	fi
 	echo
 	echo "Enthaltene Pakete:"
 	awk '/^Package:/{p=$2} /^Version:/{print "  " p " " $2}' "$paket/pakete/Packages" | sort
@@ -215,7 +261,7 @@ mkdir -p "$aus"
 tar -C "$arbeit" --sort=name --owner=0 --group=0 --numeric-owner \
 	--mode='u+rwX,go+rX,go-w' -cf "$aus/$name.tar" "$name"
 (cd "$aus" && sha256sum "$name.tar" >"$name.tar.sha256")
-echo "== Fertig: $aus/$name.tar ($n Pakete aus dem Spiegel + openwacht-zentrale)"
+echo "== Fertig: $aus/$name.tar ($n Pakete aus dem Spiegel + openwacht-zentrale${zusatzliste:+, Zusatz: $zusatzliste})"
 cat "$aus/$name.tar.sha256"
 echo "Noch unsigniert. Signieren: tar -xOf $aus/$name.tar $name/SHA256SUMS >SHA256SUMS, offline"
 echo "  go run ./tools/signieren -schluessel <datei> -summen SHA256SUMS, dann"

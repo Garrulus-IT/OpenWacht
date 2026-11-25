@@ -10,6 +10,9 @@
   Schlüssel des Identity Providers (JWKS), nur RS256 und ES256, mit Zwischenspeicher und Schlüsselwechsel beim IdP.
   **Vor dem Update prüfen:** Ein IdP, der ID-Tokens mit HS256 oder PS256 signiert, wird danach abgelehnt
   ([Kapitel 10](handbuch/10-ad-und-sso.md#firmen-login-per-oidc-keycloak-adfs-entra-id)).
+- **Offline-Paket mit Zusatzpaketen:** `paket-bauen.sh -zusatz realmd,sssd,adcli,…` nimmt weitere Debian-Pakete samt
+  Abhängigkeiten auf, z. B. für den Beitritt zur Domäne ohne Internet; `installieren.sh` installiert sie mit
+  ([Kapitel 14](handbuch/14-betrieb-ohne-internet.md#zusatzpakete-z-b-für-den-beitritt-zur-domäne)).
 - **Geräte in einen anderen Mandanten verschieben:** im Menü des Geräts, für Admins beider Mandanten. Agent, Abfragen,
   Sensoren, Alarme und Verlauf ziehen mit, der Agent braucht keine neue Registrierung; Gruppe, Abhängigkeiten,
   Wartungsfenster und nicht geltende Kennfarben fallen weg ([Handbuch Kapitel 4](handbuch/04-hosts.md#in-einen-anderen-mandanten-verschieben)).

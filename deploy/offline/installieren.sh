@@ -11,6 +11,10 @@
 #                                 erste Installation: Kennung (16 Hexziffern) des
 #                                 Signaturschlüssels aus einer zweiten Quelle
 #                                 (Handbuch, Brief, Telefon), nicht aus dem Paket
+#   sh installieren.sh -ohne-zusatz
+#                                 Zusatzpakete aus dem Paket (Datei ZUSATZ, z. B.
+#                                 realmd und sssd für den Domänenbeitritt) nicht
+#                                 mitinstallieren
 #   sh installieren.sh -unsigniert
 #                                 Paket ohne Signatur annehmen (nur solange es
 #                                 noch keinen Signaturschlüssel gibt; Restrisiko:
@@ -31,6 +35,7 @@
 #      oder älter ist, und stuft nichts zurück.
 #   4. Das Paket openwacht-zentrale richtet sich selbst ein und gibt den Link
 #      zum Einrichtungsassistenten aus (bei einem Update: Migrationen, Neustart).
+#   5. Zusatzpakete aus ZUSATZ (falls vorhanden) aus derselben Quelle.
 set -eu
 
 fehler() {
@@ -42,12 +47,14 @@ nur_pruefen=0
 erlaube_anderes=0
 abdruck=
 unsigniert=0
+ohne_zusatz=0
 pruefer=
 while [ $# -gt 0 ]; do
 	case "$1" in
 	-pruefen) nur_pruefen=1 ;;
 	-abdruck) abdruck=${2:-}; shift ;;
 	-unsigniert) unsigniert=1 ;;
+	-ohne-zusatz) ohne_zusatz=1 ;;
 	# Ein anderswo geprüftes openwacht-zentrale zum Prüfen der Signatur.
 	-pruefer) pruefer=${2:-}; shift ;;
 	# Nur für Tests: anderes System als im Paket vermerkt zulassen.
@@ -139,6 +146,19 @@ awk '{ sub(/^\*/, "", $2); print $2 }' SHA256SUMS | LC_ALL=C sort >"$arbeit/geli
 cmp -s "$arbeit/dateien" "$arbeit/gelistet" || fehler "das Paket enthält Dateien, die nicht in SHA256SUMS stehen"
 echo "Prüfsummen in Ordnung."
 
+# Zusatzpakete: Liste prüfen (nur Paketnamen, jeder im Paketindex).
+zusatz=
+if [ -f ZUSATZ ]; then
+	while read -r z; do
+		case "$z" in
+		"" | [!a-z0-9]* | *[!a-z0-9+.-]*) fehler "ZUSATZ: ungültiger Paketname \"$z\"" ;;
+		esac
+		grep -q "^Package: $z$" pakete/Packages || fehler "ZUSATZ: $z fehlt im Paket"
+		zusatz="${zusatz:+$zusatz }$z"
+	done <ZUSATZ
+	echo "Zusatzpakete im Paket: $zusatz"
+fi
+
 # 2. Zielsystem.
 read -r ziel arch <ZIEL
 system=unbekannt
@@ -169,6 +189,16 @@ set -- -q \
 	-o "APT::Sandbox::User=root" -o "APT::Install-Recommends=0" -o "APT::Get::List-Cleanup=0"
 apt-get "$@" update
 DEBIAN_FRONTEND=${DEBIAN_FRONTEND:-noninteractive} apt-get "$@" -y install openwacht-zentrale
+if [ -n "$zusatz" ] && [ "$ohne_zusatz" = 0 ]; then
+	echo
+	echo "Zusatzpakete installieren: $zusatz"
+	set -f
+	# shellcheck disable=SC2086
+	DEBIAN_FRONTEND=${DEBIAN_FRONTEND:-noninteractive} apt-get "$@" -y install $zusatz
+	set +f
+elif [ -n "$zusatz" ]; then
+	echo "Zusatzpakete nicht installiert (-ohne-zusatz): $zusatz"
+fi
 
 echo
 echo "OpenWacht ist installiert: $(dpkg-query -W -f '${Version}' openwacht-zentrale)"
