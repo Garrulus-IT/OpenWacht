@@ -22,3 +22,5 @@ func cmdRestore(context.Context, []string, io.Writer) error        { return errL
 func cmdHTTPSSwitch(context.Context, []string, io.Writer) error    { return errLinuxOnly }
 func cmdInternHTTPS(context.Context, io.Reader) error              { return errLinuxOnly }
 func cmdRekey(context.Context, []string, io.Writer) error          { return errLinuxOnly }
+func cmdZentraleUpdate(context.Context, []string, io.Writer) error { return errLinuxOnly }
+func zentraleUpdateAblage() string                                 { return "" }

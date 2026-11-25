@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNo
 import { bestaetigungFertig, CodeFeld } from "./Bestaetigung";
 import { AufbewahrungPanel } from "./EinstellungenAufbewahrung";
 import { InstallationPanels } from "./EinstellungenInstallation";
+import { UpdatePanel } from "./EinstellungenUpdate";
 import { api, type Ich } from "./api";
 import { ausEingabe, schwelleText, schwellenFelder, SchwellenFelder, zuEingabe, type SchwellenWerte } from "./Schwellen";
 
@@ -312,6 +313,7 @@ export function Einstellungen(props: { ich: Ich; melden: (e: unknown) => void })
           </p>
           <div className="einstellungen-raster">
             <InstallationPanels Panel={Panel} />
+            <UpdatePanel Panel={Panel} />
             <ZweiFaktorPanel />
             <ListePanel
               id="einst-netze"

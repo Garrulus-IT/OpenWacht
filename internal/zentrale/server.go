@@ -69,6 +69,9 @@ type Config struct {
 	// UpdateKeys: nur für Tests (Inhalt wie schluessel.pub); sonst die
 	// eingebetteten Schlüssel (internal/update)
 	UpdateKeys string
+	// ZentraleUpdateDir: Ablage für Updates der Zentrale aus der Oberfläche
+	// (1.0.4, Debian-Paket: /var/lib/openwacht-update). Leer = aus.
+	ZentraleUpdateDir string
 	// Authenticode: nur für Tests (Inhalt wie internal/update/authenticode.txt)
 	Authenticode string
 	// AgentRegistrationsPerMinutePerIP begrenzt Registrierungsversuche.
@@ -450,6 +453,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("PUT /api/v1/agents/{id}/update", protected(s.handleAgentUpdateRelease))
 	mux.Handle("DELETE /api/v1/agents/{id}/update", protected(s.handleAgentUpdateRelease))
 	mux.Handle("GET /api/v1/agent-updates/automatik", protected(s.handleAutoList))
+	mux.Handle("GET /api/v1/zentrale-update", protected(s.handleZentraleUpdateStand))
+	mux.Handle("POST /api/v1/zentrale-update", protected(s.handleZentraleUpdateUpload))
 	mux.Handle("PUT /api/v1/mandanten/{id}/agent-updates/automatik", protected(s.handleAutoSet))
 	mux.Handle("POST /api/v1/api-tokens", protected(s.handleAPITokenCreate))
 	mux.Handle("DELETE /api/v1/api-tokens/{id}", protected(s.handleAPITokenRevoke))

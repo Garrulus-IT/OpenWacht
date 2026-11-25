@@ -27,6 +27,10 @@ Restart=on-failure
 # Etappe 31); sonst bleibt der Ordner leer.
 LogsDirectory=openwacht
 LogsDirectoryMode=0750
+# Ablage für Updates aus der Oberfläche (1.0.4); installiert wird von
+# openwacht-zentrale-update.service (root).
+StateDirectory=openwacht-update
+StateDirectoryMode=0750
 RestartSec=10
 TimeoutStopSec=30
 
