@@ -7,7 +7,7 @@ Zentrale aus. Es läuft vollständig im eigenen Netz, auch ganz ohne Internet. D
 
 ## Inhalt
 
-1. [Installation](01-installation.md): Paket, Offline-Paket, Voraussetzungen
+1. [Installation](01-installation.md): Paket, Offline-Paket, Voraussetzungen, Update
 2. [Erste Einrichtung](02-erste-einrichtung.md): Assistent im Browser, Anmeldung, Wurzelzertifikat
 3. [Mandanten und Rollen](03-mandanten-und-rollen.md)
 4. [Hosts, Gruppen und Abhängigkeiten](04-hosts.md)
@@ -25,6 +25,7 @@ Zentrale aus. Es läuft vollständig im eigenen Netz, auch ganz ohne Internet. D
 16. [Betrieb und Skalierung](16-betrieb-und-skalierung.md): Lasttest, Größen, Aufbewahrung, Ausfallkonzept
 17. [Härtungsleitfaden](17-haertung.md): Ports, Firewall, Reverse Proxy, Anmeldung, Meldeweg (`security.txt`)
 18. [Recht und Nachweise](18-recht-und-nachweise.md): Datenschutz-Vorlagen, BSI-Grundschutz, Barrierefreiheit, Rezertifizierung
+19. [Anbindungen](19-anbindungen.md): Proxmox, vCenter, NetApp, XenServer, FRITZ!Box, Hyper-V, Docker, Windows ohne Agent
 
 Änderungen je Version: [Release-Notizen](../release-notizen.md).
 

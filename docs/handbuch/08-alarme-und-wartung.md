@@ -39,7 +39,7 @@ dem du angemeldet bist, und nur, solange OpenWacht offen ist. Auch Leser stellen
   selbst; Dateien werden nicht geladen. Browser spielen Ton erst, nachdem die Seite einmal angeklickt wurde.
 
 Die Oberfläche fragt dafür alle 15 Sekunden die Alarme ab. Den Ton einer **Wandanzeige** stellen Admins in der Liste der
-Wandanzeigen unter „Ton“ ein (Kapitel 4).
+Wandanzeigen unter „Ton“ ein ([Kapitel 4](04-hosts.md#dashboard-und-wandanzeige)).
 
 ## Alarmkanäle
 
