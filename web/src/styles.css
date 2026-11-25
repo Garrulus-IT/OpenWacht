@@ -4751,3 +4751,8 @@ td > .kenn-marke:first-child {
   color: var(--leise);
   font-size: var(--s-1);
 }
+/* Hinweise und Ton: eine Spalte, Felder untereinander */
+.ton-formular {
+  grid-template-columns: 1fr;
+  gap: var(--a3);
+}

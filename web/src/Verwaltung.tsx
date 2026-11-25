@@ -831,7 +831,7 @@ function AnzeigeTon({ a, onGeaendert, melden }: { a: Anzeige; onGeaendert: () =>
       {offen && (
         <Dialog titel={`Ton: ${a.name}`} onZu={() => setOffen(false)}>
           <form
-            className="formular"
+            className="formular formular-flach ton-formular"
             onSubmit={async (ev) => {
               ev.preventDefault();
               try {

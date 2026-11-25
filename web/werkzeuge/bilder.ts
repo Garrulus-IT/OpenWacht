@@ -770,6 +770,12 @@ async function seiten(page: Page, api: Api, demo: Demo, geheimnis: string) {
     await gehe(page, "/topologie");
     await foto(page, "topologie");
   }
+  if (gewollt("hinweise-ton")) {
+    await gehe(page, "/alarme");
+    await page.getByRole("button", { name: "Hinweise und Ton" }).click();
+    await foto(page, "hinweise-ton", { element: page.locator("dialog.dialog") });
+    await page.keyboard.press("Escape");
+  }
   await netapp(page, demo);
   await xenserver(page, demo);
 
