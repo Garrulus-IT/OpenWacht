@@ -39,6 +39,12 @@ sagt, was der Betreiber zusätzlich tun sollte. Reihenfolge nach Wirkung.
   zusätzlich 300 je Minute; darüber antwortet die Zentrale mit 429. Jede Datenbankabfrage eines Benutzers oder einer
   Wandanzeige bricht nach 60 Sekunden ab. Ein angemeldeter Leser kann die Zentrale so nicht mit teuren Abfragen
   lahmlegen.
+- **Mailversand einrichten** (ab 1.0.6): Dann meldet OpenWacht Anmeldungen von neuen Rechnern, Sperren nach
+  Fehlversuchen und Notfall-Befehle auf der Zentrale an das Konto und den Betreiber (Kapitel 3). Zehn falsche Codes für
+  ein Konto binnen 15 Minuten sperren dessen zweiten Faktor für 15 Minuten, egal von wie vielen Rechnern sie kommen.
+- Beim Anlegen eines Benutzers verrät eine vergebene Adresse nur, dass sie vergeben ist (dieselbe Meldung für jeden
+  Mandanten). Ein Admin bekommt höchstens 20 solcher Ablehnungen je Stunde, jede steht im Audit-Log
+  (`benutzer.anlegen_abgelehnt`).
 
 - Passkeys für Admins einrichten (Kapitel 3): Sie sind gegen nachgemachte Anmeldeseiten (Phishing) geschützt.
 - Rollen regelmäßig rezertifizieren (Bericht unter Verwaltung → Mandanten, Kapitel 3).

@@ -42,6 +42,9 @@ func totpEinrichten(t *testing.T, c *client) []byte {
 	secret, _ := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(r.body["geheimnis"].(string))
 	r = c.do("POST", "/api/v1/zwei-faktor/bestaetigen", map[string]string{"code": auth.TOTPCode(secret, auth.TOTPStep(time.Now()))})
 	expectStatus(t, "bestätigen", r, 200)
+	if csrf, ok := r.body["csrf"].(string); ok {
+		c.csrf = csrf
+	}
 	return secret
 }
 

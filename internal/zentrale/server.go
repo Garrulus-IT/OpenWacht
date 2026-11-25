@@ -275,9 +275,11 @@ type Server struct {
 	mailer         *alarm.Mailer
 	fullDays       fullDaysCache
 	alertTestLimit perKeyLimit
-	smsWatch       smsWatch
-	snmp           *snmp.Client
-	snmpProbeLimit perKeyLimit
+	// abgelehnte Anlagen von Benutzern je Admin (H3)
+	userCreateRejects rejectCounter
+	smsWatch          smsWatch
+	snmp              *snmp.Client
+	snmpProbeLimit    perKeyLimit
 	// Sammler: Abruf der Geräteliste je Agent, Ergebnisse je Quelle
 	collectorListLimit   perKeyLimit
 	collectorResultLimit perKeyLimit

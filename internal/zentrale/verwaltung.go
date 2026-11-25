@@ -13,9 +13,12 @@ package zentrale
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
@@ -45,6 +48,52 @@ func badRequest(msg string) error { return &apiError{http.StatusBadRequest, msg}
 // der alle diese Mandanten verwaltet (Befund H2).
 var errForeignRoles = &apiError{http.StatusForbidden,
 	"Dieses Konto hat Rollen auf Mandanten, die du nicht verwaltest. Passwort, Sperre und Anzeigename kann nur ein Admin ändern, der alle diese Mandanten verwaltet."}
+
+// errEmailUnusable: Adresse vergeben (H3). Dieselbe Meldung, egal ob das
+// Konto im eigenen oder einem fremden Mandanten liegt.
+var errEmailUnusable = &apiError{http.StatusConflict, "Diese E-Mail-Adresse kann nicht verwendet werden."}
+
+// maxUserCreateRejects: abgelehnte Anlagen je Admin und Stunde (H3).
+const maxUserCreateRejects = 20
+
+// rejectCounter zählt Ereignisse je Schlüssel in der letzten Stunde.
+type rejectCounter struct {
+	mu   sync.Mutex
+	hits map[string][]time.Time
+}
+
+func (c *rejectCounter) prune(key string, now time.Time) []time.Time {
+	keep := c.hits[key][:0]
+	for _, t := range c.hits[key] {
+		if now.Sub(t) < time.Hour {
+			keep = append(keep, t)
+		}
+	}
+	if len(keep) == 0 {
+		delete(c.hits, key)
+		return nil
+	}
+	c.hits[key] = keep
+	return keep
+}
+
+func (c *rejectCounter) count(key string, now time.Time) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.hits == nil {
+		return 0
+	}
+	return len(c.prune(key, now))
+}
+
+func (c *rejectCounter) add(key string, now time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.hits == nil {
+		c.hits = map[string][]time.Time{}
+	}
+	c.hits[key] = append(c.prune(key, now), now)
+}
 
 // writeDBError übersetzt Datenbankfehler in verständliche Antworten, ohne
 // interne Details preiszugeben.
@@ -359,6 +408,14 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	// H3: Eine vergebene Adresse lässt sich am Fehlschlag erkennen (sie ist
+	// installationsweit eindeutig, weil die Anmeldung über sie läuft). Gegen
+	// das Durchprobieren: höchstens 20 abgelehnte Anlagen je Admin und Stunde.
+	sess := sessionFrom(r.Context())
+	if s.userCreateRejects.count(sess.UserID, s.now()) >= maxUserCreateRejects {
+		writeError(w, http.StatusTooManyRequests, "Zu viele abgelehnte Anlagen in der letzten Stunde. Bitte später erneut versuchen.")
+		return
+	}
 	if !s.acquireHash(r.Context()) {
 		return
 	}
@@ -368,10 +425,27 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 		internalError(w, "hash", err)
 		return
 	}
+	rejected := false
+	defer func() {
+		if !rejected {
+			return
+		}
+		s.userCreateRejects.add(sess.UserID, s.now())
+		if err := s.withUser(context.WithoutCancel(r.Context()), sess.UserID, func(tx pgx.Tx) error {
+			return audit(r.Context(), tx, &in.MandantID, "benutzer.anlegen_abgelehnt", map[string]any{"email": email, "grund": "adresse"})
+		}); err != nil {
+			slog.Warn("Audit benutzer.anlegen_abgelehnt fehlgeschlagen", "fehler", err)
+		}
+	}()
 	s.handle(w, r, "benutzer anlegen", func(ctx context.Context, tx pgx.Tx) (int, any, error) {
 		var id string
 		if err := tx.QueryRow(ctx, `INSERT INTO openwacht.users (tenant_id, email, display_name)
 			VALUES ($1, $2, $3) RETURNING id::text`, in.MandantID, email, name).Scan(&id); err != nil {
+			var pe *pgconn.PgError
+			if errors.As(err, &pe) && pe.Code == "23505" {
+				rejected = true
+				return 0, nil, errEmailUnusable
+			}
 			return 0, nil, err
 		}
 		if _, err := tx.Exec(ctx, `SELECT openwacht.auth_set_password($1, $2)`, id, hash); err != nil {
