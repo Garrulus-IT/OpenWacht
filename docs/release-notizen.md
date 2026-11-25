@@ -18,10 +18,15 @@
   Admin-Passwort verloren ist ([Kapitel 3](handbuch/03-mandanten-und-rollen.md)).
 - **Automatische Windows-Dienste:** Dienste, deren Einstellungen der Agent nicht lesen darf, werden nicht mehr still
   übersprungen; die Meldung nennt ihre Zahl, steht einer davon, gibt es eine Warnung. Braucht den Agent 1.0.6.
+- **Konten löschen:** gesperrte Konten löscht OpenWacht 90 Tage nach dem Sperren, vorher von Hand; das Audit-Log bleibt
+  ([Kapitel 3](handbuch/03-mandanten-und-rollen.md#konten-sperren-und-löschen)).
+- **Oberfläche aufgeräumt:** Dashboard-Widget „Zustand“ neu (Zahlen je Zustand statt Sechsecke; Probleme bleiben auch
+  unter vielen OK-Sensoren sichtbar); Gruppen unter Hosts ab Werk zugeklappt, mit „Alle aufklappen“; Sensor-Vorlagen mit
+  Suche, Abschnitten zum Zuklappen und nach Ort und Art geordnet, lange Hinweise gekürzt.
 - Beim Anlegen eines Benutzers lautet die Meldung für eine vergebene Adresse immer gleich; höchstens 20 solcher
   Ablehnungen je Admin und Stunde.
 - Die Warnung beim Start ohne Alarmziele nennt richtig, was gesperrt ist (Mail geht weiter).
-- Migrationen 0056 bis 0059 (laufen beim Update von selbst).
+- Migrationen 0056 bis 0060 (laufen beim Update von selbst).
 
 ## 1.0.5
 

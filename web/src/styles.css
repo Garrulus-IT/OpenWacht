@@ -3061,71 +3061,88 @@ a.nav-punkt:hover {
 
 .zustand {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-around;
+  flex-direction: column;
   gap: var(--a3);
   height: 100%;
 }
 
-.zustand-teil {
-  display: flex;
-  align-items: center;
-  gap: var(--a4);
-  padding: var(--a1) var(--a2);
-  border: 0;
-  border-radius: var(--r);
-  background: none;
+/* Zustand (1.0.6): Zahlen je Zustand, Probleme kräftig, Balken mit Mindestbreite */
+.zustand-tabelle {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.zustand-tabelle thead th {
+  padding: 0 var(--a1) var(--a1);
+  color: var(--leise);
+  font-size: var(--s-1);
+  font-weight: 400;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.zustand-tabelle tbody th {
+  padding-top: var(--a2);
   text-align: left;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.zustand-zeile {
   cursor: pointer;
 }
 
-.zustand-teil:hover {
-  background: var(--zart);
-}
-
-.sechseck {
-  width: 7.5rem;
-  height: 7.5rem;
-  flex: none;
-}
-
-.legende {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  font-size: var(--s-1);
-  line-height: 1.45;
-}
-
-.legende li {
-  display: flex;
-  align-items: center;
-  gap: var(--a2);
-}
-
-.legende-null {
-  color: var(--leise);
-}
-
-.legende-zahl {
-  min-width: 1.75rem;
-  text-align: right;
+.zustand-wert {
+  padding: var(--a2) var(--a1) 0;
   font-family: var(--mono); /* D-DIN hat keine Tabellenziffern */
   font-variant-numeric: tabular-nums;
+  font-size: var(--s1);
   font-weight: 700;
+  text-align: right;
 }
 
-.legende-farbe {
-  width: 4px;
-  height: 0.8rem;
-  flex: none;
-  background: var(--tinte);
+.zustand-wert-crit {
+  color: var(--krit);
+  font-size: var(--s2);
 }
 
-.legende-gesamt {
-  margin-top: 0.15rem;
-  border-top: 1px solid var(--linie-zart);
+.zustand-wert-warn {
+  color: var(--tinte);
+  font-size: var(--s2);
+  text-decoration: underline 3px var(--warn);
+  text-underline-offset: 4px;
+}
+
+.zustand-wert-unknown {
+  color: var(--tinte);
+  font-size: var(--s2);
+}
+
+.zustand-wert-null,
+.zustand-wert-ruhig {
+  color: var(--leise);
+  font-weight: 400;
+}
+
+.zustand-balken-zeile td {
+  padding: var(--a1) 0 var(--a1);
+}
+
+.zustand-balken {
+  display: flex;
+  width: 100%;
+  height: 0.6rem;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--linie-zart);
+}
+
+.zustand-segment {
+  height: 100%;
+}
+
+.zustand-segment + .zustand-segment {
+  border-left: 2px solid var(--flaeche);
 }
 
 /* Vollflächige Zustandszellen wie im Leitstand */
@@ -4789,4 +4806,70 @@ td > .kenn-marke:first-child {
 
 .zertifikate td .knopf-text {
   white-space: nowrap;
+}
+
+/* Sensor-Vorlagen (1.0.6): Suche, Abschnitte zum Zuklappen, Gruppen in Tabellen */
+.feld-suche {
+  max-width: 28rem;
+  margin: var(--a2) 0;
+}
+
+.vorlagen-abschnitt {
+  margin-top: var(--a3);
+}
+
+.vorlagen-abschnitt > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  cursor: pointer;
+  list-style: none;
+}
+
+.vorlagen-abschnitt > summary::-webkit-details-marker {
+  display: none;
+}
+
+.vorlagen-abschnitt > summary::before {
+  content: "▸";
+  color: var(--leise);
+}
+
+.vorlagen-abschnitt[open] > summary::before {
+  content: "▾";
+}
+
+.vorlagen-abschnitt > summary .klein-titel {
+  margin: 0;
+}
+
+.tabellen-gruppe th {
+  padding-top: var(--a2);
+  border-bottom: 1px solid var(--linie);
+  color: var(--leise);
+  font-size: var(--s-1);
+  font-weight: 700;
+  text-align: left;
+}
+
+.zeile-trenner td {
+  border-top: 2px solid var(--linie);
+}
+
+.gruppe-alle {
+  list-style: none;
+  text-align: right;
+}
+
+.vorlagen-abschnitt > summary .klein-titel {
+  flex: 1;
+  text-align: left;
+}
+
+/* lange Hinweise in Vorlagen und Sätzen: zwei Zeilen, ganz im Tooltip */
+.notiz-kurz {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }

@@ -157,11 +157,11 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
   const [hinzufuegen, setHinzufuegen] = useState<"" | "host" | "mehrere" | "import">("");
   const [ordnen, setOrdnen] = useState(false);
   const [regeln, setRegeln] = useState(false);
-  // zugeklappte Gruppen, im Browser gemerkt (nur Gruppen-IDs, kein Geheimnis)
-  const [zu, setZuState] = useState<Set<string>>(gemerktZu);
-  const setZu = useCallback((n: Set<string>) => {
-    setZuState(n);
-    merkeZu(n);
+  // aufgeklappte Gruppen (ab Werk alle zu, 1.0.6), im Browser gemerkt (nur Gruppen-IDs, kein Geheimnis)
+  const [auf, setAufState] = useState<Set<string>>(gemerktAuf);
+  const setAuf = useCallback((n: Set<string>) => {
+    setAufState(n);
+    merkeAuf(n);
   }, []);
 
   const laden = useCallback(async () => {
@@ -370,8 +370,8 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
               sichten={sichten}
               gruppen={daten.gruppen}
               bereich={bereich}
-              zu={zu}
-              setZu={setZu}
+              auf={auf}
+              setAuf={setAuf}
               zeile={(s) => (
                 <GeraetZeile
                   key={s.g.id}
@@ -428,28 +428,30 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
   );
 }
 
-// Zugeklappte Gruppen überstehen Neuladen und Seitenwechsel. Liegt nur im
-// Browser (localStorage); ist der Speicher gesperrt, gilt der Zustand bis
-// zum Neuladen. Unbekannte IDs (gelöschte Gruppen) stören nicht.
-const ZU_SCHLUESSEL = "openwacht.hosts.zugeklappt";
+// Aufgeklappte Gruppen überstehen Neuladen und Seitenwechsel; ab Werk sind
+// alle zu (1.0.6, vorher alle offen). Liegt nur im Browser (localStorage); ist
+// der Speicher gesperrt, gilt der Zustand bis zum Neuladen. Unbekannte IDs
+// (gelöschte Gruppen) stören nicht.
+const AUF_SCHLUESSEL = "openwacht.hosts.aufgeklappt";
 
-function gemerktZu(): Set<string> {
+function gemerktAuf(): Set<string> {
   try {
-    const roh = window.localStorage.getItem(ZU_SCHLUESSEL);
+    window.localStorage.removeItem("openwacht.hosts.zugeklappt"); // alter Schlüssel bis 1.0.5
+    const roh = window.localStorage.getItem(AUF_SCHLUESSEL);
     const liste: unknown = roh ? JSON.parse(roh) : [];
     if (Array.isArray(liste)) {
       return new Set(liste.filter((x): x is string => typeof x === "string" && x.length <= 64).slice(0, 1000));
     }
   } catch {
-    /* gesperrt oder beschädigt: alles offen */
+    /* gesperrt oder beschädigt: alles zu */
   }
   return new Set();
 }
 
-function merkeZu(n: Set<string>) {
+function merkeAuf(n: Set<string>) {
   try {
-    if (n.size === 0) window.localStorage.removeItem(ZU_SCHLUESSEL);
-    else window.localStorage.setItem(ZU_SCHLUESSEL, JSON.stringify([...n].slice(0, 1000)));
+    if (n.size === 0) window.localStorage.removeItem(AUF_SCHLUESSEL);
+    else window.localStorage.setItem(AUF_SCHLUESSEL, JSON.stringify([...n].slice(0, 1000)));
   } catch {
     /* nicht speicherbar */
   }
@@ -458,15 +460,16 @@ function merkeZu(n: Set<string>) {
 // Hosts als Baum: Gruppen in ihrer Reihenfolge (aufklappbar), danach die
 // Geräte ohne Gruppe. Eine Gruppe zeigt den schlimmsten Zustand ihrer Geräte,
 // auch zugeklappt. Ohne Gruppen bleibt die Liste flach wie bisher.
+// Oben „Alle aufklappen“ bzw. „Alle zuklappen“.
 function HostBaum(props: {
   sichten: Sicht[];
   gruppen: Gruppe[];
   bereich: Bereich;
-  zu: Set<string>;
-  setZu: (s: Set<string>) => void;
+  auf: Set<string>;
+  setAuf: (s: Set<string>) => void;
   zeile: (s: Sicht) => ReactNode;
 }) {
-  const { sichten, gruppen, bereich, zu } = props;
+  const { sichten, gruppen, bereich, auf } = props;
   const idx = nachId(gruppen);
   const ohne = sichten.filter((s) => !s.g.gruppe_id || !idx.has(s.g.gruppe_id));
   if (gruppen.length === 0) return <ul className="host-liste">{sichten.map(props.zeile)}</ul>;
@@ -480,7 +483,7 @@ function HostBaum(props: {
 
   const knoten = (g: Gruppe, oben: boolean): ReactNode => {
     const alle = unter(g.id);
-    const offen = !zu.has(g.id);
+    const offen = auf.has(g.id);
     const stand = alle.reduce<Anzeige | "leer">((a, s) => (standRang(s.stand) < standRang(a) ? s.stand : a), "leer");
     const kenn = kennStil(kennfarbeVon(alle, stand, (s) => s.stand, (s) => s.kenn), stand);
     const probleme = alle.filter((s) => (s.stand === "crit" || s.stand === "unknown" || s.stand === "warn") && !s.g.wartung).length;
@@ -493,10 +496,10 @@ function HostBaum(props: {
           aria-controls={id}
           title={pfad(idx, g.id)}
           onClick={() => {
-            const n = new Set(zu);
-            if (offen) n.add(g.id);
-            else n.delete(g.id);
-            props.setZu(n);
+            const n = new Set(auf);
+            if (offen) n.delete(g.id);
+            else n.add(g.id);
+            props.setAuf(n);
           }}
         >
           <span className="gruppe-pfeil" aria-hidden="true">
@@ -522,6 +525,11 @@ function HostBaum(props: {
 
   return (
     <ul className="host-liste host-baum">
+      <li className="gruppe-alle">
+        <button className="knopf-text" onClick={() => props.setAuf(auf.size > 0 ? new Set() : new Set(gruppen.map((g) => g.id)))}>
+          {auf.size > 0 ? "Alle zuklappen" : "Alle aufklappen"}
+        </button>
+      </li>
       {mandanten.flatMap((m) => kinder(gruppen, m, null).map((g) => knoten(g, true)))}
       {ohne.length > 0 && (
         <li className="gruppe-ohne" aria-hidden="true">

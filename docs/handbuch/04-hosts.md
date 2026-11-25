@@ -29,7 +29,9 @@ ein Agent, sind das zwei Geräte (z. B. `pve-01` mit Agent und `pve-01 (Proxmox)
 
 **Gruppen ordnen:** Gruppen je Mandant als Baum (bis 4 Ebenen), Reihenfolge von Hand, Geräte per Auswahl oder Ziehen
 zuordnen. Wird eine Gruppe mit Inhalt gelöscht, rutschen Geräte und Untergruppen eine Ebene höher. Gruppen ordnen die
-Übersicht und die Wandanzeige und sind Ziel für Wartungsfenster und Vorlagen.
+Übersicht und die Wandanzeige und sind Ziel für Wartungsfenster und Vorlagen. Unter Hosts sind Gruppen ab Werk **zugeklappt** (ab 1.0.6) und
+zeigen trotzdem den schlimmsten Zustand und die Zahl der Geräte mit Problemen; „Alle aufklappen“ öffnet alle. Welche offen
+sind, merkt sich der Browser.
 
 ## Abhängigkeiten
 
@@ -42,6 +44,8 @@ weiter raus.
 
 Ab 1.0.6, im Menü des Geräts: **In anderen Mandanten verschieben …**, neuen Mandanten wählen, „Verschieben“. Das dürfen
 nur Admins, die **beide** Mandanten verwalten (z. B. ein Admin des gemeinsamen übergeordneten Mandanten).
+
+![Gerät verschieben](bilder/geraet-verschieben.webp)
 
 - **Zieht mit um:** Agent (ohne neue Registrierung: Das Zertifikat enthält nur die ID des Agents, den Mandanten kennt
   die Zentrale), Abfrage (SNMP, Proxmox, vCenter, FRITZ!Box, NetApp, XenServer; die Zugangsdaten werden für den neuen
@@ -90,6 +94,11 @@ Auf dem Handy klappt die Seitenleiste ein:
 
 Das **Dashboard** besteht aus Widgets (Zustand, Sensoren nicht OK, aktive Alarme, CPU und RAM, vollste Platten,
 Alarme je Tag, Platten-Prognose, Verfügbarkeit). „Anpassen“ ordnet sie je Benutzer.
+
+„Zustand“ zeigt ab 1.0.6 je Zeile Geräte und Sensoren die Zahlen je Zustand, Kritisch, Warnung und Unbekannt groß vorn.
+Der Balken darunter gibt die Verteilung wieder; jedes Problem ist darin mindestens so breit, dass es zu sehen bleibt, auch
+unter Tausenden OK-Sensoren (dann nicht maßstabsgetreu). Ein Klick auf „Geräte“ öffnet die Hosts, auf „Sensoren“ die
+Alarme.
 
 Die **Wandanzeige** (Einrichten → Wandanzeigen) zeigt ein Sonnendiagramm Mandant → Gruppen → Geräte ohne Anmeldung
 über einen geheimen Link (nur einmal angezeigt, mit QR-Code). Löschen sperrt die Anzeige sofort.

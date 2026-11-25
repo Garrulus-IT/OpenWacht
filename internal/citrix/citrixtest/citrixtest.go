@@ -73,6 +73,16 @@ type Server struct {
 // einmal „keine Maschine frei“, einmal „None“).
 func Start(t *testing.T) *Server {
 	t.Helper()
+	s, err := Serve("127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.Close)
+	return s
+}
+
+// Serve startet die Attrappe auf addr (für das Bilder-Skript).
+func Serve(addr string) (*Server, error) {
 	s := &Server{challenges: map[string][8]byte{}, authed: map[string]bool{},
 		Machines: []map[string]any{
 			{"Name": `BEISPIEL\VDA-01`, "DnsName": "vda-01.beispiel.example", "CurrentRegistrationState": 1, "IsInMaintenanceMode": false},
@@ -81,33 +91,40 @@ func Start(t *testing.T) *Server {
 		},
 		Failures: []int{3, 3, 12, 1},
 	}
-	cert := selfSigned(t)
+	cert, err := selfSigned()
+	if err != nil {
+		return nil, err
+	}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
 	s.Server = httptest.NewUnstartedServer(http.HandlerFunc(s.serve))
+	s.Server.Listener.Close()
+	s.Server.Listener = ln
 	s.Server.TLS = &tls.Config{Certificates: []tls.Certificate{cert}}
 	s.Server.StartTLS()
-	t.Cleanup(s.Server.Close)
 	sum := sha256.Sum256(cert.Certificate[0])
 	s.Pin = hex.EncodeToString(sum[:])
 	host, port, _ := net.SplitHostPort(s.Listener.Addr().String())
 	var p int
 	fmt.Sscan(port, &p)
 	s.Host, s.Port = host, uint16(p)
-	return s
+	return s, nil
 }
 
-func selfSigned(t *testing.T) tls.Certificate {
-	t.Helper()
+func selfSigned() (tls.Certificate, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		t.Fatal(err)
+		return tls.Certificate{}, err
 	}
 	tpl := &x509.Certificate{SerialNumber: big.NewInt(7), Subject: pkix.Name{CommonName: "ddc.beispiel.example"},
-		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1)}}
+		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(24 * time.Hour), IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1)}}
 	der, err := x509.CreateCertificate(rand.Reader, tpl, tpl, &key.PublicKey, key)
 	if err != nil {
-		t.Fatal(err)
+		return tls.Certificate{}, err
 	}
-	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}
+	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}, nil
 }
 
 func utf16le(s string) []byte {

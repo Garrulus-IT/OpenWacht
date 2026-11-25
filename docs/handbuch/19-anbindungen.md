@@ -279,6 +279,8 @@ Messwertantwort. Weiterleitungen werden nicht verfolgt, kein Proxy, nicht über 
 Ab 1.0.6 fragt die Zentrale den **Monitor Service** einer Citrix-Site (Citrix Virtual Apps and Desktops, on-prem) an
 einem Delivery Controller ab. Am Gerät: Aktionsmenü → „Citrix einrichten“ (nur Admins). Ein Gerät steht für die Site.
 
+![Citrix einrichten](bilder/citrix-einrichten.webp)
+
 **Konto in Citrix:** In Web Studio bzw. Citrix Studio unter **Administratoren** → „Administrator hinzufügen“ ein
 AD-Konto (z. B. `svc-openwacht`) mit der Rolle **Read Only Administrator** und dem Bereich „Alle“ anlegen. Mehr braucht
 OpenWacht nicht.
@@ -299,6 +301,8 @@ OpenWacht nicht.
   oder Clients.
 
 Gespeichert werden Zahlen und die Namen der **nicht registrierten** VDAs (höchstens 50), keine Liste aller Maschinen.
+
+![Citrix-Site am Gerät](bilder/host-citrix.webp)
 
 **Alarme:**
 
