@@ -139,3 +139,39 @@ func TestSonne(t *testing.T) {
 		t.Fatalf("Beschriftung %+v", b)
 	}
 }
+
+// Die Piktogramme der Seitenleiste sind dieselben Pfade wie im Web.
+func TestPiktogrammeWieImWeb(t *testing.T) {
+	b, err := os.ReadFile("../../web/src/Oberflaeche.tsx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	web := string(b)
+	for name, pfad := range Piktogramme {
+		if name == "extern" {
+			continue // nur in der App
+		}
+		if !strings.Contains(web, `"`+pfad+`"`) {
+			t.Errorf("Piktogramm %s: Pfad steht so nicht in Oberflaeche.tsx", name)
+		}
+		img := PiktogrammBild(name, 0x102030, 20)
+		deck := 0
+		for i := 3; i < len(img.Pix); i += 4 {
+			if img.Pix[i] > 128 {
+				deck++
+			}
+		}
+		if deck < 20 || deck > 20*20/2 {
+			t.Errorf("Piktogramm %s: %d deckende Pixel", name, deck)
+		}
+	}
+}
+
+func TestWebPfad(t *testing.T) {
+	if p := WebPfad("/hosts", "m1", false); p != "/hosts?mandant=m1&unter=nein" {
+		t.Fatal(p)
+	}
+	if p := WebPfad("/hosts?geraet=d1", "m1", true); p != "/hosts?geraet=d1&mandant=m1" {
+		t.Fatal(p)
+	}
+}

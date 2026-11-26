@@ -42,10 +42,6 @@ var (
 	pShellExecuteW            = shell32.NewProc("ShellExecuteW")
 	pGetModuleHandleW         = kernel32.NewProc("GetModuleHandleW")
 	pCreateMutexW             = kernel32.NewProc("CreateMutexW")
-	pAllocConsole             = kernel32.NewProc("AllocConsole")
-	pFreeConsole              = kernel32.NewProc("FreeConsole")
-	pGetConsoleMode           = kernel32.NewProc("GetConsoleMode")
-	pSetConsoleMode           = kernel32.NewProc("SetConsoleMode")
 	pCredWriteW               = advapi32.NewProc("CredWriteW")
 	pCredReadW                = advapi32.NewProc("CredReadW")
 	pCredDeleteW              = advapi32.NewProc("CredDeleteW")
@@ -109,7 +105,6 @@ const (
 	keySetValue             = 0x0002
 	keyQueryValue           = 0x0001
 	regSZ                   = 1
-	enableEchoInput         = 0x0004
 	mbOK                    = 0x0
 	mbIconInformation       = 0x40
 	mbIconWarning           = 0x30

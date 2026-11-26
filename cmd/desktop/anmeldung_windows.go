@@ -4,11 +4,10 @@ package main
 
 // Token in der Windows-Anmeldeinformationsverwaltung (Systemsteuerung →
 // Anmeldeinformationsverwaltung → Windows-Anmeldeinformationen →
-// „OpenWacht Desktop“), Autostart über HKCU\…\Run und die Einrichtung in
-// einem Konsolenfenster (das Token wird ohne Echo eingelesen).
+// „OpenWacht Desktop“), Autostart über HKCU\…\Run und das Fenster zum
+// Anmelden.
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -94,91 +93,91 @@ func autostartSetzen(an bool) error {
 	return nil
 }
 
-// einrichten fragt in einem Konsolenfenster Adresse und Token ab, prüft sie
-// mit einer Abfrage und speichert sie. Liefert false bei Abbruch.
-func einrichten(alt desktop.Config) (desktop.Config, bool) {
-	pAllocConsole.Call()
-	defer pFreeConsole.Call()
-	in, err1 := os.OpenFile("CONIN$", os.O_RDWR, 0)
-	out, err2 := os.OpenFile("CONOUT$", os.O_RDWR, 0)
-	if err1 != nil || err2 != nil {
+// anmelden: Fenster „Bei OpenWacht anmelden“ mit Adresse der Zentrale und
+// API-Token. Prüft beides mit einer Abfrage, speichert das Token in der
+// Anmeldeinformationsverwaltung und die Adresse in den Einstellungen.
+// Liefert false bei Abbruch. Läuft vor dem Hauptfenster und danach (Menü
+// „Anmeldung ändern“, Knopf „Abmelden“).
+func anmelden(owner syscall.Handle, alt desktop.Config) (desktop.Config, bool) {
+	schriftenLaden()
+	if owner == 0 {
+		themaSetzen(dunkelNach(alt.Darstellung))
+	}
+	neu := alt
+	d := neuerDialog(owner, "Bei OpenWacht anmelden")
+	d.einleitung = "Die Desktop-App meldet sich mit einem API-Token an. Du legst es in OpenWacht unter Benutzer und " +
+		"Mandanten › API-Tokens an: Rolle Operator, um Geräte und Sensoren zu pflegen, Leser nur zum Ansehen. " +
+		"Windows bewahrt es in der Anmeldeinformationsverwaltung auf, nicht in einer Datei."
+	d.okText = "Anmelden"
+	d.werte["zentrale"] = alt.Zentrale
+	d.aufbau = func(d *dialog) {
+		d.feld("zentrale", "Adresse der Zentrale", desktop.FeldText, "https://openwacht.firma.de")
+		d.feld("token", "API-Token", desktop.FeldText, "owt1.…").geheim = true
+	}
+	d.speichern = func(d *dialog, fertig func(error)) {
+		zentrale, err := desktop.CleanZentrale(d.werte["zentrale"])
+		if err != nil {
+			d.fehlerFeld = "zentrale"
+			fertig(err)
+			return
+		}
+		token, err := desktop.CleanToken(d.werte["token"])
+		if err != nil {
+			d.fehlerFeld = "token"
+			fertig(err)
+			return
+		}
+		d.imHintergrund(func() error {
+			ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+			defer cancel()
+			_, err := desktop.Client{Zentrale: zentrale, Token: token}.Alarme(ctx)
+			return err
+		}, func(err error) {
+			if err != nil {
+				fertig(anmeldeFehler(err))
+				return
+			}
+			if err := tokenSpeichern(token); err != nil {
+				fertig(err)
+				return
+			}
+			neu.Zentrale = zentrale
+			if p, err := desktop.ConfigPath(); err == nil {
+				if err := desktop.SaveConfig(p, neu); err != nil {
+					fertig(fmt.Errorf("Einstellungen nicht gespeichert: %w", err))
+					return
+				}
+			}
+			fertig(nil)
+		})
+	}
+	d.fehlerPraefix = "Anmeldung fehlgeschlagen: "
+	if !d.zeigen() {
 		return alt, false
 	}
-	defer in.Close()
-	defer out.Close()
-	r := bufio.NewReader(in)
-	zeile := func() string {
-		s, _ := r.ReadString('\n')
-		return strings.TrimSpace(s)
-	}
-	fmt.Fprintln(out, "OpenWacht Desktop einrichten")
-	fmt.Fprintln(out, "")
-	fmt.Fprintln(out, "Das Token legst du in OpenWacht unter Verwaltung → API-Tokens an:")
-	fmt.Fprintln(out, "Rolle „Operator“, um im Fenster Geräte und Sensoren zu pflegen, „Leser“ nur zum Ansehen.")
-	fmt.Fprintln(out, "Es wird in der Windows-Anmeldeinformationsverwaltung gespeichert, nicht in einer Datei.")
-	fmt.Fprintln(out, "Leere Eingabe bricht ab.")
-	fmt.Fprintln(out, "")
-	for {
-		vorschlag := ""
-		if alt.Zentrale != "" {
-			vorschlag = " [" + alt.Zentrale + "]"
-		}
-		fmt.Fprintf(out, "Adresse der Zentrale%s: ", vorschlag)
-		z := zeile()
-		if z == "" {
-			if alt.Zentrale == "" {
-				return alt, false
-			}
-			z = alt.Zentrale
-		}
-		zentrale, err := desktop.CleanZentrale(z)
-		if err != nil {
-			fmt.Fprintln(out, err)
-			continue
-		}
-		fmt.Fprint(out, "API-Token (Eingabe wird nicht angezeigt): ")
-		t := ohneEcho(in, zeile)
-		fmt.Fprintln(out)
-		if t == "" {
-			return alt, false
-		}
-		token, err := desktop.CleanToken(t)
-		if err != nil {
-			fmt.Fprintln(out, err)
-			continue
-		}
-		fmt.Fprintln(out, "Prüfe die Verbindung …")
-		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
-		_, err = desktop.Client{Zentrale: zentrale, Token: token}.Alarme(ctx)
-		cancel()
-		if err != nil {
-			fmt.Fprintln(out, "Das ging nicht:", err)
-			fmt.Fprintln(out, "(Zertifikatsfehler: Die Zentrale braucht ein Zertifikat, dem Windows vertraut.)")
-			continue
-		}
-		if err := tokenSpeichern(token); err != nil {
-			fmt.Fprintln(out, err)
-			continue
-		}
-		c := desktop.Config{Zentrale: zentrale}
-		if p, err := desktop.ConfigPath(); err == nil {
-			if err := desktop.SaveConfig(p, c); err != nil {
-				fmt.Fprintln(out, "Einstellungen nicht gespeichert:", err)
-			}
-		}
-		fmt.Fprintln(out, "Fertig. OpenWacht steht jetzt im Infobereich neben der Uhr. Dieses Fenster schließt sich gleich.")
-		time.Sleep(2 * time.Second)
-		return c, true
-	}
+	return neu, true
 }
 
-// ohneEcho liest eine Zeile, ohne sie im Konsolenfenster anzuzeigen.
-func ohneEcho(in *os.File, lesen func() string) string {
-	h := in.Fd()
-	var mode uint32
-	if r, _, _ := pGetConsoleMode.Call(h, uintptr(unsafe.Pointer(&mode))); r != 0 {
-		pSetConsoleMode.Call(h, uintptr(mode&^enableEchoInput))
-		defer pSetConsoleMode.Call(h, uintptr(mode))
+// anmeldeFehler: Ursache in Worten, die beim Beheben hilft.
+func anmeldeFehler(err error) error {
+	if errors.Is(err, desktop.ErrToken) {
+		return errors.New("Die Zentrale kennt dieses API-Token nicht, oder es ist abgelaufen oder widerrufen.")
 	}
-	return lesen()
+	l := strings.ToLower(err.Error())
+	if strings.Contains(l, "x509") || strings.Contains(l, "certificate") {
+		return errors.New("Windows vertraut dem Zertifikat der Zentrale nicht. Die Zentrale braucht ein Zertifikat, " +
+			"dem Windows vertraut (bei einer eigenen CA: deren Stammzertifikat unter „Vertrauenswürdige Stammzertifizierungsstellen“ installieren).")
+	}
+	return errors.New(fehlerKurz(err.Error()))
+}
+
+// dunkelNach: Darstellung aus den Einstellungen, sonst wie Windows.
+func dunkelNach(darstellung string) bool {
+	switch darstellung {
+	case "hell":
+		return false
+	case "dunkel":
+		return true
+	}
+	return themaLesen()
 }

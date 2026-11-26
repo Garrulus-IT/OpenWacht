@@ -3,6 +3,7 @@
 package desktop
 
 import (
+	"net/url"
 	"sort"
 	"strings"
 )
@@ -186,4 +187,127 @@ func SensorenUnter(k *Knoten, alle []Sensor) []Sensor {
 		}
 	}
 	return out
+}
+
+// Bereich wie in der Weboberfläche (web/src/bereich.ts): der gewählte
+// Mandant, mit Untermandanten auf Wunsch. Die Zentrale liefert alles, was das
+// Token sieht; die App zeigt nur den Bereich.
+
+// MandantenReihe: Mandanten in Baumreihenfolge mit Tiefe (für die Auswahl).
+type MandantenZeile struct {
+	Mandant Mandant
+	Tiefe   int
+}
+
+// MandantenReihe ordnet die Mandanten wie die Auswahl in der Seitenleiste.
+func MandantenReihe(ms []Mandant) []MandantenZeile {
+	bekannt := map[string]bool{}
+	for _, m := range ms {
+		bekannt[m.ID] = true
+	}
+	kinder := map[string][]Mandant{}
+	var wurzeln []Mandant
+	for _, m := range ms {
+		if m.Ueber != nil && bekannt[*m.Ueber] {
+			kinder[*m.Ueber] = append(kinder[*m.Ueber], m)
+		} else {
+			wurzeln = append(wurzeln, m)
+		}
+	}
+	nachName := func(l []Mandant) {
+		sort.SliceStable(l, func(i, j int) bool { return strings.ToLower(l[i].Name) < strings.ToLower(l[j].Name) })
+	}
+	var out []MandantenZeile
+	var lauf func(l []Mandant, t int)
+	lauf = func(l []Mandant, t int) {
+		nachName(l)
+		for _, m := range l {
+			out = append(out, MandantenZeile{m, t})
+			lauf(kinder[m.ID], t+1)
+		}
+	}
+	lauf(wurzeln, 0)
+	return out
+}
+
+// BereichIDs: der Mandant und, mit mitUnter, alle darunter.
+func BereichIDs(ms []Mandant, id string, mitUnter bool) map[string]bool {
+	ids := map[string]bool{id: true}
+	if !mitUnter {
+		return ids
+	}
+	for neu := true; neu; {
+		neu = false
+		for _, m := range ms {
+			if m.Ueber != nil && ids[*m.Ueber] && !ids[m.ID] {
+				ids[m.ID], neu = true, true
+			}
+		}
+	}
+	return ids
+}
+
+// BereichStand: nur was im Bereich liegt (Mandanten, Gruppen, Geräte,
+// Sensoren, Checks). Der gewählte Mandant ist darin die Wurzel.
+func BereichStand(st Stand, id string, mitUnter bool) Stand {
+	ids := BereichIDs(st.Mandanten, id, mitUnter)
+	out := Stand{Zeit: st.Zeit}
+	for _, m := range st.Mandanten {
+		if ids[m.ID] {
+			if m.ID == id {
+				m.Ueber = nil
+			}
+			out.Mandanten = append(out.Mandanten, m)
+		}
+	}
+	for _, g := range st.Gruppen {
+		if ids[g.MandantID] {
+			out.Gruppen = append(out.Gruppen, g)
+		}
+	}
+	for _, g := range st.Geraete {
+		if ids[g.MandantID] {
+			out.Geraete = append(out.Geraete, g)
+		}
+	}
+	for _, s := range st.Sensoren {
+		if ids[s.MandantID] {
+			out.Sensoren = append(out.Sensoren, s)
+		}
+	}
+	for _, c := range st.Checks {
+		if ids[c.MandantID] {
+			out.Checks = append(out.Checks, c)
+		}
+	}
+	return out
+}
+
+// HatUntermandanten: hat der Mandant Kinder, die das Token sieht?
+func HatUntermandanten(ms []Mandant, id string) bool {
+	for _, m := range ms {
+		if m.Ueber != nil && *m.Ueber == id {
+			return true
+		}
+	}
+	return false
+}
+
+// WebPfad: Adresse einer Seite der Weboberfläche mit Mandant und Schalter
+// „mit Untermandanten“ wie web/src/navigation.ts (adresse).
+func WebPfad(pfad, mandant string, mitUnter bool) string {
+	q := url.Values{}
+	if mandant != "" {
+		q.Set("mandant", mandant)
+	}
+	if !mitUnter {
+		q.Set("unter", "nein")
+	}
+	if s := q.Encode(); s != "" {
+		if strings.Contains(pfad, "?") {
+			return pfad + "&" + s
+		}
+		return pfad + "?" + s
+	}
+	return pfad
 }

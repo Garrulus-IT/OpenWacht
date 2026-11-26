@@ -44,6 +44,7 @@ type dlgFeld struct {
 	texte, werte             []string // Auswahl: angezeigter Text und Wert
 	hinweis                  string
 	aus                      bool   // nicht änderbar
+	geheim                   bool   // Eingabe verdeckt (Token)
 	halb                     bool   // halbe Breite (paarweise nebeneinander)
 	aenderung                func() // Auswahl geändert
 	ctrl                     syscall.Handle
@@ -74,6 +75,23 @@ type dialog struct {
 	fertig, ergebnis bool
 	beschaeftigt     bool
 	einleitungH      int32
+	fehlerPraefix    string      // vor einer Meldung beim Speichern
+	nachher          chan func() // Ergebnisse aus imHintergrund
+}
+
+const wmDialogFertig = wmApp + 5
+
+// imHintergrund: fn in einer eigenen Goroutine, fertig danach im Dialog
+// (ohne die App, z. B. beim Anmelden vor dem Hauptfenster).
+func (d *dialog) imHintergrund(fn func() error, fertig func(error)) {
+	if d.nachher == nil {
+		d.nachher = make(chan func(), 4)
+	}
+	go func() {
+		err := fn()
+		d.nachher <- func() { fertig(err) }
+		pPostMessageW.Call(uintptr(d.hwnd), wmDialogFertig, 0, 0)
+	}()
 }
 
 var (
@@ -126,7 +144,11 @@ func (d *dialog) anlegen() {
 	titelleiste(d.hwnd)
 	d.aufbauen()
 	var or, wr rect
-	pGetWindowRect.Call(uintptr(d.owner), uintptr(unsafe.Pointer(&or)))
+	if d.owner != 0 {
+		pGetWindowRect.Call(uintptr(d.owner), uintptr(unsafe.Pointer(&or)))
+	} else {
+		pSystemParametersInfoW.Call(spiGetWorkArea, 0, uintptr(unsafe.Pointer(&or)), 0)
+	}
 	pGetWindowRect.Call(uintptr(d.hwnd), uintptr(unsafe.Pointer(&wr)))
 	w, hh := wr.Right-wr.Left, wr.Bottom-wr.Top
 	x := or.Left + (or.Right-or.Left-w)/2
@@ -222,7 +244,11 @@ func (d *dialog) aufbauen() {
 				move(g.ctrl, x+d.s(8), fy+d.s(6), w-d.s(16), fh-d.s(12))
 				send(g.ctrl, wmSetFont, d.sch.m13, 1)
 			default:
-				g.ctrl = neu("EDIT", wert, wsTabStop|esAutoHScroll, 0, id)
+				stil := uint32(wsTabStop | esAutoHScroll)
+				if g.geheim {
+					stil |= esPassword
+				}
+				g.ctrl = neu("EDIT", wert, stil, 0, id)
 				eh := d.s(22)
 				move(g.ctrl, x+d.s(8), fy+(fh-eh)/2, w-d.s(16), eh)
 				if g.hinweis != "" {
@@ -319,8 +345,11 @@ func (d *dialog) schliessen(ok bool) {
 // zeigen: modal, bis gespeichert oder abgebrochen. true = gespeichert.
 func (d *dialog) zeigen() bool {
 	d.anlegen()
-	enable(d.owner, false)
+	if d.owner != 0 {
+		enable(d.owner, false)
+	}
 	pShowWindow.Call(uintptr(d.hwnd), swShow)
+	pSetForegroundWindow.Call(uintptr(d.hwnd))
 	var m msg
 	for !d.fertig {
 		r, _, _ := pGetMessageW.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0)
@@ -351,8 +380,10 @@ func (d *dialog) zeigen() bool {
 		pTranslateMessage.Call(uintptr(unsafe.Pointer(&m)))
 		pDispatchMessageW.Call(uintptr(unsafe.Pointer(&m)))
 	}
-	enable(d.owner, true)
-	pSetForegroundWindow.Call(uintptr(d.owner))
+	if d.owner != 0 {
+		enable(d.owner, true)
+		pSetForegroundWindow.Call(uintptr(d.owner))
+	}
 	pDestroyWindow.Call(uintptr(d.hwnd))
 	d.sch.frei()
 	aktiverDialog = nil
@@ -415,7 +446,11 @@ func (d *dialog) okGedrueckt() {
 		}
 		pInvalidateRect.Call(uintptr(d.ok), 0, 0)
 		if err != nil {
-			d.fehlerZeigen("Speichern fehlgeschlagen: " + fehlerText(err))
+			p := d.fehlerPraefix
+			if p == "" {
+				p = "Speichern fehlgeschlagen: "
+			}
+			d.fehlerZeigen(p + fehlerText(err))
 			return
 		}
 		d.schliessen(true)
@@ -597,6 +632,17 @@ func dialogProc(hwnd, m, wp, lp uintptr) uintptr {
 	case wmClose:
 		if !d.beschaeftigt {
 			d.schliessen(false)
+		}
+		return 0
+	case wmDialogFertig:
+	leeren:
+		for {
+			select {
+			case fn := <-d.nachher:
+				fn()
+			default:
+				break leeren
+			}
 		}
 		return 0
 	case wmCtlColorEdit, wmCtlColorStatic, wmCtlColorListbox:

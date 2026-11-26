@@ -2,13 +2,15 @@
 
 package main
 
-// Hauptfenster der Desktop-App (1.0.6) nach dem Corporate Design
-// (docs/design/README.md): oben die Markenleiste in Nachtblau mit Bildzeichen
-// und Suche, darunter die Befehlsleiste, links der Baum Mandant → Gruppe →
-// Gerät, rechts Kopf, Sensorliste und Einzelheiten, unten die Statusleiste.
-// Alles ist selbst gezeichnet (Farben aus den Tokens, D-DIN und JetBrains
+// Hauptfenster der Desktop-App (1.0.6) im Aufbau der Weboberfläche, damit
+// niemand zwei Oberflächen lernen muss: links die Seitenleiste mit
+// Mandantenwahl und den Gruppen Überwachen, Einrichten, Verwaltung, oben der
+// Kopf mit Brotkrumen und Suche. Seiten in der App: Dashboard (Sonne immer
+// sichtbar; ein Klick auf ein Gerät öffnet daneben seine Sensoren), Hosts
+// (Baum und Gerät) und Alarme. Alle übrigen Punkte öffnen die Seite im Browser.
+// Gezeichnet wird alles selbst (Farben aus den Tokens, D-DIN und JetBrains
 // Mono); Baum und Liste sind Steuerelemente von Windows, die die App über
-// Custom Draw vollständig selbst malt. Hell oder dunkel folgt Windows.
+// Custom Draw vollständig selbst malt. Hell oder dunkel wie eingestellt.
 //
 // Was die App ändern darf, entscheidet die Zentrale nach der Rolle des
 // API-Tokens; die Knöpfe richten sich nach der Rolle, die sie je Mandant meldet.
@@ -26,17 +28,28 @@ import (
 )
 
 const (
-	idMarke    = 201
-	idSuche    = 202
-	idBefehle  = 203
-	idBaum     = 204
-	idKopf     = 205
-	idListKopf = 206
-	idListe    = 207
-	idDetails  = 208
-	idStatus   = 209
-	idSonne    = 210
+	idLeiste     = 201
+	idSuche      = 202
+	idBefehle    = 203
+	idBaum       = 204
+	idKopf       = 205
+	idListKopf   = 206
+	idListe      = 207
+	idDetails    = 208
+	idKopfleiste = 209
+	idSonne      = 210
+	idUebersicht = 211
+	idHinweis    = 212
 )
+
+// Seiten in der App (alle anderen öffnen den Browser).
+const (
+	seiteDashboard = iota
+	seiteHosts
+	seiteAlarme
+)
+
+var seitenTitel = [...]string{"Dashboard", "Hosts", "Alarme"}
 
 // Befehle aus Befehlsleiste, Menü „Mehr“ und Kontextmenüs.
 const (
@@ -56,20 +69,21 @@ const (
 	cmdGeraetWartung
 	cmdMehr
 	cmdUeber
-	cmdAnsichtListe
-	cmdAnsichtSonne
+	cmdSchliessen
+	cmdAbmelden
 )
 
-// Maße in Pixeln bei 96 dpi (Abstände nur aus der Skala 4/8/12/16/24/32/48).
+// Maße in Pixeln bei 96 dpi wie im Web (Abstände nur aus der Skala 4/8/12/16/24/32/48).
 const (
-	leisteH   = 48
-	befehlH   = 48
-	baumB     = 280
-	kopfH     = 64
-	zeileH    = 32
-	statusH   = 32
-	detailMin = 120
-	luecke    = 8
+	leisteB    = 272 // .leiste: 17rem
+	kopfleiste = 52  // .kopf: 3.25rem
+	befehlH    = 56
+	baumB      = 340
+	uebB       = 400
+	kopfH      = 64
+	zeileH     = 32
+	detailMin  = 120
+	luecke     = 8
 )
 
 // Spalten der Sensorliste.
@@ -145,47 +159,6 @@ type knopf struct {
 	r      rect
 }
 
-// fenster: Zustand der Oberfläche (nur im Oberflächen-Thread benutzt).
-type fenster struct {
-	hwnd, marke, suche, befehle, baum, kopf, listKopf, liste, details, status, sonne syscall.Handle
-
-	ansicht     int // 0 = Liste, 1 = Sonne
-	sonnenBild  bmp
-	sonnenSig   string
-	sonnenSeg   []desktop.Segment
-	sonnenRing  []float64
-	sonnenWurz  *desktop.Knoten
-	sonnenUeber string
-
-	sch       schriften
-	dpi       int32
-	logo      bmp
-	zeilenBil uintptr // Bildliste nur für die Zeilenhöhe der Liste
-
-	detailH int32
-	ziehen  bool
-
-	eintraege []baumEintrag
-	items     map[string]uintptr
-	baumSig   string
-	gewaehlt  string
-	baue      bool
-
-	zeilen  []listenZeile
-	spalten []spalte
-	breiten []int32
-	sortSp  int // -1 = Zustand zuerst
-	sortAb  bool
-
-	knoepfe     []knopf
-	ueber       int // Knopf unter der Maus, -1 = keiner
-	nurProbleme bool
-
-	meldung     string // kurze Rückmeldung in der Statusleiste
-	meldungZeit time.Time
-	sucheRahmen rect
-}
-
 func (f *fenster) s(px int32) int32 { return px * f.dpi / 96 }
 
 func knotenKey(k *desktop.Knoten) string {
@@ -220,173 +193,16 @@ func (a *app) jetztAbfragen() {
 	}
 }
 
-func (a *app) fensterAnlegen() (*fenster, error) {
-	commonControls()
-	schriftenLaden()
-	themaSetzen(themaLesen())
-	inst, _, _ := pGetModuleHandleW.Call(0)
-	cursor, _, _ := pLoadCursorW.Call(0, idcArrow)
-	f := &fenster{dpi: 96, sortSp: -1, items: map[string]uintptr{}, ueber: -1}
-	for _, k := range []struct {
-		name string
-		proc func(hwnd, m, wp, lp uintptr) uintptr
-	}{{"OpenWachtFenster", fensterProc}, {"OpenWachtFlaeche", flaecheProc}} {
-		wc := wndClassEx{WndProc: syscall.NewCallback(k.proc), Instance: syscall.Handle(inst), ClassName: utf16(k.name),
-			Cursor: syscall.Handle(cursor)}
-		wc.Size = uint32(unsafe.Sizeof(wc))
-		if r, _, err := pRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc))); r == 0 {
-			return nil, err
-		}
-	}
-	titel := "OpenWacht"
-	if z := a.zentrale(); z != "" {
-		titel += " – " + strings.TrimPrefix(z, "https://")
-	}
-	a.f = f // fensterProc braucht es schon bei den ersten Nachrichten
-	h, _, err := pCreateWindowExW.Call(wsExControlParent, uintptr(unsafe.Pointer(utf16("OpenWachtFenster"))),
-		uintptr(unsafe.Pointer(utf16(titel))), wsOverlappedWindow|wsClipChildren, cwUseDefault, cwUseDefault, 1280, 800, 0, 0, inst, 0)
-	if h == 0 {
-		a.f = nil
-		return nil, err
-	}
-	f.hwnd = syscall.Handle(h)
-	f.dpi = dpiVon(f.hwnd)
-	f.detailH = f.s(232)
-
-	flaeche := func(id int) syscall.Handle {
-		return kind(f.hwnd, "OpenWachtFlaeche", "", wsClipChildren, 0, id)
-	}
-	f.marke = flaeche(idMarke)
-	f.suche = kind(f.marke, "EDIT", "", wsTabStop|esAutoHScroll, 0, idSuche)
-	platzhalter(f.suche, "Suchen (Strg+F)", true)
-	f.befehle = flaeche(idBefehle)
-
-	f.baum = kind(f.hwnd, "SysTreeView32", "", wsTabStop|tvsHasButtons|tvsLinesAtRoot|tvsShowSelAlways|tvsFullRowSelect|tvsTrackSelect, 0, idBaum)
-	send(f.baum, tvmSetExtStyle, tvsExDoubleBuffer, tvsExDoubleBuffer)
-
-	f.kopf = flaeche(idKopf)
-	f.listKopf = flaeche(idListKopf)
-	f.liste = kind(f.hwnd, "SysListView32", "", wsTabStop|lvsReport|lvsSingleSel|lvsShowSelAlways|lvsNoColumnHeader, 0, idListe)
-	send(f.liste, lvmSetExtendedStyle, lvsExFullRowSelect|lvsExDoubleBuffer, lvsExFullRowSelect|lvsExDoubleBuffer)
-	c := lvColumn{Mask: lvcfWidth, Cx: 100}
-	sendP(f.liste, lvmInsertColumnW, 0, unsafe.Pointer(&c))
-	f.details = flaeche(idDetails)
-	f.status = flaeche(idStatus)
-	f.sonne = flaeche(idSonne)
-	pShowWindow.Call(uintptr(f.sonne), swHide)
-
-	f.knoepfeAnlegen()
-	f.dpiAnwenden()
-	f.themaAnwenden()
-	pSetWindowPos.Call(h, 0, 0, 0, uintptr(f.s(1280)), uintptr(f.s(800)), swpNoMove|swpNoZOrder|swpNoActivate)
-	return f, nil
-}
-
-func (f *fenster) knoepfeAnlegen() {
-	f.knoepfe = []knopf{
-		{id: cmdNeuSensor, text: "Sensor hinzufügen", haupt: true},
-		{id: cmdNeuGeraet, text: "Gerät hinzufügen"},
-		{id: 0}, // Lücke 24
-		{id: cmdJetzt, text: "Jetzt abfragen"},
-		{id: cmdBestaetigen, text: "Alarm bestätigen …"},
-		{id: cmdWartung, text: "Wartung setzen …"},
-		{id: cmdPause, text: "Sensor pausieren"},
-		{id: cmdMehr, text: "Mehr", rechts: true, an: true},
-		{id: cmdNurProbleme, text: "Nur Probleme", schalt: true, rechts: true, an: true},
-		{id: cmdAnsichtSonne, text: "Sonne", schalt: true, rechts: true, an: true},
-		{id: cmdAnsichtListe, text: "Liste", schalt: true, rechts: true, an: true},
-	}
-}
-
-// dpiAnwenden: Schriften, Logo und Maße für die aktuelle Skalierung.
-func (f *fenster) dpiAnwenden() {
-	f.sch.setzen(f.dpi)
-	formenLeeren()
-	if f.logo.h != 0 {
-		pDeleteObject.Call(f.logo.h)
-	}
-	f.logo = bitmapAusPNG(desktop.Zeichen(int(f.s(32))))
-	if f.logo.w != f.s(32) {
-		// nächstgrößeres Bild: mittig in 32 setzen (AlphaBlend skaliert nicht schön)
-		f.logo = bitmapAusPNG(desktop.Zeichen(int(f.s(32))))
-	}
-	send(f.suche, wmSetFont, f.sch.t13, 1)
-	alt := f.zeilenBil
-	f.zeilenBil, _, _ = pImageListCreate.Call(1, uintptr(f.s(zeileH)), ilcColor32, 1, 1)
-	send(f.liste, lvmSetImageList, lvsilSmall, f.zeilenBil)
-	if alt != 0 {
-		pImageListDestroy.Call(alt)
-	}
-	send(f.baum, tvmSetItemHeight, uintptr(f.s(zeileH)), 0)
-	send(f.baum, tvmSetIndent, uintptr(f.s(16)), 0)
-	send(f.hwnd, wmSetIcon, 0, appIcon(f.s(16)))
-	send(f.hwnd, wmSetIcon, 1, appIcon(f.s(32)))
-	f.anordnen()
-}
-
-// themaAnwenden: Farben der Steuerelemente nach hell/dunkel.
-func (f *fenster) themaAnwenden() {
-	formenLeeren()
-	send(f.liste, lvmSetBkColor, 0, cref(th.f.Flaeche))
-	send(f.baum, tvmSetBkColor, 0, cref(th.f.Flaeche))
-	steuerThema(f.liste)
-	steuerThema(f.baum)
-	titelleiste(f.hwnd)
-	pRedrawWindow.Call(uintptr(f.hwnd), 0, 0, rdwInvalidate|rdwErase|rdwAllChildren|rdwFrame)
-}
-
-// anordnen: alle Teile nach der Fenstergröße.
-func (f *fenster) anordnen() {
-	var r rect
-	pGetClientRect.Call(uintptr(f.hwnd), uintptr(unsafe.Pointer(&r)))
-	w, h := r.Right, r.Bottom
-	if w <= 0 || h <= 0 {
-		return
-	}
-	lh, bh, sh := f.s(leisteH), f.s(befehlH), f.s(statusH)
-	move(f.marke, 0, 0, w, lh)
-	sw := min(f.s(280), w/3)
-	f.sucheRahmen = rect{w - f.s(16) - sw, (lh - f.s(32)) / 2, w - f.s(16), (lh-f.s(32))/2 + f.s(32)}
-	eh := f.s(20)
-	move(f.suche, f.sucheRahmen.Left+f.s(12), f.sucheRahmen.Top+(f.s(32)-eh)/2, sw-f.s(24), eh)
-	move(f.befehle, 0, lh, w, bh)
-	f.knoepfeOrdnen(w)
-
-	oben := lh + bh
-	unten := h - sh
-	bb := f.s(baumB)
-	move(f.baum, 0, oben, bb, unten-oben)
-	rx := bb + 1 // 1 px Linie
-	rw := w - rx
-	move(f.kopf, rx, oben, rw, f.s(kopfH))
-	f.detailH = min(max(f.detailH, f.s(detailMin)), unten-oben-f.s(kopfH)-f.s(160))
-	ly := oben + f.s(kopfH)
-	move(f.listKopf, rx, ly, rw, f.s(zeileH))
-	ly += f.s(zeileH)
-	lhoehe := unten - ly - f.s(luecke) - f.detailH
-	move(f.liste, rx, ly, rw, lhoehe)
-	// Sonne: ganze rechte Fläche unter dem Kopf (Einzelheiten beim Überfahren)
-	move(f.sonne, rx, ly-f.s(zeileH), rw, unten-(ly-f.s(zeileH)))
-	zeig := func(h syscall.Handle, an bool) {
-		pShowWindow.Call(uintptr(h), map[bool]uintptr{true: swShow, false: swHide}[an])
-	}
-	zeig(f.listKopf, f.ansicht == 0)
-	zeig(f.liste, f.ansicht == 0)
-	zeig(f.sonne, f.ansicht == 1)
-	zeig(f.details, f.ansicht == 0)
-	move(f.details, rx, unten-f.detailH, rw, f.detailH)
-	move(f.status, 0, unten, w, sh)
-	f.spaltenOrdnen(rw)
-	pInvalidateRect.Call(uintptr(f.hwnd), 0, 1)
-}
-
 // spaltenOrdnen: sichtbare Spalten und Breiten (Meldung nimmt den Rest).
 func (f *fenster) spaltenOrdnen(rw int32) {
 	k := f.knoten()
 	f.spalten = f.spalten[:0]
 	for _, sp := range alleSpalten {
-		if sp.id == spGeraet && k != nil && k.Art == desktop.KnotenGeraet {
+		switch {
+		case sp.id == spGeraet && k != nil && k.Art == desktop.KnotenGeraet:
 			continue // bei einem Gerät steht es im Kopf
+		case sp.id == spTyp && rw < f.s(900), sp.id == spSeit && rw < f.s(720), sp.id == spWert && rw < f.s(560):
+			continue // schmal: weniger Spalten, nie waagrecht blättern
 		}
 		f.spalten = append(f.spalten, sp)
 	}
@@ -429,7 +245,7 @@ func (f *fenster) knoepfeOrdnen(w int32) {
 			x += f.s(24) - f.s(8)
 			continue
 		}
-		bw := breite(hdc, k.text, f.sch.t13) + 2*f.s(12)
+		bw := breite(hdc, k.text, f.sch.t13) + 2*f.s(16)
 		k.r = rect{x, y, x + bw, y + f.s(32)}
 		x += bw + f.s(8)
 	}
@@ -439,7 +255,16 @@ func (f *fenster) knoepfeOrdnen(w int32) {
 		if !k.rechts {
 			continue
 		}
-		bw := breite(hdc, k.text, f.sch.t13) + 2*f.s(12)
+		defer func(k *knopf) {
+			// links liegende Knöpfe, die hineinragen, wandern ins Menü „Mehr“
+			for j := range f.knoepfe {
+				l := &f.knoepfe[j]
+				if !l.rechts && l.id != 0 && l.r.Right > k.r.Left-f.s(8) {
+					l.r = rect{}
+				}
+			}
+		}(k)
+		bw := breite(hdc, k.text, f.sch.t13) + 2*f.s(16)
 		if k.id == cmdMehr {
 			bw += f.s(16)
 		}
@@ -465,22 +290,6 @@ func (f *fenster) knopfAn(id int, an bool) {
 }
 
 // --- Daten anzeigen ----------------------------------------------------------
-
-// aktualisieren zeigt den letzten Stand. immer=false: Liste nur bei Änderung
-// neu aufbauen, damit Auswahl und Bildlauf bleiben.
-func (a *app) aktualisieren(immer bool) {
-	f := a.f
-	if f == nil {
-		return
-	}
-	a.mu.Lock()
-	st := a.stand
-	a.mu.Unlock()
-	a.baum = desktop.BaumBauen(st)
-	f.baumFuellen(a.baum)
-	a.auswahlZeigen(immer)
-	pInvalidateRect.Call(uintptr(f.status), 0, 0)
-}
 
 func (f *fenster) baumFuellen(wurzeln []*desktop.Knoten) {
 	var eintraege []baumEintrag
@@ -540,16 +349,6 @@ func (f *fenster) baumFuellen(wurzeln []*desktop.Knoten) {
 	f.baue = false
 }
 
-// knoten: der im Baum gewählte Knoten (nil = keiner).
-func (f *fenster) knoten() *desktop.Knoten {
-	for _, e := range f.eintraege {
-		if e.key == f.gewaehlt {
-			return e.knoten
-		}
-	}
-	return nil
-}
-
 // auswahlZeigen: Kopf, Liste und Einzelheiten zum gewählten Knoten.
 func (a *app) auswahlZeigen(immer bool) {
 	f := a.f
@@ -557,8 +356,11 @@ func (a *app) auswahlZeigen(immer bool) {
 	st := a.stand
 	a.mu.Unlock()
 	k := f.knoten()
-	sensoren := desktop.SensorenUnter(k, st.Sensoren)
-	zeilen := desktop.Zeilen(sensoren, !f.nurProbleme, getText(f.suche), time.Now())
+	var sensoren []desktop.Sensor
+	if k != nil {
+		sensoren = desktop.SensorenUnter(k, st.Sensoren)
+	}
+	zeilen := desktop.Zeilen(sensoren, !f.schalterAn(cmdNurProbleme), getText(f.suche), time.Now())
 	checks := map[string]*desktop.Check{}
 	for i := range st.Checks {
 		checks[st.Checks[i].ID] = &st.Checks[i]
@@ -591,6 +393,7 @@ func (a *app) auswahlZeigen(immer bool) {
 	f.spaltenOrdnen(r.Right)
 	pInvalidateRect.Call(uintptr(f.kopf), 0, 0)
 	pInvalidateRect.Call(uintptr(f.sonne), 0, 0)
+	pInvalidateRect.Call(uintptr(f.kopfleiste), 0, 0)
 	f.listeFuellen(lz, immer)
 	a.detailsZeigen()
 }
@@ -682,15 +485,15 @@ func (a *app) detailsZeigen() {
 	schreiben := k != nil && desktop.DarfAendern(k.Rolle)
 	istCheck := z != nil && z.check != nil
 	istGeraet := k != nil && k.Art == desktop.KnotenGeraet
-	f.knopfAn(cmdNeuGeraet, k != nil && schreiben)
+	f.kopfKnoepfeSetzen(len(f.eintraege) > 0 && desktop.DarfAendern(f.eintraege[0].knoten.Rolle))
 	f.knopfAn(cmdNeuSensor, schreiben && (istGeraet || z != nil))
 	f.knopfAn(cmdJetzt, schreiben && istCheck)
 	f.knopfAn(cmdPause, schreiben && istCheck)
 	f.knopfAn(cmdWartung, schreiben && (istCheck || (z == nil && istGeraet)))
 	f.knopfAn(cmdBestaetigen, schreiben && z != nil && z.AlarmNeu)
-	p := "Sensor pausieren"
+	p := "Pausieren"
 	if istCheck && !z.check.Aktiv {
-		p = "Sensor fortsetzen"
+		p = "Fortsetzen"
 	}
 	if kn := f.knopf(cmdPause); kn != nil && kn.text != p {
 		kn.text = p
@@ -702,187 +505,7 @@ func (a *app) detailsZeigen() {
 	pInvalidateRect.Call(uintptr(f.details), 0, 0)
 }
 
-// symbolFuerFenster: Das Fenster trägt das Bildzeichen, der Zustand steht
-// nur im Infobereich (docs/design/README.md §8).
-func (a *app) symbolFuerFenster() {}
-
-// setStatusText: kurze Rückmeldung in der Statusleiste („Gespeichert.“).
-func setStatusText(f *fenster, t string) {
-	if f == nil {
-		return
-	}
-	f.meldung, f.meldungZeit = t, time.Now()
-	pInvalidateRect.Call(uintptr(f.status), 0, 0)
-}
-
 // --- Zeichnen ---------------------------------------------------------------
-
-func flaecheProc(hwnd, m, wp, lp uintptr) uintptr {
-	if a == nil || a.f == nil {
-		r, _, _ := pDefWindowProcW.Call(hwnd, m, wp, lp)
-		return r
-	}
-	f := a.f
-	h := syscall.Handle(hwnd)
-	switch uint32(m) {
-	case wmEraseBkgnd:
-		return 1
-	case wmPaint:
-		malen(hwnd, func(hdc uintptr, r rect) {
-			switch h {
-			case f.marke:
-				a.markeMalen(hdc, r)
-			case f.befehle:
-				f.befehleMalen(hdc, r)
-			case f.kopf:
-				a.kopfMalen(hdc, r)
-			case f.listKopf:
-				f.listKopfMalen(hdc, r)
-			case f.details:
-				a.detailsMalen(hdc, r)
-			case f.status:
-				a.statusMalen(hdc, r)
-			case f.sonne:
-				a.sonneMalen(hdc, r)
-			default:
-				fuellen(hdc, r, th.f.Grund)
-			}
-		})
-		return 0
-	case wmCommand:
-		// Suchfeld in der Markenleiste: an das Hauptfenster weiterreichen
-		pSendMessageW.Call(uintptr(f.hwnd), m, wp, lp)
-		return 0
-	case wmCtlColorEdit, wmCtlColorStatic:
-		// Suchfeld in der Markenleiste
-		pSetTextColor.Call(wp, cref(th.f.NachtTinte))
-		pSetBkColor.Call(wp, cref(th.f.Nacht))
-		return pinsel(th.f.Nacht)
-	case wmMouseMove:
-		if h == f.sonne {
-			x, y := int32(int16(lp&0xffff)), int32(int16((lp>>16)&0xffff))
-			if t := a.sonneText(x, y); t != f.sonnenUeber {
-				f.sonnenUeber = t
-				mausVerlassen(hwnd)
-				pInvalidateRect.Call(hwnd, 0, 0)
-			}
-		}
-		if h == f.befehle {
-			x, y := int32(int16(lp&0xffff)), int32(int16((lp>>16)&0xffff))
-			neu := -1
-			for i, k := range f.knoepfe {
-				if k.id != 0 && x >= k.r.Left && x < k.r.Right && y >= k.r.Top && y < k.r.Bottom {
-					neu = i
-				}
-			}
-			if neu != f.ueber {
-				f.ueber = neu
-				mausVerlassen(hwnd)
-				pInvalidateRect.Call(hwnd, 0, 0)
-			}
-		}
-		return 0
-	case wmMouseLeave:
-		if h == f.sonne && f.sonnenUeber != "" {
-			f.sonnenUeber = ""
-			pInvalidateRect.Call(hwnd, 0, 0)
-		}
-		if h == f.befehle && f.ueber != -1 {
-			f.ueber = -1
-			pInvalidateRect.Call(hwnd, 0, 0)
-		}
-		return 0
-	case wmLButtonUp:
-		x, y := int32(int16(lp&0xffff)), int32(int16((lp>>16)&0xffff))
-		switch h {
-		case f.befehle:
-			for _, k := range f.knoepfe {
-				if k.id != 0 && k.an && x >= k.r.Left && x < k.r.Right && y >= k.r.Top && y < k.r.Bottom {
-					a.befehlFenster(k.id)
-					return 0
-				}
-			}
-		case f.listKopf:
-			sx := int32(0)
-			for i, sp := range f.spalten {
-				if x >= sx && x < sx+f.breiten[i] {
-					if f.sortSp == sp.id {
-						f.sortAb = !f.sortAb
-					} else {
-						f.sortSp, f.sortAb = sp.id, false
-					}
-					a.auswahlZeigen(true)
-					break
-				}
-				sx += f.breiten[i]
-			}
-		case f.marke:
-			if x >= f.sucheRahmen.Left && x < f.sucheRahmen.Right {
-				pSetFocus.Call(uintptr(f.suche))
-			}
-		case f.sonne:
-			a.sonneKlick(x, y)
-		}
-		return 0
-	}
-	r, _, _ := pDefWindowProcW.Call(hwnd, m, wp, lp)
-	return r
-}
-
-func (a *app) markeMalen(hdc uintptr, r rect) {
-	f := a.f
-	fuellen(hdc, r, th.f.Nacht)
-	n := f.s(32)
-	alpha(hdc, f.logo, f.s(16)+(n-f.logo.w)/2, (r.Bottom-f.logo.y)/2)
-	// Wortmarke: „Open“ fett, „Wacht“ normal, ohne Leerzeichen, Abstand ¼ der Zeichenhöhe
-	x := f.s(16) + n + n/4
-	w := breite(hdc, "Open", f.sch.t20b)
-	schreiben(hdc, "Open", rect{x, 0, x + w + 2, r.Bottom}, f.sch.t20b, th.f.NachtTinte, 0)
-	x += w
-	schreiben(hdc, "Wacht", rect{x, 0, x + f.s(120), r.Bottom}, f.sch.t20, th.f.NachtTinte, 0)
-	// Suchfeld auf Nachtblau: Rand --nacht-leise, mit Fokus --marke der dunklen Spalte
-	rand := th.f.NachtLeise
-	if fokus, _, _ := pGetFocus.Call(); syscall.Handle(fokus) == f.suche {
-		rand = desktop.Dunkel.Marke
-	}
-	rund(hdc, f.sucheRahmen, f.s(3), th.f.Nacht, rand, true, true, false)
-}
-
-func (f *fenster) befehleMalen(hdc uintptr, r rect) {
-	fuellen(hdc, r, th.f.Flaeche)
-	waagrecht(hdc, 0, r.Right, r.Bottom-1, th.f.Linie)
-	for i, k := range f.knoepfe {
-		if k.id == 0 {
-			continue
-		}
-		hover := i == f.ueber && k.an
-		fg, bg, rand := th.f.Tinte, th.f.Flaeche, th.f.Linie
-		switch {
-		case k.haupt:
-			fg, bg, rand = th.f.AufMarke, th.f.Marke, th.f.Marke
-			if hover {
-				bg, rand = th.f.MarkeTief, th.f.MarkeTief
-			}
-		case k.schalt && f.schalterAn(k.id):
-			fg, bg, rand = th.f.MarkeTief, th.f.MarkeHauch, th.f.Marke
-		case hover:
-			rand = th.f.Leise
-		}
-		if !k.an {
-			// wie im Web: 55 % Deckkraft
-			fg, bg, rand = mischen(fg, th.f.Flaeche, 55), mischen(bg, th.f.Flaeche, 55), mischen(rand, th.f.Flaeche, 55)
-		}
-		rund(hdc, k.r, f.s(3), bg, rand, true, true, false)
-		tr := k.r
-		tr.Left += f.s(12)
-		tr.Right -= f.s(12)
-		if k.id == cmdMehr {
-			tr.Right -= f.s(16)
-			chevron(hdc, tr.Right+f.s(10), (k.r.Top+k.r.Bottom)/2, f.s(4), true, fg)
-		}
-		schreiben(hdc, k.text, tr, f.sch.t13, fg, 0)
-	}
-}
 
 // mischen: Farbe a zu p Prozent über b.
 func mischen(a, b desktop.RGB, p int) desktop.RGB {
@@ -982,6 +605,21 @@ func (a *app) kopfMalen(hdc uintptr, r rect) {
 		{"bestaetigt", z.Bestaetigt, "Bestätigt"}, {"pause", z.Pausiert, "Pausiert"}, {"neu", z.Neu, "Neu"}, {"ok", z.OK, "OK"}}
 	mx := r.Right - f.s(24)
 	my := (r.Bottom - f.s(24)) / 2
+	if f.seite == seiteDashboard && f.dashHost != "" {
+		// Schließen (×) rechts: zurück zur Übersicht neben der Sonne
+		cx, cy, g := r.Right-f.s(28), r.Bottom/2, f.s(6)
+		stift, _, _ := pCreatePen.Call(psSolid, uintptr(f.s(2)), cref(th.f.Leise))
+		alt, _, _ := pSelectObject.Call(hdc, stift)
+		pMoveToEx.Call(hdc, uintptr(cx-g), uintptr(cy-g), 0)
+		pLineTo.Call(hdc, uintptr(cx+g+1), uintptr(cy+g+1))
+		pMoveToEx.Call(hdc, uintptr(cx-g), uintptr(cy+g), 0)
+		pLineTo.Call(hdc, uintptr(cx+g+1), uintptr(cy-g-1))
+		pSelectObject.Call(hdc, alt)
+		pDeleteObject.Call(stift)
+		mx = f.kopfSchliessenX() - f.s(8)
+	}
+	// Platz für den Namen bleibt: Marken nur, solange sie neben ihn passen
+	nameB := min(breite(hdc, k.Name, f.sch.t20b), f.s(200))
 	for i := len(marken) - 1; i >= 0; i-- {
 		m := marken[i]
 		if m.n == 0 {
@@ -989,6 +627,9 @@ func (a *app) kopfMalen(hdc uintptr, r rect) {
 		}
 		t := strconv.Itoa(m.n) + " " + m.wort
 		w := f.zustandsMarke(hdc, m.status, t, 0, 0, false)
+		if mx-w < x+nameB+f.s(24) {
+			break
+		}
 		mx -= w
 		f.zustandsMarke(hdc, m.status, t, mx, my, true)
 		mx -= f.s(8)
@@ -1026,7 +667,11 @@ func (a *app) kopfMalen(hdc uintptr, r rect) {
 	if k.Rolle != "" && !desktop.DarfAendern(k.Rolle) {
 		unter = append(unter, "nur ansehen (Rolle Leser)")
 	}
-	schreiben(hdc, k.Name, rect{x, f.s(8), mx - f.s(16), f.s(8) + f.s(28)}, f.sch.t20b, th.f.Tinte, 0)
+	name := k.Name
+	if f.seite == seiteAlarme {
+		name, unter = "Aktive Alarme", []string{k.Name, "Sensoren mit Warnung, Kritisch oder Unbekannt"}
+	}
+	schreiben(hdc, name, rect{x, f.s(8), mx - f.s(16), f.s(8) + f.s(28)}, f.sch.t20b, th.f.Tinte, 0)
 	uy := f.s(36)
 	ux := x
 	text := strings.Join(unter, "  ·  ")
@@ -1352,43 +997,6 @@ func (a *app) detailsMalen(hdc uintptr, r rect) {
 	}
 }
 
-func (a *app) statusMalen(hdc uintptr, r rect) {
-	f := a.f
-	fuellen(hdc, r, th.f.Zart)
-	waagrecht(hdc, 0, r.Right, 0, th.f.Linie)
-	a.mu.Lock()
-	st, fehler, zentrale := a.stand, a.standFehler, a.client.Zentrale
-	a.mu.Unlock()
-	host := strings.TrimPrefix(zentrale, "https://")
-	x := f.s(16)
-	cy := r.Bottom / 2
-	var links string
-	var an desktop.Anzeige
-	switch {
-	case fehler != "":
-		an = th.f.AnzeigeFuer("crit")
-		links = "Die Zentrale " + host + " antwortet nicht: " + fehlerKurz(fehler) + ". Die Anzeige versucht es alle 30 s erneut."
-	case st.Zeit.IsZero():
-		an = th.f.AnzeigeFuer("")
-		links = "Verbinde mit " + host + " …"
-	default:
-		an = th.f.AnzeigeFuer("ok")
-		links = "Verbunden mit " + host
-	}
-	form(hdc, an.Form, an.Farbe, x, cy-f.s(6), f.s(12))
-	x += f.s(12) + f.s(8)
-	rechts := ""
-	if !st.Zeit.IsZero() {
-		rechts = "Stand " + st.Zeit.Local().Format("15:04") + " · alle 30 s"
-	}
-	if f.meldung != "" && time.Since(f.meldungZeit) < 15*time.Second {
-		rechts = f.meldung + "     " + rechts
-	}
-	rw := breite(hdc, rechts, f.sch.t13)
-	schreiben(hdc, rechts, rect{r.Right - f.s(16) - rw, 0, r.Right - f.s(16), r.Bottom}, f.sch.t13, th.f.Leise, dtRight)
-	schreiben(hdc, links, rect{x, 0, r.Right - f.s(16) - rw - f.s(24), r.Bottom}, f.sch.t13, th.f.Leise, 0)
-}
-
 // --- Nachrichten ------------------------------------------------------------
 
 func (a *app) kontextBaum() {
@@ -1465,7 +1073,16 @@ func (a *app) mehrMenue() {
 	z := f.gewaehlteZeile()
 	schreiben := kn != nil && desktop.DarfAendern(kn.Rolle)
 	bearbeitbar := schreiben && ((z != nil && z.check != nil) || (z == nil && kn != nil && kn.Art == desktop.KnotenGeraet))
-	e := []menuEintrag{
+	var e []menuEintrag
+	for _, b := range f.knoepfe {
+		if b.id != 0 && !b.rechts && b.r.Right == 0 {
+			e = append(e, menuEintrag{b.id, b.text, b.an}) // fand in der Leiste keinen Platz
+		}
+	}
+	if len(e) > 0 {
+		e = append(e, menuEintrag{})
+	}
+	e = append(e, []menuEintrag{
 		{cmdBearbeiten, "Bearbeiten …\tF2", bearbeitbar},
 		{cmdLoeschen, "Löschen …\tEntf", bearbeitbar},
 		{},
@@ -1473,7 +1090,7 @@ func (a *app) mehrMenue() {
 		{cmdAktualisieren, "Ansicht aktualisieren\tF5", true},
 		{},
 		{cmdUeber, "Über OpenWacht Desktop", true},
-	}
+	}...)
 	a.befehlFenster(a.kontextmenueAus(e, p, tpmRightAlign))
 }
 
@@ -1543,184 +1160,6 @@ func utf16Text(p uintptr) string {
 	return string(utf16pkg.Decode(u))
 }
 
-func fensterProc(hwnd, m, wp, lp uintptr) uintptr {
-	if a == nil || a.f == nil || (a.f.hwnd != 0 && syscall.Handle(hwnd) != a.f.hwnd) {
-		r, _, _ := pDefWindowProcW.Call(hwnd, m, wp, lp)
-		return r
-	}
-	f := a.f
-	if f.hwnd == 0 { // noch in CreateWindowEx
-		r, _, _ := pDefWindowProcW.Call(hwnd, m, wp, lp)
-		return r
-	}
-	switch uint32(m) {
-	case wmSize:
-		f.anordnen()
-		return 0
-	case wmEraseBkgnd:
-		return 1
-	case wmPaint:
-		malen(hwnd, func(hdc uintptr, r rect) {
-			fuellen(hdc, r, th.f.Grund)
-			senkrecht(hdc, f.s(baumB), 0, r.Bottom, th.f.Linie)
-		})
-		return 0
-	case wmGetMinMaxInfo:
-		mi := zeigerAus[minMaxInfo](lp)
-		mi.MinTrackSize = point{f.s(960), f.s(600)}
-		return 0
-	case wmDpiChanged:
-		f.dpi = int32(wp & 0xffff)
-		r := zeigerAus[rect](lp)
-		f.detailH = f.s(232)
-		pSetWindowPos.Call(hwnd, 0, uintptr(r.Left), uintptr(r.Top), uintptr(r.Right-r.Left), uintptr(r.Bottom-r.Top), swpNoZOrder|swpNoActivate)
-		f.dpiAnwenden()
-		return 0
-	case wmSettingChange:
-		if utf16Text(lp) == "ImmersiveColorSet" {
-			if d := themaLesen(); d != th.dunkel {
-				themaSetzen(d)
-				f.themaAnwenden()
-			}
-		}
-		return 0
-	case wmClose:
-		// Nur ausblenden: Die App bleibt im Infobereich.
-		pShowWindow.Call(hwnd, swHide)
-		a.fensterOffen.Store(false)
-		return 0
-	case wmSetCursor:
-		if syscall.Handle(wp) == f.hwnd {
-			var p point
-			pGetCursorPos.Call(uintptr(unsafe.Pointer(&p)))
-			pScreenToClient.Call(hwnd, uintptr(unsafe.Pointer(&p)))
-			if f.amTrenner(p.X, p.Y) {
-				c, _, _ := pLoadCursorW.Call(0, idcSizeNS)
-				pSetCursor.Call(c)
-				return 1
-			}
-		}
-	case wmLButtonDown:
-		x, y := int32(int16(lp&0xffff)), int32(int16((lp>>16)&0xffff))
-		if f.amTrenner(x, y) {
-			f.ziehen = true
-			pSetCapture.Call(hwnd)
-		}
-		return 0
-	case wmMouseMove:
-		if f.ziehen {
-			y := int32(int16((lp >> 16) & 0xffff))
-			var r rect
-			pGetClientRect.Call(hwnd, uintptr(unsafe.Pointer(&r)))
-			f.detailH = r.Bottom - f.s(statusH) - y - f.s(luecke)/2
-			f.anordnen()
-		}
-		return 0
-	case wmLButtonUp:
-		if f.ziehen {
-			f.ziehen = false
-			pReleaseCapture.Call()
-		}
-		return 0
-	case wmCaptureChanged:
-		f.ziehen = false
-		return 0
-	case wmCommand:
-		id, code := wp&0xffff, (wp>>16)&0xffff
-		switch {
-		case id == idSuche && code == enChange:
-			a.auswahlZeigen(true)
-		case id == idSuche && (code == 0x0100 || code == 0x0200): // EN_SETFOCUS, EN_KILLFOCUS
-			pInvalidateRect.Call(uintptr(f.marke), 0, 0)
-		}
-		return 0
-	case wmNotify:
-		hdr := zeigerAus[nmHdr](lp)
-		switch hdr.IDFrom {
-		case idBaum:
-			switch hdr.Code {
-			case tvnSelChangedW:
-				if f.baue {
-					return 0
-				}
-				nt := zeigerAus[nmTreeView](lp)
-				if i := int(nt.ItemNew.LParam); i < len(f.eintraege) {
-					f.gewaehlt = f.eintraege[i].key
-				}
-				a.auswahlZeigen(true)
-				return 0
-			case nmRClick:
-				a.kontextBaum()
-				return 1
-			case nmCustomDraw:
-				cd := zeigerAus[nmCustomDrawLV](lp)
-				switch cd.DrawStage {
-				case cddsPrepaint:
-					return cdrfNotifyItem
-				case cddsItemPrepaint:
-					f.baumZeileMalen(cd.Hdc, cd)
-					return cdrfSkipDefault
-				}
-				return cdrfDoDefault
-			}
-		case idListe:
-			switch hdr.Code {
-			case lvnItemChanged:
-				nl := zeigerAus[nmListView](lp)
-				if nl.Changed&lvifState != 0 && (nl.NewState^nl.OldState)&lvisSelected != 0 {
-					a.detailsZeigen()
-				}
-				return 0
-			case nmDblClk, nmReturn:
-				if z := f.gewaehlteZeile(); z != nil {
-					if z.check != nil {
-						a.befehlFenster(cmdBearbeiten)
-					} else {
-						a.befehlFenster(cmdImBrowser)
-					}
-				}
-				return 0
-			case nmRClick:
-				a.kontextListe()
-				return 0
-			case nmCustomDraw:
-				cd := zeigerAus[nmCustomDrawLV](lp)
-				switch cd.DrawStage {
-				case cddsPrepaint:
-					return cdrfNotifyItem | cdrfNotifyPostPaint
-				case cddsItemPrepaint:
-					f.zeileMalen(cd.Hdc, int(cd.ItemSpec))
-					return cdrfSkipDefault
-				case cddsPostpaint:
-					if len(f.zeilen) == 0 {
-						var r rect
-						pGetClientRect.Call(uintptr(f.liste), uintptr(unsafe.Pointer(&r)))
-						t := "Keine Sensoren hier."
-						switch {
-						case f.nurProbleme && getText(f.suche) == "":
-							t = "Keine aktiven Alarme."
-						case getText(f.suche) != "" || f.nurProbleme:
-							t = "Keine Sensoren für diese Auswahl."
-						}
-						schreiben(cd.Hdc, t, rect{f.s(16), f.s(8), r.Right - f.s(16), f.s(8) + f.s(32)}, f.sch.t13, th.f.Leise, 0)
-					}
-				}
-				return cdrfDoDefault
-			}
-		}
-	}
-	r, _, _ := pDefWindowProcW.Call(hwnd, m, wp, lp)
-	return r
-}
-
-// amTrenner: liegt der Punkt in der Lücke zwischen Liste und Einzelheiten?
-func (f *fenster) amTrenner(x, y int32) bool {
-	var r rect
-	pGetClientRect.Call(uintptr(f.hwnd), uintptr(unsafe.Pointer(&r)))
-	unten := r.Bottom - f.s(statusH) - f.detailH
-	return f.ansicht == 0 && x > f.s(baumB) && y >= unten-f.s(luecke) && y < unten
-}
-
 // fehlerKurz: Ursache in einem Halbsatz statt der technischen Meldung.
 func fehlerKurz(f string) string {
 	l := strings.ToLower(f)
@@ -1737,15 +1176,20 @@ func fehlerKurz(f string) string {
 	return desktop.Kuerzen(f, 100)
 }
 
-// schalterAn: Zustand der Schalter in der Befehlsleiste.
-func (f *fenster) schalterAn(id int) bool {
-	switch id {
-	case cmdNurProbleme:
-		return f.nurProbleme
-	case cmdAnsichtListe:
-		return f.ansicht == 0
-	case cmdAnsichtSonne:
-		return f.ansicht == 1
+func (f *fenster) befehleMalen(hdc uintptr, r rect) {
+	fuellen(hdc, r, th.f.Flaeche)
+	waagrecht(hdc, f.s(16), r.Right-f.s(16), r.Bottom-1, th.f.LinieZart)
+	for i, k := range f.knoepfe {
+		if k.id == 0 || k.r.Right == 0 {
+			continue
+		}
+		knopfMalen(f, hdc, k, i == f.ueber && k.an, k.schalt && f.schalterAn(k.id))
 	}
-	return false
+}
+
+// kopfSchliessenX: links davon liegt der Kopf, rechts das ×.
+func (f *fenster) kopfSchliessenX() int32 {
+	var r rect
+	pGetClientRect.Call(uintptr(f.kopf), uintptr(unsafe.Pointer(&r)))
+	return r.Right - f.s(48)
 }

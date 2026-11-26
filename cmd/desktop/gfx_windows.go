@@ -162,10 +162,10 @@ func schriftenLaden() {
 }
 
 // schriften: alle Größen der Skala, die die App braucht (Pixel bei 96 dpi:
-// 13, 16, 20; nur 400 und 700).
+// 13, 16, 20, 25; nur 400 und 700).
 type schriften struct {
-	t13, t13b, t16, t16b, t20, t20b, m13 uintptr
-	dpi                                  int32
+	t13, t13b, t16, t16b, t20, t20b, t25b, m13 uintptr
+	dpi                                        int32
 }
 
 func neueSchrift(dpi, px, gewicht int32, mono bool) uintptr {
@@ -184,11 +184,12 @@ func (s *schriften) setzen(dpi int32) {
 	s.t13, s.t13b = neueSchrift(dpi, 13, fwNormal, false), neueSchrift(dpi, 13, fwBold, false)
 	s.t16, s.t16b = neueSchrift(dpi, 16, fwNormal, false), neueSchrift(dpi, 16, fwBold, false)
 	s.t20, s.t20b = neueSchrift(dpi, 20, fwNormal, false), neueSchrift(dpi, 20, fwBold, false)
+	s.t25b = neueSchrift(dpi, 25, fwBold, false)
 	s.m13 = neueSchrift(dpi, 13, fwNormal, true)
 }
 
 func (s *schriften) frei() {
-	for _, h := range []uintptr{s.t13, s.t13b, s.t16, s.t16b, s.t20, s.t20b, s.m13} {
+	for _, h := range []uintptr{s.t13, s.t13b, s.t16, s.t16b, s.t20, s.t20b, s.t25b, s.m13} {
 		if h != 0 {
 			pDeleteObject.Call(h)
 		}
@@ -461,4 +462,32 @@ func platzhalterWndProc(hwnd, m, wp, lp uintptr) uintptr {
 		delete(platzhalterFelder, syscall.Handle(hwnd))
 	}
 	return r
+}
+
+// --- Piktogramme der Seitenleiste --------------------------------------------
+
+type piktoSchluessel struct {
+	name string
+	c    desktop.RGB
+	n    int32
+}
+
+var piktoCache = map[piktoSchluessel]bmp{}
+
+// piktogramm zeichnet ein Piktogramm der Weboberfläche n×n bei (x, y).
+func piktogramm(hdc uintptr, name string, c desktop.RGB, x, y, n int32) {
+	k := piktoSchluessel{name, c, n}
+	b, ok := piktoCache[k]
+	if !ok {
+		b = bitmapAus(desktop.PiktogrammBild(name, c, int(n)))
+		piktoCache[k] = b
+	}
+	alpha(hdc, b, x, y)
+}
+
+func piktogrammeLeeren() {
+	for k, b := range piktoCache {
+		pDeleteObject.Call(b.h)
+		delete(piktoCache, k)
+	}
 }

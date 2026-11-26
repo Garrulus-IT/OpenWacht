@@ -223,3 +223,31 @@ func TestAenderungen(t *testing.T) {
 		t.Fatalf("falsches Token: %v", err)
 	}
 }
+
+func TestBereich(t *testing.T) {
+	st := Stand{
+		Mandanten: []Mandant{{ID: "a", Name: "Firma"}, {ID: "b", Ueber: sp("a"), Name: "Werk"}, {ID: "c", Ueber: sp("b"), Name: "Halle"},
+			{ID: "x", Name: "Andere"}},
+		Geraete:  []Geraet{{ID: "d1", MandantID: "a", Name: "eins"}, {ID: "d2", MandantID: "c", Name: "zwei"}, {ID: "d3", MandantID: "x", Name: "drei"}},
+		Sensoren: []Sensor{{GeraetID: "d1", MandantID: "a", Status: "ok"}, {GeraetID: "d2", MandantID: "c", Status: "crit"}},
+	}
+	reihe := MandantenReihe(st.Mandanten)
+	var namen []string
+	for _, z := range reihe {
+		namen = append(namen, strings.Repeat(" ", z.Tiefe)+z.Mandant.Name)
+	}
+	if !reflect.DeepEqual(namen, []string{"Andere", "Firma", " Werk", "  Halle"}) {
+		t.Fatalf("Reihe: %q", namen)
+	}
+	w := BaumBauen(BereichStand(st, "b", true))
+	if len(w) != 1 || w[0].ID != "b" || w[0].Zaehler.Kritisch != 1 || len(w[0].Geraete) != 1 {
+		t.Fatalf("Bereich b mit Unter: %+v", w)
+	}
+	w = BaumBauen(BereichStand(st, "a", false))
+	if len(w) != 1 || len(w[0].Geraete) != 1 || w[0].Geraete[0] != "d1" {
+		t.Fatalf("Bereich a ohne Unter: %+v", w[0])
+	}
+	if !HatUntermandanten(st.Mandanten, "b") || HatUntermandanten(st.Mandanten, "c") {
+		t.Fatal("HatUntermandanten")
+	}
+}

@@ -40,6 +40,7 @@ type app struct {
 
 	mu       sync.Mutex
 	client   desktop.Client
+	cfg      desktop.Config  // nur im Oberflächen-Thread
 	letzte   []desktop.Alarm // nil bis zur ersten Antwort
 	z        desktop.Zusammenfassung
 	fehler   string
@@ -109,9 +110,10 @@ func run(args []string) int {
 	}
 	cfg, err := desktop.LoadConfig(pfad)
 	token, terr := tokenLesen()
+	runtime.LockOSThread()
 	if err != nil || terr != nil || cfg.Zentrale == "" || (len(args) > 0 && args[0] == "einrichten") {
 		var ok bool
-		if cfg, ok = einrichten(cfg); !ok {
+		if cfg, ok = anmelden(0, cfg); !ok {
 			return 1
 		}
 		if token, err = tokenLesen(); err != nil {
@@ -119,8 +121,7 @@ func run(args []string) int {
 			return 1
 		}
 	}
-	runtime.LockOSThread()
-	a = &app{icons: map[desktop.Zustand]syscall.Handle{}, jetzt: make(chan struct{}, 1), ergebnisse: make(chan func(), 64),
+	a = &app{cfg: cfg, icons: map[desktop.Zustand]syscall.Handle{}, jetzt: make(chan struct{}, 1), ergebnisse: make(chan func(), 64),
 		client: desktop.Client{Zentrale: cfg.Zentrale, Token: token}, gezeigt: "start"}
 	if err := a.fenster(); err != nil {
 		meldung("OpenWacht Desktop", err.Error(), true)
@@ -230,7 +231,7 @@ func (a *app) abfragen() {
 		if err != nil {
 			a.fehler = err.Error()
 			if errors.Is(err, desktop.ErrToken) {
-				a.fehler = "API-Token ungültig, abgelaufen oder widerrufen. Rechtsklick → Einrichten."
+				a.fehler = "API-Token ungültig, abgelaufen oder widerrufen. Rechtsklick › Anmeldung ändern."
 			}
 		} else {
 			a.fehler = ""
@@ -250,7 +251,7 @@ func (a *app) abfragen() {
 			if err != nil {
 				a.standFehler = err.Error()
 				if errors.Is(err, desktop.ErrToken) {
-					a.standFehler = "API-Token ungültig, abgelaufen oder widerrufen (Rechtsklick aufs Symbol → Einrichten)"
+					a.standFehler = "API-Token ungültig, abgelaufen oder widerrufen (links unten „Abmelden“ und neu anmelden)"
 				}
 			} else {
 				a.stand, a.standFehler = st, ""
@@ -282,7 +283,6 @@ func (a *app) standZeigen() {
 	setUTF16(n.Tip[:], tip)
 	pShellNotifyIconW.Call(nimModify, ptr(&n))
 	a.gezeigt = zust
-	a.symbolFuerFenster()
 	if a.fensterOffen.Load() {
 		a.aktualisieren(false)
 	}
@@ -348,7 +348,7 @@ func (a *app) menue() {
 		auto = mfChecked
 	}
 	add(cmdAutostart, "Mit Windows starten", auto)
-	add(cmdEinrichten, "Einrichten …", 0)
+	add(cmdEinrichten, "Anmeldung ändern …", 0)
 	pAppendMenuW.Call(m, mfSeparator, 0, 0)
 	add(0, version.String("openwacht-desktop"), mfGrayed)
 	add(cmdBeenden, "Beenden", 0)
@@ -392,28 +392,14 @@ func (a *app) befehl(id int) {
 			meldung("OpenWacht Desktop", "OpenWacht startet nicht mehr mit Windows.", false)
 		}
 	case cmdEinrichten:
-		go func() {
-			a.mu.Lock()
-			alt := desktop.Config{Zentrale: a.client.Zentrale}
-			a.mu.Unlock()
-			cfg, ok := einrichten(alt)
-			if !ok {
-				return
-			}
-			token, err := tokenLesen()
-			if err != nil {
-				return
-			}
-			a.mu.Lock()
-			a.client = desktop.Client{Zentrale: cfg.Zentrale, Token: token}
-			a.letzte, a.melden = nil, nil
-			a.stand, a.standFehler = desktop.Stand{}, ""
-			a.mu.Unlock()
-			select {
-			case a.jetzt <- struct{}{}:
-			default:
-			}
-		}()
+		var owner syscall.Handle
+		if a.f != nil && a.fensterOffen.Load() {
+			owner = a.f.hwnd
+		}
+		cfg, ok := anmelden(owner, a.cfg)
+		if ok {
+			a.neuAngemeldet(cfg)
+		}
 	case cmdBeenden:
 		n := a.nid()
 		pShellNotifyIconW.Call(nimDelete, ptr(&n))
@@ -492,4 +478,42 @@ func lizenzenAblegen() {
 		}
 	}
 	pShellExecuteW.Call(0, uintptr(unsafe.Pointer(utf16("open"))), uintptr(unsafe.Pointer(utf16(ordner))), 0, 0, swShowNormal)
+}
+
+// neuAngemeldet: neuer Client nach dem Anmelden, alles neu abfragen.
+func (a *app) neuAngemeldet(cfg desktop.Config) {
+	token, err := tokenLesen()
+	if err != nil {
+		meldung("OpenWacht Desktop", "Token nicht lesbar: "+err.Error(), true)
+		return
+	}
+	a.cfg = cfg
+	a.mu.Lock()
+	a.client = desktop.Client{Zentrale: cfg.Zentrale, Token: token}
+	a.letzte, a.melden = nil, nil
+	a.stand, a.standFehler = desktop.Stand{}, ""
+	a.mu.Unlock()
+	if a.f != nil {
+		a.f.dashHost, a.f.sonnenKey, a.f.gewaehlt = "", "", ""
+		a.aktualisieren(true)
+	}
+	a.jetztAbfragen()
+}
+
+// abmelden: Token löschen und neu anmelden; ohne Anmeldung endet die App.
+func (a *app) abmelden() {
+	if !bestaetigenDialog(a.f.hwnd, "Abmelden?", "Die App vergisst das API-Token. Danach meldest du dich mit einem "+
+		"Token neu an, oder die App beendet sich.", "Abmelden") {
+		return
+	}
+	tokenLoeschen()
+	pShowWindow.Call(uintptr(a.f.hwnd), swHide)
+	a.fensterOffen.Store(false)
+	cfg, ok := anmelden(0, a.cfg)
+	if !ok {
+		a.befehl(cmdBeenden)
+		return
+	}
+	a.neuAngemeldet(cfg)
+	a.fensterZeigen()
 }

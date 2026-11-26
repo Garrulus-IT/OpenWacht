@@ -37,7 +37,7 @@ func (a *app) imHintergrund(fn func(ctx context.Context, c desktop.Client) error
 // fehlerText: Meldung für Menschen, bei fehlenden Rechten mit Hinweis aufs Token.
 func fehlerText(err error) string {
 	if errors.Is(err, desktop.ErrToken) {
-		return "Das API-Token ist ungültig, abgelaufen oder widerrufen. Rechtsklick aufs Symbol im Infobereich → Einrichten."
+		return "Das API-Token ist ungültig, abgelaufen oder widerrufen. Melde dich neu an: links unten „Abmelden“ oder Rechtsklick aufs Symbol im Infobereich › Anmeldung ändern."
 	}
 	var fz *desktop.FehlerZentrale
 	if errors.As(err, &fz) && fz.Code == 403 {
@@ -75,15 +75,20 @@ func (a *app) befehlFenster(id int) {
 		setStatusText(f, "Frage ab …")
 		a.jetztAbfragen()
 	case cmdNurProbleme:
+		if f.seite == seiteAlarme {
+			return // zeigt ohnehin nur Probleme
+		}
 		f.nurProbleme = !f.nurProbleme
 		pInvalidateRect.Call(uintptr(f.befehle), 0, 0)
 		a.auswahlZeigen(true)
 	case cmdMehr:
 		a.mehrMenue()
-	case cmdAnsichtListe, cmdAnsichtSonne:
-		f.ansicht = map[bool]int{true: 1, false: 0}[id == cmdAnsichtSonne]
-		f.anordnen()
-		pInvalidateRect.Call(uintptr(f.befehle), 0, 0)
+	case cmdSchliessen:
+		if f.seite == seiteDashboard && f.dashHost != "" {
+			a.geraetOeffnen(f.dashHost)
+		}
+	case cmdAbmelden:
+		a.abmelden()
 	case cmdUeber:
 		a.ueber()
 	case cmdImBrowser:
@@ -93,7 +98,7 @@ func (a *app) befehlFenster(id int) {
 		case k != nil && k.Art == desktop.KnotenGeraet:
 			a.oeffnen(desktop.GeraetPfad(k.ID))
 		default:
-			a.oeffnen("/hosts")
+			a.oeffnen(desktop.WebPfad(f.seitePfad(), f.mandant, f.mitUnter))
 		}
 	case cmdNeuSensor:
 		gid := ""
@@ -125,10 +130,11 @@ func (a *app) befehlFenster(id int) {
 			a.geraetDialog(k.MandantID, k.Geraet)
 		}
 	case cmdNeuGeraet:
-		if k == nil {
-			return
+		mandant := f.mandant
+		if k != nil {
+			mandant = k.MandantID
 		}
-		a.geraetDialog(k.MandantID, nil)
+		a.geraetDialog(mandant, nil)
 	case cmdJetzt:
 		if c == nil {
 			return

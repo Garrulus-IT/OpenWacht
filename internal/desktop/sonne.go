@@ -175,33 +175,36 @@ func SonnenTreffer(seg []Segment, ringe []float64, x, y float64) int {
 	return -2
 }
 
-// SonnenBild zeichnet die Sonne n×n Pixel groß auf grund (Fugen und
-// Scheibe in der Farbe des Grunds, wie das Widget im Dashboard).
+// SonnenBild zeichnet die Sonne n×n Pixel groß auf grund. Wie das Widget
+// im Dashboard: Fugen und Scheibe in der Farbe des Grunds, jedes Segment mit
+// einem Rand von 1 px in derselben Farbe (stroke 1, non-scaling-stroke).
 func SonnenBild(seg []Segment, ringe []float64, wurzelStatus string, n int, grund RGB) *image.NRGBA {
 	img := image.NewNRGBA(image.Rect(0, 0, n, n))
 	skala := 1000.0 / float64(n)
-	fuge := 0.6 * skala // Fuge zwischen Nachbarn im selben Ring: gut ein Pixel
+	rand := 0.5 * skala // halber Strich innen am Segment
 	const ss = 3
 	farbe := func(x, y float64) (RGB, bool) {
 		r := math.Hypot(x, y)
-		if r > sonneR {
+		if r > sonneR+rand {
 			return 0, false
 		}
 		a := winkel(x, y)
 		for i := len(seg) - 1; i >= 0; i-- {
 			s := seg[i]
-			if r >= s.R0 && r <= s.R1 && a >= s.A0 && a < s.A1 {
-				// Fuge an den Seitenkanten
-				if (a-s.A0)*r < fuge/2 || (s.A1-a)*r < fuge/2 {
+			if r >= s.R0-rand && r <= s.R1+rand && a >= s.A0 && a < s.A1 {
+				if r < s.R0+rand || r > s.R1-rand || (a-s.A0)*r < rand || (s.A1-a)*r < rand {
 					return grund, true
 				}
 				f, _ := SonnenFarbe(s.Status)
 				return f, true
 			}
 		}
-		if len(ringe) > 1 && r >= ringe[0]+sonneFuge/2 && r <= ringe[1]-sonneFuge/2 {
-			f, _ := SonnenFarbe(wurzelStatus)
-			return f, true
+		if len(ringe) > 1 {
+			r0, r1 := ringe[0]+sonneFuge/2, ringe[1]-sonneFuge/2
+			if r >= r0+rand && r <= r1-rand {
+				f, _ := SonnenFarbe(wurzelStatus)
+				return f, true
+			}
 		}
 		return grund, r <= sonneAussen+sonneFuge
 	}
@@ -231,7 +234,7 @@ func SonnenBild(seg []Segment, ringe []float64, wurzelStatus string, n int, grun
 }
 
 // Beschriftung eines Segments: radial (entlang des Strahls) oder
-// tangential (quer dazu), wie im Web, ohne Bogentext.
+// tangential (entlang des Bogens), wie im Web.
 type Beschriftung struct {
 	Radial  bool
 	Text    string
@@ -244,8 +247,8 @@ func SonnenBeschriftung(name string, r0, r1, a0, a1 float64) *Beschriftung {
 	return SonnenBeschriftungIn(name, r0, r1, a0, a1, 6.5, 19)
 }
 
-// SonnenBeschriftungIn: wie SonnenBeschriftung mit eigener Schriftspanne (die
-// Desktop-App setzt beide auf 13 px, die Größe der Skala für Beschriftungen).
+// SonnenBeschriftungIn: wie SonnenBeschriftung mit eigener Untergrenze (die
+// Desktop-App hebt sie an, damit nichts unter 9 px gesetzt wird).
 func SonnenBeschriftungIn(name string, r0, r1, a0, a1, minS, maxS float64) *Beschriftung {
 	const zeichen = 0.56
 	kuerzen := func(platz, s float64) string {
@@ -277,11 +280,9 @@ func SonnenBeschriftungIn(name string, r0, r1, a0, a1, minS, maxS float64) *Besc
 			beste = b
 		}
 	}
-	// tangential: Schrifthöhe durch die Ringdicke begrenzt; gerade Schrift
-	// braucht Platz auf der Sehne, nicht auf dem Bogen
+	// tangential (entlang des Bogens): Schrifthöhe durch die Ringdicke begrenzt
 	if s := math.Min(maxS, dicke*0.5); s >= minS {
-		sehne := 2 * (r0 + dicke/2) * math.Sin(spanne/2)
-		nimm(&Beschriftung{false, kuerzen(math.Min(bogen, sehne)*0.85, s), s})
+		nimm(&Beschriftung{false, kuerzen(bogen*0.88, s), s})
 	}
 	// radial: Schrifthöhe durch die Bogenbreite am Innenrand begrenzt
 	if s := math.Min(maxS, r0*spanne*0.8); s >= minS {

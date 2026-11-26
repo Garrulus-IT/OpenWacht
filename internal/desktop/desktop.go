@@ -32,7 +32,10 @@ import (
 
 // Config: was die App außer dem Token braucht (Datei desktop.json).
 type Config struct {
-	Zentrale string `json:"zentrale"` // https://openwacht.example
+	Zentrale    string `json:"zentrale"`              // https://openwacht.example
+	Darstellung string `json:"darstellung,omitempty"` // "" = wie System, "hell", "dunkel"
+	Mandant     string `json:"mandant,omitempty"`     // zuletzt gewählter Mandant
+	OhneUnter   bool   `json:"ohne_unter,omitempty"`  // Untermandanten ausblenden
 }
 
 // ConfigPath: %APPDATA%\OpenWacht\desktop.json bzw. ~/.config/OpenWacht/desktop.json.
@@ -94,7 +97,7 @@ func CleanToken(s string) (string, error) {
 	s = strings.TrimSpace(s)
 	rest, ok := strings.CutPrefix(s, "owt1.")
 	if !ok || len(rest) != 43 || strings.Trim(rest, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_") != "" {
-		return "", errors.New("API-Token: erwartet owt1.… (in OpenWacht unter Verwaltung → API-Tokens, Rolle Leser oder Operator)")
+		return "", errors.New("API-Token: erwartet owt1.… (in OpenWacht unter Benutzer und Mandanten › API-Tokens, Rolle Leser oder Operator)")
 	}
 	return s, nil
 }

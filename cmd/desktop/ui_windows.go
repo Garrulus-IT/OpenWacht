@@ -36,6 +36,8 @@ var (
 	pLoadCursorW           = user32.NewProc("LoadCursorW")
 	pSetCursor             = user32.NewProc("SetCursor")
 	pGetDpiForWindow       = user32.NewProc("GetDpiForWindow")
+	pGetDpiForSystem       = user32.NewProc("GetDpiForSystem")
+	pSystemParametersInfoW = user32.NewProc("SystemParametersInfoW")
 	pSetFocus              = user32.NewProc("SetFocus")
 	pGetFocus              = user32.NewProc("GetFocus")
 	pGetSysColor           = user32.NewProc("GetSysColor")
@@ -95,6 +97,8 @@ const (
 	esMultiline    = 0x0004
 	esAutoVScroll  = 0x0040
 	esAutoHScroll  = 0x0080
+	esPassword     = 0x0020
+	spiGetWorkArea = 0x0030
 	esWantReturn   = 0x1000
 	bsDefPushBtn   = 0x0001
 	bsAutoCheckbox = 0x0003
@@ -154,6 +158,8 @@ const (
 	swpNoZOrder     = 0x0004
 	swpNoActivate   = 0x0010
 	idcArrow        = 32512
+	idcHand         = 32649
+	wmMouseWheel    = 0x020A
 	idcSizeWE       = 32644
 	idcSizeNS       = 32645
 	colorWindow     = 5
@@ -550,6 +556,11 @@ func schrift(dpi, pt, gewicht int32) uintptr {
 }
 
 func dpiVon(h syscall.Handle) int32 {
+	if h == 0 && pGetDpiForSystem.Find() == nil {
+		if d, _, _ := pGetDpiForSystem.Call(); d != 0 {
+			return int32(d)
+		}
+	}
 	if pGetDpiForWindow.Find() == nil {
 		if d, _, _ := pGetDpiForWindow.Call(uintptr(h)); d != 0 {
 			return int32(d)
