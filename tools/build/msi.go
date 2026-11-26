@@ -456,7 +456,7 @@ func msiTables(goarch, ver string, exeSize int) []msiTable {
 	// Ein Leerzeichen vor dem schließenden Anführungszeichen: Endet ein Ordner
 	// auf \, würde \" sonst das Anführungszeichen maskieren (der Agent kürzt es).
 	setup := "paket-einrichten -zentrale \"[ZENTRALE]\" -token \"[TOKEN]\" -hostname \"[HOSTNAME]\"" +
-		" -arten \"[OW_ARTEN]\" -ordner \"[ORDNER] \" -indikatoren \"[INDIKATOREN]\" -netze \"[NETZE]\""
+		" -arten \"[OW_ARTEN]\" -ordner \"[ORDNER] \" -indikatoren \"[INDIKATOREN]\" -netze \"[NETZE]\" -wahl \"[OW_WAHL]\""
 	return append(msiUITabellen(), []msiTable{
 		{name: "Property", cols: []msiCol{{"Property", cK(72)}, {"Value", cL(0)}}, rows: [][]any{
 			{"ProductCode", productCode}, {"ProductName", "OpenWacht-Agent"}, {"ProductVersion", ver},
@@ -466,6 +466,7 @@ func msiTables(goarch, ver string, exeSize int) []msiTable {
 			{"MsiHiddenProperties", "TOKEN"},
 			{"SecureCustomProperties", msiOeffentlich() + ";OW_ALTE;OW_NEUER;OW_WIN10"},
 			{"DefaultUIFont", "OwText"},
+			{"OW_WAHL", "update"}, // Auswahl, wenn schon ein Agent installiert ist
 			{"ErrorDialog", "ErrorDlg"},
 		}},
 		// Mindestens Windows 10 bzw. Server 2016 (0.99.2): VersionNT und WindowsBuild
@@ -534,7 +535,8 @@ func msiTables(goarch, ver string, exeSize int) []msiTable {
 			{"PaketEinrichten", caExeFromFile | caInScript | caNoImpersonat | caHideTarget, "AgentExe", setup},
 			// Rückweg: scheitert die Installation nach PaketEinrichten, kommt der Dienst wieder weg.
 			{"PaketZurueck", caExeFromFile | caInScript | caRollback | caNoImpersonat | caContinue, "AgentExe", "paket-entfernen"},
-			{"PaketEntfernen", caExeFromFile | caInScript | caNoImpersonat | caContinue, "AgentExe", "paket-entfernen"},
+			{"PaketEntfernen", caExeFromFile | caInScript | caNoImpersonat | caContinue, "AgentExe",
+				"paket-entfernen -registrierung \"[OW_REG_LOESCHEN]\""},
 		}},
 		{name: "InstallExecuteSequence", cols: []msiCol{{"Action", cK(72)}, {"Condition", cSN(255)}, {"Sequence", cI2N()}}, rows: [][]any{
 			{"FindRelatedProducts", nil, 25}, {"AppSearch", nil, 50}, {"LaunchConditions", nil, 100}, {"ValidateProductID", nil, 700},
@@ -555,7 +557,8 @@ func msiTables(goarch, ver string, exeSize int) []msiTable {
 			{"FindRelatedProducts", nil, 25}, {"AppSearch", nil, 50}, {"LaunchConditions", nil, 100}, {"ValidateProductID", nil, 700},
 			{"CostInitialize", nil, 800}, {"FileCost", nil, 900}, {"CostFinalize", nil, 1000},
 			{"MigrateFeatureStates", nil, 1200},
-			{"WillkommenDlg", "NOT Installed", 1230}, {"WartungDlg", "Installed AND NOT Preselected", 1250},
+			{"WillkommenDlg", "NOT Installed AND NOT OW_ALTE", 1230},
+			{"AuswahlDlg", "(Installed OR OW_ALTE) AND NOT Preselected", 1250},
 			{"ProgressDlg", nil, 1280}, {"ExecuteAction", nil, 1300},
 			{"ExitDlg", nil, -1}, {"UserExitDlg", nil, -2}, {"FatalErrorDlg", nil, -3},
 		}},

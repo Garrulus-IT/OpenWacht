@@ -466,6 +466,7 @@ type packageOptions struct {
 	dir, zentrale, token, hostname string
 	// Freigaben aus dem Assistenten des MSI (1.0.6), leer = unverändert
 	arten, ordner, indikatoren, netze string
+	neu                               bool // bestehende Registrierung ersetzen („Neu einrichten“)
 }
 
 func cmdPackageSetup(ctx context.Context, args []string, stdin io.Reader, out io.Writer) error {
@@ -479,6 +480,7 @@ func cmdPackageSetup(ctx context.Context, args []string, stdin io.Reader, out io
 	folders := fs.String("ordner", "", "Ordner für Datei-Sensoren wie „sensoren -ordner“")
 	counters := fs.String("indikatoren", "", "Objekte der Leistungsindikatoren wie „sensoren -indikatoren“")
 	nets := fs.String("netze", "", "als Sammler für SNMP-Geräte in diesen Netzen freigeben wie „sammler -netze“ (leer = unverändert)")
+	choice := fs.String("wahl", "", "Auswahl im Assistenten des MSI: „neu“ ersetzt eine bestehende Registrierung durch das Token")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -489,7 +491,7 @@ func cmdPackageSetup(ctx context.Context, args []string, stdin io.Reader, out io
 		return errors.New("bitte als root bzw. Administrator ausführen (läuft normalerweise im Paketmanager)")
 	}
 	o := packageOptions{dir: *dir, zentrale: *zentrale, token: *token, hostname: *hostname,
-		arten: *kinds, ordner: *folders, indikatoren: *counters, netze: *nets}
+		arten: *kinds, ordner: *folders, indikatoren: *counters, netze: *nets, neu: strings.TrimSpace(*choice) == "neu"}
 	if *fromEnv {
 		o.zentrale = firstNonEmpty(o.zentrale, os.Getenv(envZentrale))
 		o.token = firstNonEmpty(o.token, os.Getenv(envToken))
@@ -557,13 +559,13 @@ func registerFromPackage(ctx context.Context, o packageOptions, out io.Writer) e
 	if o.token == "" {
 		return nil
 	}
-	if agent.Registered(o.dir) {
+	if agent.Registered(o.dir) && !o.neu {
 		fmt.Fprintln(out, "Bereits registriert; das angegebene Token wurde nicht benutzt.")
 		return nil
 	}
 	regCtx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	id, err := agent.Register(regCtx, o.dir, o.zentrale, o.token, o.hostname, false)
+	id, err := agent.Register(regCtx, o.dir, o.zentrale, o.token, o.hostname, o.neu)
 	if err != nil {
 		return fmt.Errorf("Registrierung: %w", err)
 	}
@@ -580,11 +582,24 @@ func firstNonEmpty(a, b string) string {
 
 func cmdPackageRemove(args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("paket-entfernen", flag.ContinueOnError)
+	forget := fs.String("registrierung", "", "„1“: auch Registrierung, Schlüssel und Freigaben in "+agent.DefaultDir+" löschen (Häkchen im MSI)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if !agent.IsRoot() {
 		return errors.New("bitte als root bzw. Administrator ausführen")
 	}
-	return packageRemove(out)
+	if err := packageRemove(out); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*forget) != "1" {
+		fmt.Fprintf(out, "Die Registrierung in %s bleibt; eine neue Installation läuft ohne Token weiter.\n", agent.DefaultDir)
+		return nil
+	}
+	// Nur das feste Verzeichnis des Pakets, nie ein Pfad von außen.
+	if err := os.RemoveAll(agent.DefaultDir); err != nil {
+		return fmt.Errorf("Registrierung löschen: %w", err)
+	}
+	fmt.Fprintf(out, "Registrierung gelöscht (%s). Den Host in OpenWacht bitte selbst löschen.\n", agent.DefaultDir)
+	return nil
 }

@@ -674,8 +674,12 @@ func TestMSIAssistent(t *testing.T) {
 		if !strings.Contains(secure, ";"+p+";") {
 			t.Errorf("%s nicht in SecureCustomProperties (käme bei der Ausführung nicht an)", p)
 		}
-		if c["Type"] == "CheckBox" && (!checkbox[p] || !strings.Contains(arten, "["+p+"]")) {
-			t.Errorf("Kästchen %s: kein Wert in CheckBox oder fehlt in ArtenSetzen", p)
+		entfernen := find(db["CustomAction"], "Action", "PaketEntfernen")["Target"]
+		if c["Type"] == "CheckBox" && (!checkbox[p] || !strings.Contains(arten+entfernen, "["+p+"]")) {
+			t.Errorf("Kästchen %s: kein Wert in CheckBox oder kommt in keiner Aktion an", p)
+		}
+		if c["Type"] == "RadioButtonGroup" && (find(db["RadioButton"], "Property", p) == nil || !strings.Contains(target, "["+p+"]")) {
+			t.Errorf("Auswahl %s: keine Knöpfe in RadioButton oder fehlt in paket-einrichten", p)
 		}
 		if c["Type"] == "Edit" && !strings.Contains(target, "["+p+"]") && !strings.Contains(target, "["+p+" ]") &&
 			!strings.Contains(target, "["+p+"] ") {

@@ -80,8 +80,19 @@ auf.
 5. **Bereit:** „Installieren“ fragt nach Administratorrechten; danach „Fertig“ bzw. bei einem Fehler (Token falsch oder
    abgelaufen, Zentrale nicht erreichbar) „Einrichtung fehlgeschlagen“, und der Rechner bleibt unverändert.
 
-Ein zweiter Doppelklick auf dieselbe Version bietet nur „Entfernen“ an. Nicht angehakte Freigaben ändern bei einem
-Update nichts; zurücknehmen geht weiter mit `openwacht-agent sensoren -aus` bzw. `sammler -aus`.
+**Ist schon ein Agent installiert**, fragt das MSI zuerst, was geschehen soll:
+
+- **Aktualisieren:** Registrierung und Freigaben bleiben, ein Klick bis „Installieren“. Bei derselben Version richtet
+  das die Dateien und den Dienst neu ein (Reparatur).
+- **Neu einrichten:** neue Zentrale bzw. neues Token und die Freigaben neu wählen; das Token ersetzt die bestehende
+  Registrierung.
+- **Entfernen:** Agent, Dienst und geplante Aufgabe kommen weg. Mit dem Häkchen „Auch die Registrierung löschen“
+  verschwinden auch Schlüssel, Zertifikat und Freigaben in `C:\ProgramData\OpenWacht-Agent`; ohne Häkchen läuft eine
+  spätere Installation ohne neues Token weiter. Den Host in OpenWacht löscht man dort selbst. Eine ältere Version als
+  die des MSI entfernt man unter Einstellungen › Apps (oder aktualisiert sie erst).
+
+Nicht angehakte Freigaben ändern bei einem Update nichts; zurücknehmen geht weiter mit `openwacht-agent sensoren -aus`
+bzw. `sammler -aus`. Still: `msiexec /x <Datei> OW_REG_LOESCHEN=1 /qn` entfernt samt Registrierung.
 
 **Stille Installation:**
 

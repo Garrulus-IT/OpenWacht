@@ -35,7 +35,7 @@ var msiKaestchen = []struct{ prop, art, text string }{
 // msiOeffentlich: Eigenschaften, die von der Oberfläche bzw. der Befehlszeile
 // in die Ausführung gelangen müssen (SecureCustomProperties).
 func msiOeffentlich() string {
-	s := "ZENTRALE;TOKEN;HOSTNAME;SENSOREN;ORDNER;INDIKATOREN;NETZE"
+	s := "ZENTRALE;TOKEN;HOSTNAME;SENSOREN;ORDNER;INDIKATOREN;NETZE;OW_WAHL;OW_REG_LOESCHEN"
 	for _, k := range msiKaestchen {
 		s += ";" + k.prop
 	}
@@ -152,12 +152,12 @@ func msiDialoge() []msiDlg {
 			text("Text", 72, 64, "Der Agent läuft als Dienst „openwacht-agent“ und meldet Messwerte dieses Rechners "+
 				"verschlüsselt an deine OpenWacht-Zentrale. Er nimmt keine Verbindungen an und führt keine Befehle aus, "+
 				"die die Zentrale schickt; Sensoren misst er nur, wenn du sie im übernächsten Schritt freigibst."),
-			text("Text2", 124, 40, "Du brauchst die Adresse des Agent-Ports der Zentrale und ein Registrierungs-Token. Beides "+
+			text("Text2", 124, 40, "Du brauchst die Adresse der Zentrale mit dem Port für Agents und ein Registrierungs-Token. Beides "+
 				"findest du in OpenWacht unter Benutzer und Mandanten › Agent-Tokens."),
 		)},
 		{name: "ZentraleDlg", titel: titel, attr: modal, vor: "Weiter", abbruch: "Abbrechen", ctrls: rahmen(
 			"Verbindung zur Zentrale",
-			"Bei einem Update bleiben Adresse und Token leer.",
+			"Leer lassen, wenn der Agent schon registriert ist.",
 			kZurueck, kWeiter, kAbbrechen,
 			text("LZentrale", 72, 12, "Adresse der Zentrale mit Port für Agents, z. B. https://openwacht.firma.de:8444"),
 			feld("Zentrale", "ZENTRALE", 85, ctlFeld, 250),
@@ -198,20 +198,24 @@ func msiDialoge() []msiDlg {
 			msiCtrl{name: "Aktion", typ: "Text", x: 20, y: 80, w: 330, h: 12, attr: ctlText},
 			msiCtrl{name: "Fortschritt", typ: "ProgressBar", x: 20, y: 96, w: 330, h: 12, attr: ctlSichtbar | 1<<16},
 		)},
-		{name: "WartungDlg", titel: titel, attr: modal, vor: "Abbrechen", abbruch: "Abbrechen", ctrls: rahmen(
-			"OpenWacht-Agent ist installiert",
-			"Diese Version ist schon eingerichtet.",
-			msiCtrl{name: "Entfernen", typ: "PushButton", x: 236, y: 243, w: 56, h: 17, attr: ctlKnopf | ctlSchild, text: "&Entfernen", fokus: true},
-			kAbbrechen,
-			text("Text", 72, 60, "„Entfernen“ hält den Dienst an und entfernt Agent und Dienst. Die Registrierung im "+
-				"Ordner C:\\ProgramData bleibt, damit eine spätere Installation ohne neues Token weiterläuft."),
+		{name: "AuswahlDlg", titel: titel, attr: modal, vor: "Weiter", abbruch: "Abbrechen", ctrls: rahmen(
+			"Der OpenWacht-Agent ist schon installiert",
+			"Was möchtest du tun?",
+			kZurueckAus, kWeiter, kAbbrechen,
+			msiCtrl{name: "Wahl", typ: "RadioButtonGroup", x: 20, y: 72, w: 330, h: 84, attr: ctlKnopf, prop: "OW_WAHL", fokus: true},
+			msiCtrl{name: "Loeschen", typ: "CheckBox", x: 34, y: 154, w: 316, h: 14, attr: ctlKnopf, prop: "OW_REG_LOESCHEN",
+				text: "Auch die Registrierung löschen (dann braucht es ein neues Token)", fokus: true},
+			text("Hinweis", 186, 40, "Eine ältere Version entfernst du unter Einstellungen › Apps. Den Host in OpenWacht "+
+				"löschst du dort selbst."),
 		)},
 		{name: "ExitDlg", titel: titel, attr: modal, vor: "Fertig", abbruch: "Fertig", ctrls: rahmen(
 			"Fertig",
-			"Der OpenWacht-Agent ist eingerichtet.",
+			"Der Assistent hat alles erledigt.",
 			msiCtrl{name: "Fertig", typ: "PushButton", x: 304, y: 243, w: 56, h: 17, attr: ctlKnopf, text: "&Fertig", fokus: true},
 			text("Text", 72, 60, "Mit Token läuft jetzt der Dienst „openwacht-agent“, und der Rechner erscheint in OpenWacht "+
 				"unter Hosts. Ohne Token richtest du ihn später mit „openwacht-agent registrieren“ ein."),
+			text("Entfernt", 72, 60, "Agent und Dienst sind von diesem Rechner entfernt. Den Host in OpenWacht löschst du dort, "+
+				"wenn du ihn nicht mehr brauchst."),
 		)},
 		{name: "FatalErrorDlg", titel: titel, attr: modal, vor: "Fertig", abbruch: "Fertig", ctrls: rahmen(
 			"Einrichtung fehlgeschlagen",
@@ -267,10 +271,13 @@ func msiEreignisse() [][]any {
 	ordnerFehlt := "OW_S_DATEI AND NOT ORDNER"
 	indikatorFehlt := "OW_S_INDIKATOR AND NOT INDIKATOREN"
 	abbrechen := func(dlg string) []any { return []any{dlg, "Abbrechen", "SpawnDialog", "CancelDlg", "1", 1} }
+	entfernenAlt := `OW_WAHL="entfernen" AND NOT Installed`
+	vorhanden := "Installed OR OW_ALTE"
 	return [][]any{
 		{"WillkommenDlg", "Weiter", "NewDialog", "ZentraleDlg", "1", 1},
 		abbrechen("WillkommenDlg"),
-		{"ZentraleDlg", "Zurueck", "NewDialog", "WillkommenDlg", "1", 1},
+		{"ZentraleDlg", "Zurueck", "NewDialog", "WillkommenDlg", "NOT (" + vorhanden + ")", 1},
+		{"ZentraleDlg", "Zurueck", "NewDialog", "AuswahlDlg", vorhanden, 2},
 		{"ZentraleDlg", "Weiter", "[OW_FEHLER]", "Bitte Adresse und Token zusammen angeben oder beide leer lassen (Update eines registrierten Agents).", zentraleFehlt, 1},
 		{"ZentraleDlg", "Weiter", "SpawnDialog", "FehlerDlg", zentraleFehlt, 2},
 		{"ZentraleDlg", "Weiter", "NewDialog", "SensorenDlg", "NOT (" + zentraleFehlt + ")", 3},
@@ -284,13 +291,20 @@ func msiEreignisse() [][]any {
 		{"SammlerDlg", "Zurueck", "NewDialog", "SensorenDlg", "1", 1},
 		{"SammlerDlg", "Weiter", "NewDialog", "BereitDlg", "1", 1},
 		abbrechen("SammlerDlg"),
-		{"BereitDlg", "Zurueck", "NewDialog", "SammlerDlg", "1", 1},
+		{"BereitDlg", "Zurueck", "NewDialog", "SammlerDlg", `NOT (` + vorhanden + `) OR OW_WAHL<>"update"`, 1},
+		{"BereitDlg", "Zurueck", "NewDialog", "AuswahlDlg", `(` + vorhanden + `) AND OW_WAHL="update"`, 2},
 		{"BereitDlg", "Installieren", "EndDialog", "Return", "1", 1},
 		abbrechen("BereitDlg"),
 		abbrechen("ProgressDlg"),
-		{"WartungDlg", "Entfernen", "Remove", "ALL", "1", 1},
-		{"WartungDlg", "Entfernen", "EndDialog", "Return", "1", 2},
-		{"WartungDlg", "Abbrechen", "EndDialog", "Exit", "1", 1},
+		{"AuswahlDlg", "Weiter", "[OW_FEHLER]", "Diese ältere Version kann der Assistent nicht entfernen. Bitte unter Einstellungen › Apps entfernen oder erst aktualisieren.", entfernenAlt, 1},
+		{"AuswahlDlg", "Weiter", "SpawnDialog", "FehlerDlg", entfernenAlt, 2},
+		{"AuswahlDlg", "Weiter", "Remove", "ALL", `OW_WAHL="entfernen" AND Installed`, 3},
+		{"AuswahlDlg", "Weiter", "EndDialog", "Return", `OW_WAHL="entfernen" AND Installed`, 4},
+		{"AuswahlDlg", "Weiter", "Reinstall", "ALL", `OW_WAHL<>"entfernen" AND Installed`, 5},
+		{"AuswahlDlg", "Weiter", "ReinstallMode", "vomus", `OW_WAHL<>"entfernen" AND Installed`, 6},
+		{"AuswahlDlg", "Weiter", "NewDialog", "BereitDlg", `OW_WAHL="update"`, 7},
+		{"AuswahlDlg", "Weiter", "NewDialog", "ZentraleDlg", `OW_WAHL="neu"`, 8},
+		abbrechen("AuswahlDlg"),
 		{"ExitDlg", "Fertig", "EndDialog", "Return", "1", 1},
 		{"FatalErrorDlg", "Fertig", "EndDialog", "Exit", "1", 1},
 		{"UserExitDlg", "Fertig", "EndDialog", "Exit", "1", 1},
@@ -356,6 +370,9 @@ func msiUITabellen() []msiTable {
 		{"Condition", cK(255)}}, rows: [][]any{
 		{"SensorenDlg", "Ordner", "Disable", "NOT OW_S_DATEI"}, {"SensorenDlg", "Ordner", "Enable", "OW_S_DATEI"},
 		{"SensorenDlg", "Indikatoren", "Disable", "NOT OW_S_INDIKATOR"}, {"SensorenDlg", "Indikatoren", "Enable", "OW_S_INDIKATOR"},
+		{"AuswahlDlg", "Loeschen", "Disable", `OW_WAHL<>"entfernen"`}, {"AuswahlDlg", "Loeschen", "Enable", `OW_WAHL="entfernen"`},
+		{"ExitDlg", "Text", "Hide", `REMOVE="ALL"`}, {"ExitDlg", "Text", "Show", `NOT REMOVE="ALL"`},
+		{"ExitDlg", "Entfernt", "Show", `REMOVE="ALL"`}, {"ExitDlg", "Entfernt", "Hide", `NOT REMOVE="ALL"`},
 	}}
 	mapping := msiTable{name: "EventMapping", cols: []msiCol{{"Dialog_", cK(72)}, {"Control_", cK(50)}, {"Event", cK(50)},
 		{"Attribute", cS(50)}}, rows: [][]any{
@@ -366,6 +383,13 @@ func msiUITabellen() []msiTable {
 	for _, k := range msiKaestchen {
 		check.rows = append(check.rows, []any{k.prop, k.art})
 	}
+	check.rows = append(check.rows, []any{"OW_REG_LOESCHEN", "1"})
+	radio := msiTable{name: "RadioButton", cols: []msiCol{{"Property", cK(72)}, {"Order", cI2K()}, {"Value", cS(64)},
+		{"X", cI2()}, {"Y", cI2()}, {"Width", cI2()}, {"Height", cI2()}, {"Text", cLN(64)}, {"Help", cLN(50)}}, rows: [][]any{
+		{"OW_WAHL", 1, "update", 0, 0, 330, 16, "Aktualisieren: Registrierung und Freigaben bleiben", nil},
+		{"OW_WAHL", 2, "neu", 0, 28, 330, 16, "Neu einrichten: neues Token, Freigaben neu wählen", nil},
+		{"OW_WAHL", 3, "entfernen", 0, 56, 330, 16, "Entfernen: Agent und Dienst von diesem Rechner", nil},
+	}}
 	style := msiTable{name: "TextStyle", cols: []msiCol{{"TextStyle", cK(72)}, {"FaceName", cS(32)}, {"Size", cI2()},
 		{"Color", cI4N()}, {"StyleBits", cI2N()}}, rows: [][]any{
 		{"OwText", "Segoe UI", 9, nil, nil},
@@ -383,7 +407,7 @@ func msiUITabellen() []msiTable {
 			{"PaketEinrichten", "Agent wird als Dienst eingerichtet, bei der Zentrale registriert und gestartet", nil},
 			{"PaketEntfernen", "Dienst wird entfernt", nil},
 		}}
-	return []msiTable{dialog, control, event, cond, mapping, check, style, bild, aktion}
+	return []msiTable{dialog, control, event, cond, mapping, check, radio, style, bild, aktion}
 }
 
 // msiBanner: Kopf der Dialoge als BMP (24 Bit), 740 × 118 Pixel für 370 × 59

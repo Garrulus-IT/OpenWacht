@@ -203,6 +203,6 @@ func packageRemove(out io.Writer) error {
 	if err := agent.RemoveService(); err != nil {
 		return err
 	}
-	fmt.Fprintln(out, "Dienst und geplante Aufgabe entfernt; das Verzeichnis mit der Registrierung bleibt.")
+	fmt.Fprintln(out, "Dienst und geplante Aufgabe entfernt.")
 	return nil
 }

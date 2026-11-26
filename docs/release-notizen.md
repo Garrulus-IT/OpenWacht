@@ -59,7 +59,9 @@
   automatische Dienste, Prozesse, Dateien mit Ordnern, Leistungsindikatoren, Hyper-V) und Sammler-Netze, mit Prüfung
   der Eingaben und eigenem Kopf in Nachtblau. Still per GPO/Intune gehen dieselben Freigaben über die neuen
   Eigenschaften `SENSOREN`, `ORDNER`, `INDIKATOREN` und `NETZE`; `paket-einrichten` kennt dafür `-arten`, `-ordner`,
-  `-indikatoren` und `-netze`. Die Einrichtung schreibt Ausgabe und Fehler in die Ereignisanzeige (Quelle
+  `-indikatoren` und `-netze`. Ist schon ein Agent installiert, fragt das MSI zuerst: Aktualisieren, Neu einrichten
+  (neues Token ersetzt die Registrierung, `paket-einrichten -wahl neu`) oder Entfernen (wahlweise samt Registrierung,
+  `paket-entfernen -registrierung 1`). Die Einrichtung schreibt Ausgabe und Fehler in die Ereignisanzeige (Quelle
   `openwacht-agent`), richtet den Dienst vor der Registrierung ein (ein Fehler kostet kein Token), räumt nach einer
   gescheiterten Registrierung auf und benennt die Ursache (Name, Verbindung, TLS, Zertifikat, Antwort). Behoben: Die
   Tabelle ServiceControl startete den Dienst statt ihn vor einem Update anzuhalten. Texte im MSI dürfen jetzt Umlaute
