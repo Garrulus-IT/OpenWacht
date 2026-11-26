@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -57,7 +58,22 @@ func CheckBinary(path string) error {
 	return CheckBinaryACLs(chain)
 }
 
+// kontoNamen: einmal aufgelöste Namen; die Prüfung der Rechte läuft bei
+// jedem Start über die ganze Pfadkette, und eine nicht auflösbare SID kann
+// je Abfrage spürbar dauern (im Netz ohne Domänencontroller).
+var kontoNamen sync.Map
+
 func accountName(sid *windows.SID) string {
+	k := sid.String()
+	if v, ok := kontoNamen.Load(k); ok {
+		return v.(string)
+	}
+	n := lookupName(sid)
+	kontoNamen.Store(k, n)
+	return n
+}
+
+func lookupName(sid *windows.SID) string {
 	acc, dom, _, err := sid.LookupAccount("")
 	if err != nil {
 		return ""
@@ -403,7 +419,10 @@ func StartService() error {
 		return err
 	}
 	defer s.Close()
-	return s.Start()
+	if err := s.Start(); err != nil {
+		return err
+	}
+	return waitRunning(s)
 }
 
 // RemoveService hält den Dienst an und entfernt ihn samt geplanter Aufgabe

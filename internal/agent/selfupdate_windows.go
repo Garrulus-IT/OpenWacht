@@ -3,6 +3,7 @@
 package agent
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -51,12 +52,47 @@ func RestartService() error {
 		if _, err := s.Control(svc.Stop); err != nil {
 			return fmt.Errorf("Dienst anhalten: %w", err)
 		}
+		angehalten := false
 		for range 60 {
 			time.Sleep(500 * time.Millisecond)
 			if st, err := s.Query(); err == nil && st.State == svc.Stopped {
+				angehalten = true
 				break
 			}
 		}
+		if !angehalten {
+			return errors.New("Dienst hält nach 30 s nicht an; Start-Service bzw. Neustart des Rechners holt das Update nach")
+		}
 	}
-	return s.Start()
+	if err := s.Start(); err != nil {
+		return err
+	}
+	return waitRunning(s)
+}
+
+// waitRunning: bis zu 10 s warten, bis der Dienst läuft. Der Agent meldet
+// „läuft“ sofort und beendet sich bei einem Fehler erst danach; so fällt
+// ein Dienst auf, der gleich wieder stehen bleibt.
+func waitRunning(s *mgr.Service) error {
+	for range 20 {
+		time.Sleep(500 * time.Millisecond)
+		st, err := s.Query()
+		if err != nil {
+			return err
+		}
+		switch st.State {
+		case svc.Running:
+			// kurz nachsehen, ob er dabei bleibt
+			time.Sleep(time.Second)
+			if st, err := s.Query(); err == nil && st.State == svc.Stopped {
+				return fmt.Errorf("Dienst beendet sich gleich nach dem Start (Code %d); Ursache in der Ereignisanzeige, Quelle %s",
+					st.ServiceSpecificExitCode, ServiceName)
+			}
+			return nil
+		case svc.Stopped:
+			return fmt.Errorf("Dienst beendet sich gleich nach dem Start (Code %d); Ursache in der Ereignisanzeige, Quelle %s",
+				st.ServiceSpecificExitCode, ServiceName)
+		}
+	}
+	return errors.New("Dienst meldet nach 10 s noch nicht „läuft“")
 }
