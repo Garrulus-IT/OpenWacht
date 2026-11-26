@@ -74,8 +74,8 @@ aufgebaut wie die Weboberfläche, damit niemand zwei Oberflächen lernen muss: g
 Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
 
 - **Seitenleiste links** wie im Browser: Wortmarke, **Mandant** mit „mit Untermandanten“, darunter Überwachen,
-  Einrichten und Verwaltung. **Dashboard, Hosts, Alarme, Wartung, Zertifikate und Berichte** sind Seiten
-  der App; Topologie, Sensor-Vorlagen, SNMP-Profile, Wandanzeigen sowie Benutzer und Mandanten tragen einen Pfeil
+  Einrichten und Verwaltung. **Dashboard, Hosts, Topologie, Zertifikate, Alarme, Berichte und Wartung**
+  sind Seiten der App; Sensor-Vorlagen, SNMP-Profile, Wandanzeigen sowie Benutzer und Mandanten tragen einen Pfeil
   und öffnen die Seite für denselben Mandanten im Browser. Unten: Konto bzw. Token und Rolle, Zentrale, Verbindung mit Stand, **Darstellung**
   (wie System, Hell, Dunkel) und **Abmelden**. Mandant, Schalter und Darstellung merkt sich die App.
 - **Kopf** mit Brotkrumen („Dashboard › web01“), Knöpfen der Seite („Host hinzufügen“, „Im Browser öffnen“) und der
@@ -102,6 +102,9 @@ Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
   Mit Problem. Ein Klick aufs Gerät öffnet es unter Hosts.
 - **Berichte:** Monat wählen, Kennzahlen, Verfügbarkeit je Mandant und je Gerät, Alarme mit den längsten, Kapazität.
   **Als PDF** legt den Bericht in den Ordner Downloads und öffnet ihn. Admins setzen hier das SLA-Ziel des Mandanten.
+- **Topologie:** die Abhängigkeiten („hängt ab von“) als Bäume je Mandant wie im Web: Karte je Gerät mit Form und
+  Farbe, die Linie links an einem Kind in seinem Zustand, gestrichelt, wenn es ruht, unbekannt oder ungeprüft ist. Ein
+  Klick öffnet das Gerät unter Hosts.
 - **Gerät bzw. Auswahl:** oben Name, Adresse, Gruppe, Agent und Wartung mit Marken je Zustand („nur ansehen (Rolle
   Leser)“, wo die Rolle nur lesen darf), darunter die Befehle „+ Sensor“, „Jetzt abfragen“, „Alarm bestätigen …“,
   „Wartung …“, „Pausieren“, rechts „Nur Probleme“ und „Mehr“ (was nicht in die Zeile passt, steht dort). Die

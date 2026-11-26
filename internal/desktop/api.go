@@ -54,6 +54,9 @@ type Geraet struct {
 	SNMPID    *string  `json:"snmp_id"`
 	Checks    int      `json:"checks"`
 	Wartung   *Wartung `json:"wartung"`
+	// Topologie (1.0.3): „hängt ab von“ und ob das Gerät deshalb ruht
+	AbhaengigVon         *string `json:"abhaengig_von"`
+	NichtErreichbarWegen *string `json:"nicht_erreichbar_wegen"`
 }
 
 // Check aus GET /api/v1/checks (ein Sensor, den die Zentrale oder der Agent misst).
