@@ -37,7 +37,7 @@ var navGruppen = []struct {
 		{"vorlagen", "Sensor-Vorlagen", -1, "/sensor-vorlagen"},
 		{"snmpprofile", "SNMP-Profile", -1, "/snmp-profile"},
 		{"anzeigen", "Wandanzeigen", -1, "/wandanzeigen"},
-		{"wartung", "Wartung", -1, "/wartung"},
+		{"wartung", "Wartung", seiteWartung, "/wartung"},
 	}},
 	{"Verwaltung", []navPunkt{
 		{"verwaltung", "Benutzer und Mandanten", -1, "/verwaltung"},

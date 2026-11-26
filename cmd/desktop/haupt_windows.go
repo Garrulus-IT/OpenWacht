@@ -40,6 +40,7 @@ const (
 	idSonne      = 210
 	idUebersicht = 211
 	idHinweis    = 212
+	idWartung    = 213
 )
 
 // Seiten in der App (alle anderen öffnen den Browser).
@@ -47,9 +48,10 @@ const (
 	seiteDashboard = iota
 	seiteHosts
 	seiteAlarme
+	seiteWartung
 )
 
-var seitenTitel = [...]string{"Dashboard", "Hosts", "Alarme"}
+var seitenTitel = [...]string{"Dashboard", "Hosts", "Alarme", "Wartung"}
 
 // Befehle aus Befehlsleiste, Menü „Mehr“ und Kontextmenüs.
 const (

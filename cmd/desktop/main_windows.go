@@ -54,7 +54,13 @@ type app struct {
 	stand        desktop.Stand
 	standFehler  string
 	baum         []*desktop.Knoten
-	ergebnisse   chan func() // Ergebnisse aus imHintergrund für den Oberflächen-Thread
+
+	// Seite Wartung
+	wartungen      desktop.Wartungen
+	wartungGeladen bool
+	wartungFehler  string
+	wartungSicht   atomic.Bool
+	ergebnisse     chan func() // Ergebnisse aus imHintergrund für den Oberflächen-Thread
 }
 
 func (a *app) zentrale() string {
@@ -257,6 +263,16 @@ func (a *app) abfragen() {
 				a.stand, a.standFehler = st, ""
 			}
 			a.mu.Unlock()
+			if a.wartungSicht.Load() {
+				ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+				w, err := c.WartungenHolen(ctx, "")
+				cancel()
+				a.mu.Lock()
+				if err == nil {
+					a.wartungen, a.wartungGeladen, a.wartungFehler = w, true, ""
+				}
+				a.mu.Unlock()
+			}
 		}
 		pPostMessageW.Call(uintptr(a.hwnd), wmStand, 0, 0)
 		select {

@@ -74,8 +74,8 @@ aufgebaut wie die Weboberfläche, damit niemand zwei Oberflächen lernen muss: g
 Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
 
 - **Seitenleiste links** wie im Browser: Wortmarke, **Mandant** mit „mit Untermandanten“, darunter Überwachen,
-  Einrichten und Verwaltung. **Dashboard, Hosts und Alarme** sind Seiten der App; Topologie, Zertifikate, Berichte,
-  Sensor-Vorlagen, SNMP-Profile, Wandanzeigen, Wartung sowie Benutzer und Mandanten tragen einen Pfeil und öffnen die
+  Einrichten und Verwaltung. **Dashboard, Hosts, Alarme und Wartung** sind Seiten der App; Topologie, Zertifikate,
+  Berichte, Sensor-Vorlagen, SNMP-Profile, Wandanzeigen sowie Benutzer und Mandanten tragen einen Pfeil und öffnen die
   Seite für denselben Mandanten im Browser. Unten: Token und Rolle, Zentrale, Verbindung mit Stand, **Darstellung**
   (wie System, Hell, Dunkel) und **Abmelden**. Mandant, Schalter und Darstellung merkt sich die App.
 - **Kopf** mit Brotkrumen („Dashboard › web01“), Knöpfen der Seite („Host hinzufügen“, „Im Browser öffnen“) und der
@@ -89,6 +89,11 @@ Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
 - **Hosts:** links der Baum (Mandant, Untermandanten, Gruppen, Geräte) mit der Form des schlimmsten Zustands und den
   Zahlen der kritischen, gewarnten und unbekannten Sensoren, rechts das Gewählte.
 - **Alarme:** alle Sensoren mit Warnung, Kritisch oder Unbekannt im gewählten Mandanten, schlimmste zuerst.
+- **Wartung:** wie die Seite im Browser „Laufende Wartungen“ (Ziel, bis, Grund, von) mit **Beenden** und darunter die
+  **Wartungsfenster** mit Ziel, Wiederholung, nächstem Termin bzw. „läuft bis …“ und den Knöpfen **Pausieren** bzw.
+  **Fortsetzen** und **Löschen** (mit Rückfrage; eine laufende Wartung aus dem Fenster endet sofort). „Fenster anlegen“
+  und „Bearbeiten“ öffnen das Formular im Browser. Die Suche filtert nach Ziel, Name und Grund; die Seite fragt alle
+  30 s neu ab.
 - **Gerät bzw. Auswahl:** oben Name, Adresse, Gruppe, Agent und Wartung mit Marken je Zustand („nur ansehen (Rolle
   Leser)“, wo das Token nur lesen darf), darunter die Befehle „+ Sensor“, „Jetzt abfragen“, „Alarm bestätigen …“,
   „Wartung …“, „Pausieren“, rechts „Nur Probleme“ und „Mehr“ (was nicht in die Zeile passt, steht dort). Die

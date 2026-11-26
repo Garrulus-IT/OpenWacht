@@ -46,8 +46,9 @@
   Fenster ohne Browser, aufgebaut wie die Weboberfläche: Seitenleiste mit Mandantenwahl, „mit Untermandanten“ und den
   Piktogrammen des Webs, Kopf mit Brotkrumen und Suche, Darstellung wie System, hell oder dunkel. Das **Dashboard**
   zeigt dauerhaft das Sonnendiagramm wie im Web (Fugen, Namen entlang des Bogens) und daneben Geräte je Zustand und
-  „Aktuell“; ein Klick auf ein Gerät öffnet daneben seine Sensoren. Dazu die Seiten **Hosts** (Baum und Gerät) und
-  **Alarme**; die übrigen Punkte der Seitenleiste öffnen die Seite im Browser. Mit einem API-Token der Rolle
+  „Aktuell“; ein Klick auf ein Gerät öffnet daneben seine Sensoren. Dazu die Seiten **Hosts** (Baum und Gerät), **Alarme** und
+  **Wartung** (laufende Wartungen beenden, Wartungsfenster pausieren, fortsetzen, löschen; Anlegen und Bearbeiten im
+  Browser); die übrigen Punkte der Seitenleiste öffnen die Seite im Browser. Mit einem API-Token der Rolle
   **Operator** lassen sich Geräte und Sensoren anlegen, ändern, löschen, pausieren, jetzt abfragen, in Wartung setzen
   und Alarme bestätigen; mit **Leser** nur ansehen. Angemeldet wird in einem eigenen Fenster statt in der Konsole,
   „Abmelden“ steht unten in der Seitenleiste. Die Zentrale ändert sich dafür nicht. Dazu: ein Klick öffnet nicht mehr

@@ -5,9 +5,12 @@ package desktop
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
+	_ "time/tzdata" // Zeitzonen der Wartungsfenster auch unter Windows
 )
 
 // Hier stehen die Abfragen und Änderungen des Hauptfensters (ab 1.0.6). Die
@@ -197,4 +200,177 @@ func (c Client) WartungBeenden(ctx context.Context, art, id string) error {
 // AlarmBestaetigen bestätigt einen offenen Alarm mit Kommentar.
 func (c Client) AlarmBestaetigen(ctx context.Context, id, kommentar string) error {
 	return c.send(ctx, http.MethodPost, "/api/v1/alarme/"+p(id)+"/bestaetigen", map[string]string{"kommentar": kommentar}, nil)
+}
+
+// --- Wartung (Seite „Wartung“ wie web/src/WartungSeite.tsx) -----------------
+
+// WartungLaufend: Gerät oder Sensor gerade in Wartung.
+type WartungLaufend struct {
+	ID        string    `json:"id"`
+	MandantID string    `json:"mandant_id"`
+	GeraetID  *string   `json:"geraet_id"`
+	CheckID   *string   `json:"check_id"`
+	Geraet    string    `json:"geraet"`
+	Sensor    *string   `json:"sensor"`
+	Seit      time.Time `json:"seit"`
+	Bis       time.Time `json:"bis"`
+	Grund     string    `json:"grund"`
+	Von       *string   `json:"von"`
+	FensterID *string   `json:"fenster_id"`
+}
+
+// Ziel: „Gerät“ bzw. „Gerät · Sensor“.
+func (l WartungLaufend) Ziel() string {
+	if l.Sensor != nil && *l.Sensor != "" {
+		return l.Geraet + " · " + *l.Sensor
+	}
+	return l.Geraet
+}
+
+// WartungFenster: geplantes Fenster. Roh hält alle Felder, damit Pausieren
+// genau das zurückschickt, was die Zentrale geliefert hat.
+type WartungFenster struct {
+	ID        string      `json:"id"`
+	MandantID string      `json:"mandant_id"`
+	Name      string      `json:"name"`
+	Grund     string      `json:"grund"`
+	ZielArt   string      `json:"ziel_art"`
+	ZielName  string      `json:"ziel_name"`
+	Untergr   bool        `json:"untergruppen"`
+	Zeitzone  string      `json:"zeitzone"`
+	Aktiv     bool        `json:"aktiv"`
+	Text      string      `json:"text"`
+	LaeuftBis *time.Time  `json:"laeuft_bis"`
+	Naechstes []time.Time `json:"naechstes"`
+	Roh       rohFelder   `json:"-"`
+}
+
+type rohFelder map[string]any
+
+// Wartungen: laufende Wartungen und Fenster.
+type Wartungen struct {
+	Laufend []WartungLaufend `json:"laufend"`
+	Fenster []WartungFenster `json:"fenster"`
+}
+
+// WartungenHolen: GET /api/v1/wartung (mandant = "" für alle sichtbaren).
+func (c Client) WartungenHolen(ctx context.Context, mandant string) (Wartungen, error) {
+	pfad := "/api/v1/wartung"
+	if mandant != "" {
+		pfad += "?mandant=" + url.QueryEscape(mandant)
+	}
+	var roh struct {
+		Laufend []WartungLaufend  `json:"laufend"`
+		Fenster []json.RawMessage `json:"fenster"`
+	}
+	if err := c.send(ctx, http.MethodGet, pfad, nil, &roh); err != nil {
+		return Wartungen{}, err
+	}
+	w := Wartungen{Laufend: roh.Laufend}
+	for _, b := range roh.Fenster {
+		var f WartungFenster
+		if err := json.Unmarshal(b, &f); err != nil {
+			return Wartungen{}, err
+		}
+		if err := json.Unmarshal(b, &f.Roh); err != nil {
+			return Wartungen{}, err
+		}
+		w.Fenster = append(w.Fenster, f)
+	}
+	return w, nil
+}
+
+// Beschreibung: „Gruppe Server mit Untergruppen · dienstags 22:00“ wie im Web.
+func (f WartungFenster) Beschreibung() string {
+	art := map[string]string{"geraet": "Gerät", "sensor": "Sensor", "gruppe": "Gruppe"}[f.ZielArt]
+	t := strings.TrimSpace(art + " " + f.ZielName)
+	if f.ZielArt == "gruppe" {
+		if f.Untergr {
+			t += " mit Untergruppen"
+		} else {
+			t += " ohne Untergruppen"
+		}
+	}
+	if f.Text != "" {
+		t += " · " + f.Text
+	}
+	if f.Zeitzone != "" && f.Zeitzone != "Europe/Berlin" {
+		t += " (" + f.Zeitzone + ")"
+	}
+	return t
+}
+
+// WartungZeit: „Do., 26.11., 22:00“ wie zeit() im Web, in zone (leer = Ortszeit).
+func WartungZeit(t time.Time, zone string) string {
+	if zone != "" {
+		if l, err := time.LoadLocation(zone); err == nil {
+			t = t.In(l)
+		} else {
+			t = t.Local()
+		}
+	} else {
+		t = t.Local()
+	}
+	tag := [...]string{"So.", "Mo.", "Di.", "Mi.", "Do.", "Fr.", "Sa."}[t.Weekday()]
+	return tag + ", " + t.Format("02.01., 15:04")
+}
+
+// FensterEingabe: Rumpf für PUT wie eingabe() im Web (fehlende Zahlen 0, Uhrzeit "").
+func FensterEingabe(f WartungFenster, aktiv bool) map[string]any {
+	r := f.Roh
+	zahl := func(k string) any {
+		if v, ok := r[k]; ok && v != nil {
+			return v
+		}
+		return 0
+	}
+	text := func(k string) any {
+		if v, ok := r[k]; ok && v != nil {
+			return v
+		}
+		return ""
+	}
+	return map[string]any{
+		"name": r["name"], "grund": r["grund"], "ziel_art": r["ziel_art"], "ziel_id": r["ziel_id"],
+		"untergruppen": r["untergruppen"], "wiederholung": r["wiederholung"], "beginn": r["beginn"], "ende": r["ende"],
+		"wochentage": r["wochentage"], "nter": zahl("nter"), "wochentag": zahl("wochentag"), "versatz": zahl("versatz"),
+		"uhrzeit": text("uhrzeit"), "dauer_min": zahl("dauer_min"), "zeitzone": r["zeitzone"], "aktiv": aktiv,
+	}
+}
+
+// FensterAktiv pausiert ein Fenster bzw. setzt es fort.
+func (c Client) FensterAktiv(ctx context.Context, f WartungFenster, aktiv bool) error {
+	return c.send(ctx, http.MethodPut, "/api/v1/wartungsfenster/"+p(f.ID), FensterEingabe(f, aktiv), nil)
+}
+
+// FensterLoeschen löscht ein Fenster; eine laufende Wartung daraus endet sofort.
+func (c Client) FensterLoeschen(ctx context.Context, id string) error {
+	return c.send(ctx, http.MethodDelete, "/api/v1/wartungsfenster/"+p(id), nil, nil)
+}
+
+// LaufendBeenden beendet eine laufende Wartung (Gerät oder Sensor).
+func (c Client) LaufendBeenden(ctx context.Context, l WartungLaufend) error {
+	if l.CheckID != nil {
+		return c.WartungBeenden(ctx, "checks", *l.CheckID)
+	}
+	if l.GeraetID != nil {
+		return c.WartungBeenden(ctx, "geraete", *l.GeraetID)
+	}
+	return errors.New("Wartung ohne Ziel")
+}
+
+// ImBereich: nur Einträge aus den Mandanten ids (wie bereich.ids im Web).
+func (w Wartungen) ImBereich(ids map[string]bool) Wartungen {
+	var r Wartungen
+	for _, l := range w.Laufend {
+		if ids[l.MandantID] {
+			r.Laufend = append(r.Laufend, l)
+		}
+	}
+	for _, f := range w.Fenster {
+		if ids[f.MandantID] {
+			r.Fenster = append(r.Fenster, f)
+		}
+	}
+	return r
 }

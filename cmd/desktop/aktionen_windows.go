@@ -93,6 +93,8 @@ func (a *app) befehlFenster(id int) {
 		a.ueber()
 	case cmdImBrowser:
 		switch {
+		case f.seite == seiteWartung:
+			a.oeffnen(desktop.WebPfad(f.seitePfad(), f.mandant, f.mitUnter))
 		case z != nil:
 			a.oeffnen(desktop.GeraetPfad(z.GeraetID))
 		case k != nil && k.Art == desktop.KnotenGeraet:
