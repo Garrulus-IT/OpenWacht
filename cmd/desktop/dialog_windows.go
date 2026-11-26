@@ -67,8 +67,9 @@ type dialog struct {
 	fehlerY, knopfY  int32
 	ok, abbr         syscall.Handle
 	okText           string
-	gefahr           bool // Knopf löscht etwas
-	nurOK            bool // nur ein Knopf (Meldung)
+	abbrText         string // ab Werk „Abbrechen“
+	gefahr           bool   // Knopf löscht etwas
+	nurOK            bool   // nur ein Knopf (Meldung)
 	werte            map[string]string
 	aufbau           func(d *dialog)
 	speichern        func(d *dialog, fertig func(error))
@@ -289,8 +290,12 @@ func (d *dialog) aufbauen() {
 		d.abbr = 0
 		move(d.ok, right-okB, y, okB, bh)
 	} else {
-		d.abbr = neu("BUTTON", "Abbrechen", wsTabStop|bsOwnerDraw, 0, idCancel)
-		abB := knopfBreite(d, "Abbrechen")
+		at := d.abbrText
+		if at == "" {
+			at = "Abbrechen"
+		}
+		d.abbr = neu("BUTTON", at, wsTabStop|bsOwnerDraw, 0, idCancel)
+		abB := knopfBreite(d, at)
 		move(d.abbr, right-abB, y, abB, bh)
 		move(d.ok, right-abB-d.s(8)-okB, y, okB, bh)
 	}

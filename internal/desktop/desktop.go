@@ -398,3 +398,9 @@ func AgentPort(zentrale string) bool {
 	u, err := url.Parse(zentrale)
 	return err == nil && u.Port() == "8444"
 }
+
+// Anfrage: beliebiger Aufruf der API mit derselben Anmeldung (für Seiten,
+// die die Weboberfläche nachbilden). body geht als JSON, out nimmt die Antwort.
+func (c Client) Anfrage(ctx context.Context, methode, pfad string, body, out any) error {
+	return c.send(ctx, methode, pfad, body, out)
+}
