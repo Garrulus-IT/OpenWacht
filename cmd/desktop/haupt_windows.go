@@ -754,9 +754,14 @@ func (f *fenster) zeileMalen(hdc uintptr, i int) {
 		fl := uintptr(dtLeft)
 		switch sp.id {
 		case spZustand:
-			form(hdc, an.Form, an.Farbe, tr.Left, r.Top+(r.Bottom-r.Top-f.s(16))/2, f.s(16))
-			tr.Left += f.s(16) + f.s(8)
+			// Kennfarbe wie .zst.kenn: Form in ihrer Farbe (die Form bleibt)
+			ff := an.Farbe
 			farbe = an.Text
+			if c, ok := z.Kenn.RGB(); ok && desktop.KennGilt(desktop.SonnenWort(z.Anzeige)) {
+				ff, farbe = c, th.f.Tinte
+			}
+			form(hdc, an.Form, ff, tr.Left, r.Top+(r.Bottom-r.Top-f.s(16))/2, f.s(16))
+			tr.Left += f.s(16) + f.s(8)
 		case spSensor:
 			if gewaehlt {
 				font, farbe = f.sch.t13b, th.f.MarkeTief

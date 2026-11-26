@@ -29,6 +29,7 @@ type Sensor struct {
 	Meldung    string     `json:"meldung"`
 	Seit       *time.Time `json:"seit"`
 	Alarm      *Alarm     `json:"alarm"`
+	Kennfarbe  *Kennfarbe `json:"kennfarbe"` // 0.99.2, nur bei Warnung, Kritisch, Bestätigt sichtbar
 }
 
 // Sensoren holt alle Sensoren, die das Token sieht.
@@ -85,6 +86,7 @@ type Zeile struct {
 	QuelleID   string
 	AlarmID    string // offener Alarm, sonst leer
 	AlarmNeu   bool   // offen und noch nicht bestätigt
+	Kenn       *Kennfarbe
 }
 
 // Zeilen filtert und sortiert. alle=false: nur Probleme. filter: Wörter,
@@ -130,6 +132,7 @@ func Zeilen(sensoren []Sensor, alle bool, filter string, jetzt time.Time) []Zeil
 			Schluessel: s.Schluessel,
 			Art:        s.Art,
 			QuelleID:   s.QuelleID,
+			Kenn:       s.Kennfarbe,
 		}
 		if s.Alarm != nil && s.Alarm.Ende == nil {
 			z.AlarmID = s.Alarm.ID

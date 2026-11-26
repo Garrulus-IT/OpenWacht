@@ -51,6 +51,7 @@ func (a *app) uebersichtMalen(hdc uintptr, r rect) {
 	zahl := map[string]int{}
 	type geraet struct {
 		key, name, status string
+		kenn              *desktop.Kennfarbe
 	}
 	var probleme []geraet
 	for _, e := range f.eintraege {
@@ -60,7 +61,7 @@ func (a *app) uebersichtMalen(hdc uintptr, r rect) {
 		st := desktop.SonnenStatus(e.knoten)
 		zahl[st]++
 		if st != "ok" && st != "wartung" {
-			probleme = append(probleme, geraet{e.key, e.knoten.Name, st})
+			probleme = append(probleme, geraet{e.key, e.knoten.Name, st, e.knoten.Kenn})
 		}
 	}
 	sort.SliceStable(probleme, func(i, j int) bool {
@@ -129,15 +130,24 @@ func (a *app) uebersichtMalen(hdc uintptr, r rect) {
 		if hover || g.key == f.dashHost {
 			bg = th.f.MarkeHauch
 		}
+		// Kennfarbe wie .wand-problem.kenn: Rand und Form in ihrer Farbe,
+		// Name der Kennfarbe vor dem Pfad (Form bleibt: nie nur Farbe)
+		farbe, vorne := an.Farbe, ""
+		if c, ok := g.kenn.RGB(); ok && desktop.KennGilt(g.status) {
+			farbe, vorne = c, g.kenn.Name+" · "
+		} else if g.status == "quittiert" {
+			vorne = "bestätigt · "
+		}
 		fuellen(hdc, zr, bg)
-		fuellen(hdc, rect{zr.Left, zr.Top, zr.Left + f.s(3), zr.Bottom}, an.Farbe)
+		fuellen(hdc, rect{zr.Left, zr.Top, zr.Left + f.s(3), zr.Bottom}, farbe)
 		x := zr.Left + f.s(3) + f.s(12)
-		form(hdc, an.Form, an.Farbe, x, y+(zh-f.s(12))/2, f.s(12))
+		form(hdc, an.Form, farbe, x, y+(zh-f.s(12))/2, f.s(12))
 		x += f.s(12) + f.s(12)
 		w := min(breite(hdc, g.name, f.sch.t16b), zr.Right-x-f.s(8))
 		schreiben(hdc, g.name, rect{x, y, x + w + 1, y + zh}, f.sch.t16b, th.f.Tinte, 0)
 		x += w + f.s(12)
-		if pf := f.pfadVon(g.key); pf != "" && x < zr.Right-f.s(40) {
+		if pf := vorne + f.pfadVon(g.key); strings.TrimSuffix(pf, " · ") != "" && x < zr.Right-f.s(40) {
+			pf = strings.TrimSuffix(pf, " · ")
 			schreiben(hdc, pf, rect{x, y, zr.Right - f.s(8), y + zh}, f.sch.t13, th.f.Leise, 0)
 		}
 		y += zh + f.s(4)

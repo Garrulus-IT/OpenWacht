@@ -85,7 +85,10 @@ Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
   bzw. des Strahls. Rechts daneben die **Übersicht** wie bei der Wandanzeige: Geräte je Zustand als Kacheln und
   „Aktuell“ mit den Geräten, die ein Problem haben. Ein Klick auf ein **Gerät** (in der Sonne oder unter „Aktuell“)
   öffnet daneben seine **Sensoren**; die Sonne bleibt stehen, × oder Esc schließt wieder. Ein Klick auf eine Gruppe
-  zeigt sie als Sonne, ein Klick in die Mitte geht eine Ebene zurück. Kennfarben zeigt die App nicht.
+  zeigt sie als Sonne, ein Klick in die Mitte geht eine Ebene zurück. **Kennfarben** gelten wie in der Wandanzeige:
+  Ein Gerät mit Warnung, Kritisch oder Bestätigt steht in der Kennfarbe seines Sensors, bestätigt abgedunkelt; bei
+  gleicher Schwere gewinnt der Zustand ohne Kennfarbe („Rot gewinnt immer“). Unter „Aktuell“ steht der Name der
+  Kennfarbe vor dem Pfad, in der Sensorliste trägt die Zustandsform die Kennfarbe; die Form selbst bleibt.
 - **Hosts:** links der Baum (Mandant, Untermandanten, Gruppen, Geräte) mit der Form des schlimmsten Zustands und den
   Zahlen der kritischen, gewarnten und unbekannten Sensoren, rechts das Gewählte.
 - **Alarme:** alle Sensoren mit Warnung, Kritisch oder Unbekannt im gewählten Mandanten, schlimmste zuerst.

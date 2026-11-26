@@ -131,7 +131,7 @@ func TestSonne(t *testing.T) {
 	if i := SonnenTreffer(seg, ringe, 0, -(db.R0+db.R1)/2); i != 1 {
 		t.Fatalf("Treffer oben: %d", i)
 	}
-	img := SonnenBild(seg, ringe, "crit", 120, Hell.Flaeche)
+	img := SonnenBild(seg, ringe, "crit", nil, 120, Hell.Flaeche)
 	if img.NRGBAAt(60, 10).A == 0 || img.NRGBAAt(1, 1).A != 0 {
 		t.Fatal("Bild leer")
 	}

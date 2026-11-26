@@ -30,7 +30,8 @@ type Knoten struct {
 	Geraet    *Geraet
 	Kinder    []*Knoten
 	Zaehler   Zaehler
-	Geraete   []string // IDs aller Geräte darunter (auch dieses)
+	Geraete   []string   // IDs aller Geräte darunter (auch dieses)
+	Kenn      *Kennfarbe // Kennfarbe des schlimmsten Zustands darunter (nil = keine)
 }
 
 // Zustand: der schlimmste Zustand der Sensoren darunter ("" = keine Sensoren).
@@ -154,6 +155,7 @@ func BaumBauen(st Stand) []*Knoten {
 	}
 	for _, w := range wurzeln {
 		summe(w)
+		kennSetzen(w, sensorZahl)
 	}
 	return wurzeln
 }

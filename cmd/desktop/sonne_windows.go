@@ -113,7 +113,7 @@ func (f *fenster) sonneRendern(hdc uintptr, w *desktop.Knoten, n int32) bmp {
 	bm, _, _ := pCreateCompatibleBmp.Call(hdc, uintptr(n), uintptr(n))
 	alt, _, _ := pSelectObject.Call(mem, bm)
 	fuellen(mem, rect{0, 0, n, n}, th.f.Flaeche)
-	flaechen := bitmapAus(desktop.SonnenBild(f.sonnenSeg, f.sonnenRing, desktop.SonnenStatus(w), int(n), th.f.Flaeche))
+	flaechen := bitmapAus(desktop.SonnenBild(f.sonnenSeg, f.sonnenRing, desktop.SonnenStatus(w), w.Kenn, int(n), th.f.Flaeche))
 	alpha(mem, flaechen, 0, 0)
 	pDeleteObject.Call(flaechen.h)
 	k := float64(n) / 1000
@@ -126,7 +126,7 @@ func (f *fenster) sonneRendern(hdc uintptr, w *desktop.Knoten, n int32) bmp {
 		if b == nil {
 			continue
 		}
-		_, tf := desktop.SonnenFarbe(s.Status)
+		_, tf := desktop.SegmentFarbe(s.Status, s.Kenn)
 		if b.Radial {
 			sonneRadial(mem, b, s, c, k, tf)
 		} else {
@@ -270,9 +270,10 @@ func (a *app) sonneText(x, y int32) string {
 	switch {
 	case i >= 0:
 		s := f.sonnenSeg[i]
-		return strings.Join(s.Pfad[1:], " › ") + ": " + worte[s.Status]
+		return strings.Join(s.Pfad[1:], " › ") + ": " + worte[s.Status] + kennWort(s.Status, s.Kenn)
 	case i == -1 || (math.Hypot(sx, sy) < 0.27*492 && f.sonnenKey != ""):
-		return f.sonnenWurz.Name + ": " + worte[desktop.SonnenStatus(f.sonnenWurz)]
+		st := desktop.SonnenStatus(f.sonnenWurz)
+		return f.sonnenWurz.Name + ": " + worte[st] + kennWort(st, f.sonnenWurz.Kenn)
 	}
 	return ""
 }
@@ -303,3 +304,11 @@ func (a *app) sonneKlick(x, y int32) {
 }
 
 const tvmEnsureVisible = 0x1114
+
+// kennWort: „ · Name der Kennfarbe“ wie im Tooltip der Web-Sonne.
+func kennWort(status string, k *desktop.Kennfarbe) string {
+	if _, ok := k.RGB(); ok && desktop.KennGilt(status) {
+		return " · " + k.Name
+	}
+	return ""
+}

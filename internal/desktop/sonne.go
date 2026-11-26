@@ -77,6 +77,7 @@ type Segment struct {
 	R0, R1 float64 // mit Fugen
 	Blatt  bool
 	Status string
+	Kenn   *Kennfarbe // gilt nur bei warn, crit, quittiert
 }
 
 func blaetter(k *Knoten) int {
@@ -99,7 +100,7 @@ func Sonne(wurzel *Knoten) (segmente []Segment, ringe []float64) {
 		tiefe = max(tiefe, t)
 		if t > 0 {
 			segmente = append(segmente, Segment{Knoten: k, Pfad: pfad, Tiefe: t, A0: a0, A1: a1,
-				Blatt: len(k.Kinder) == 0, Status: SonnenStatus(k)})
+				Blatt: len(k.Kinder) == 0, Status: SonnenStatus(k), Kenn: k.Kenn})
 		}
 		gesamt := float64(blaetter(k))
 		a := a0
@@ -178,7 +179,7 @@ func SonnenTreffer(seg []Segment, ringe []float64, x, y float64) int {
 // SonnenBild zeichnet die Sonne n×n Pixel groß auf grund. Wie das Widget
 // im Dashboard: Fugen und Scheibe in der Farbe des Grunds, jedes Segment mit
 // einem Rand von 1 px in derselben Farbe (stroke 1, non-scaling-stroke).
-func SonnenBild(seg []Segment, ringe []float64, wurzelStatus string, n int, grund RGB) *image.NRGBA {
+func SonnenBild(seg []Segment, ringe []float64, wurzelStatus string, wurzelKenn *Kennfarbe, n int, grund RGB) *image.NRGBA {
 	img := image.NewNRGBA(image.Rect(0, 0, n, n))
 	skala := 1000.0 / float64(n)
 	rand := 0.5 * skala // halber Strich innen am Segment
@@ -195,14 +196,14 @@ func SonnenBild(seg []Segment, ringe []float64, wurzelStatus string, n int, grun
 				if r < s.R0+rand || r > s.R1-rand || (a-s.A0)*r < rand || (s.A1-a)*r < rand {
 					return grund, true
 				}
-				f, _ := SonnenFarbe(s.Status)
+				f, _ := SegmentFarbe(s.Status, s.Kenn)
 				return f, true
 			}
 		}
 		if len(ringe) > 1 {
 			r0, r1 := ringe[0]+sonneFuge/2, ringe[1]-sonneFuge/2
 			if r >= r0+rand && r <= r1-rand {
-				f, _ := SonnenFarbe(wurzelStatus)
+				f, _ := SegmentFarbe(wurzelStatus, wurzelKenn)
 				return f, true
 			}
 		}
