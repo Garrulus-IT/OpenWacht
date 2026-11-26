@@ -205,6 +205,9 @@ func (a *app) leisteMalen(hdc uintptr, r rect) {
 	in := f.s(20)
 	piktogramm(hdc, "person", th.f.Tinte, ix, y+(f.s(24)-in)/2, in)
 	wer := "API-Token"
+	if a.cfg.MitKonto() && a.cfg.Email != "" {
+		wer = a.cfg.Email
+	}
 	if rolle != "" {
 		wer += " · " + rolle
 	}

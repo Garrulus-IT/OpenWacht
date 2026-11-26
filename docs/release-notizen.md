@@ -52,7 +52,10 @@
   Browser); die übrigen Punkte der Seitenleiste öffnen die Seite im Browser. Mit einem API-Token der Rolle
   **Operator** lassen sich Geräte und Sensoren anlegen, ändern, löschen, pausieren, jetzt abfragen, in Wartung setzen
   und Alarme bestätigen; mit **Leser** nur ansehen. Angemeldet wird in einem eigenen Fenster statt in der Konsole,
-  „Abmelden“ steht unten in der Seitenleiste. Die Zentrale ändert sich dafür nicht. Dazu: ein Klick öffnet nicht mehr
+  „Abmelden“ steht unten in der Seitenleiste. **Anmeldung wie im Browser:** mit E-Mail, Passwort und Code aus der
+  Authenticator-App führt die App dieselbe Sitzung wie der Browser und darf genau, was das Konto darf, auch als Admin,
+  mit frischem Code für heikle Änderungen; die Sitzung lebt nur im Speicher. Das API-Token bleibt als zweiter Weg für
+  Rechner, die nur im Infobereich wachen. Die Zentrale ändert sich dafür nicht. Dazu: ein Klick öffnet nicht mehr
   zwei Tabs, „Mit Windows starten“ meldet, ob es geklappt hat, der Autostart startet nur ins Infobereich, und die Datei
   trägt Programmbeschreibung, Version und das Bildzeichen
   ([Kapitel 8](handbuch/08-alarme-und-wartung.md#fenster-wie-die-weboberfläche-ab-106)). Unter Wine getestet, auf

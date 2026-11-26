@@ -29,6 +29,9 @@ func (a *app) imHintergrund(fn func(ctx context.Context, c desktop.Client) error
 		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 		err := fn(ctx, c)
 		cancel()
+		if errors.Is(err, desktop.ErrSitzung) && !a.sitzungWeg.Swap(true) {
+			pPostMessageW.Call(uintptr(a.hwnd), wmSitzungWeg, 0, 0)
+		}
 		a.ergebnisse <- func() { fertig(err) }
 		pPostMessageW.Call(uintptr(a.hwnd), wmAktion, 0, 0)
 	}()
@@ -45,7 +48,13 @@ func fehlerText(err error) string {
 		if t == "" {
 			t = "Keine Berechtigung."
 		}
+		if a != nil && a.cfg.MitKonto() {
+			return t
+		}
 		return t + " Zum Ändern braucht die App ein API-Token mit der Rolle Operator."
+	}
+	if errors.Is(err, desktop.ErrSitzung) {
+		return "Die Sitzung ist abgelaufen. Melde dich neu an."
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		return "Die Zentrale hat nicht rechtzeitig geantwortet."

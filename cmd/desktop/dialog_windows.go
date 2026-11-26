@@ -77,6 +77,8 @@ type dialog struct {
 	einleitungH      int32
 	fehlerPraefix    string      // vor einer Meldung beim Speichern
 	nachher          chan func() // Ergebnisse aus imHintergrund
+	leeren           string      // dieses Feld beim nächsten Aufbau leeren (Passwort nach Fehler)
+	fokus            string      // Feld, das beim Öffnen den Fokus bekommt
 }
 
 const wmDialogFertig = wmApp + 5
@@ -179,6 +181,9 @@ func (d *dialog) lesen() {
 func (d *dialog) aufbauen() {
 	if len(d.felder) > 0 {
 		d.lesen()
+	}
+	if d.leeren != "" {
+		d.werte[d.leeren], d.leeren = "", ""
 	}
 	for _, h := range d.kinder {
 		pDestroyWindow.Call(uintptr(h))
@@ -308,10 +313,13 @@ func (d *dialog) aufbauen() {
 			break
 		}
 	}
-	if d.fehlerFeld != "" {
-		for _, f := range d.felder {
-			if f.schluessel == d.fehlerFeld {
-				ziel = f.ctrl
+	if f := d.fehlerFeld; f != "" || d.fokus != "" {
+		if f == "" {
+			f, d.fokus = d.fokus, ""
+		}
+		for _, x := range d.felder {
+			if x.schluessel == f {
+				ziel = x.ctrl
 			}
 		}
 	}
@@ -331,6 +339,15 @@ func knopfBreite(d *dialog, t string) int32 {
 	hdc, _, _ := pGetDC.Call(uintptr(d.hwnd))
 	defer pReleaseDC.Call(uintptr(d.hwnd), hdc)
 	return max(breite(hdc, t, d.sch.t13)+2*d.s(16), d.s(96))
+}
+
+// weiter: nächster Schritt im selben Fenster (z. B. Code nach dem Passwort):
+// Felder neu, OK wieder frei, keine Meldung.
+func (d *dialog) weiter() {
+	d.beschaeftigt = false
+	d.fehler, d.fehlerFeld = "", ""
+	d.aufbauen()
+	pInvalidateRect.Call(uintptr(d.ok), 0, 0)
 }
 
 func (d *dialog) fehlerZeigen(t string) {

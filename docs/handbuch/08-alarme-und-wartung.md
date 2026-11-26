@@ -76,7 +76,7 @@ Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
 - **Seitenleiste links** wie im Browser: Wortmarke, **Mandant** mit „mit Untermandanten“, darunter Überwachen,
   Einrichten und Verwaltung. **Dashboard, Hosts, Alarme und Wartung** sind Seiten der App; Topologie, Zertifikate,
   Berichte, Sensor-Vorlagen, SNMP-Profile, Wandanzeigen sowie Benutzer und Mandanten tragen einen Pfeil und öffnen die
-  Seite für denselben Mandanten im Browser. Unten: Token und Rolle, Zentrale, Verbindung mit Stand, **Darstellung**
+  Seite für denselben Mandanten im Browser. Unten: Konto bzw. Token und Rolle, Zentrale, Verbindung mit Stand, **Darstellung**
   (wie System, Hell, Dunkel) und **Abmelden**. Mandant, Schalter und Darstellung merkt sich die App.
 - **Kopf** mit Brotkrumen („Dashboard › web01“), Knöpfen der Seite („Host hinzufügen“, „Im Browser öffnen“) und der
   **Suche** (Strg+K oder Strg+F; filtert die Sensoren nach Gerät, Sensor und Meldung).
@@ -98,7 +98,7 @@ Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
   und „Bearbeiten“ öffnen das Formular im Browser. Die Suche filtert nach Ziel, Name und Grund; die Seite fragt alle
   30 s neu ab.
 - **Gerät bzw. Auswahl:** oben Name, Adresse, Gruppe, Agent und Wartung mit Marken je Zustand („nur ansehen (Rolle
-  Leser)“, wo das Token nur lesen darf), darunter die Befehle „+ Sensor“, „Jetzt abfragen“, „Alarm bestätigen …“,
+  Leser)“, wo die Rolle nur lesen darf), darunter die Befehle „+ Sensor“, „Jetzt abfragen“, „Alarm bestätigen …“,
   „Wartung …“, „Pausieren“, rechts „Nur Probleme“ und „Mehr“ (was nicht in die Zeile passt, steht dort). Die
   **Sensorliste** zeigt das Schlimmste zuerst, ein Klick auf die Überschrift sortiert; ist sie schmal, entfallen Typ,
   „seit“ und Wert. **Darunter** die Einzelheiten des gewählten Sensors (Meldung, Typ, Ziel, Intervall, Wert, letzte
@@ -112,21 +112,33 @@ Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
 - Werte des Agents und der SNMP-Abfrage (CPU, Platten, Schnittstellen …) zeigt die Liste mit; ihre Grenzen und Vorlagen,
   Benutzer, Alarmwege und alle Einstellungen bleiben in der Weboberfläche.
 
-**Was die App ändern darf, bestimmt das Token:** mit der Rolle **Operator** alles oben Genannte im Mandanten des Tokens
-und darunter, mit **Leser** nur ansehen (die Knöpfe sind dann grau). Die Zentrale prüft jede Änderung selbst, schreibt sie
-ins Audit-Log (als „API-Token …“) und meldet Fehler im Dialog, z. B. „Intervall: 30 Sekunden bis 1 Tag.“ Schließen
-versteckt das Fenster nur; die App läuft im Infobereich weiter.
+**Anmelden (ab 1.0.6 zwei Wege):** Beim ersten Start öffnet sich **„Bei OpenWacht anmelden“** mit der Adresse der
+Zentrale (wie im Browser, nicht Port 8444) und der Wahl **„Anmelden mit“**:
 
-**Anmelden:** In OpenWacht unter **Benutzer und Mandanten › API-Tokens** ein Token für den Mandanten anlegen, Rolle
-**Operator** zum Pflegen oder **Leser** nur zum Ansehen ([Kapitel 11](11-api-tokens.md)). Ein Operator-Token ist so
-mächtig wie ein Operator-Konto ohne zweiten Faktor: nur auf dem eigenen Rechner einrichten und mit kurzer Laufzeit. Die
-App ist eine einzelne Datei ohne Installation, z. B. nach `%LOCALAPPDATA%\Programs\OpenWacht\` kopieren und starten.
-Beim ersten Start öffnet sich das Fenster **„Bei OpenWacht anmelden“** mit Adresse der Zentrale und API-Token (Eingabe
-verdeckt); die App prüft beides mit einer Abfrage und nennt die Ursache, wenn es nicht klappt (Token unbekannt oder
-abgelaufen, Zertifikat, keine Verbindung). Das Token liegt in der **Windows-Anmeldeinformationsverwaltung** (Eintrag
-„OpenWacht Desktop“), nie in einer Datei; Adresse und Darstellung stehen in `%APPDATA%\OpenWacht\desktop.json`.
-**Abmelden** (Seitenleiste unten) vergisst das Token und öffnet die Anmeldung wieder; Rechtsklick aufs Symbol →
-„Anmeldung ändern …“ tauscht es ohne Abmelden. `openwacht-desktop entfernen` löscht Token, Einstellungen und Autostart.
+- **Konto (wie im Browser, ab Werk):** E-Mail und Passwort, danach der Code aus der Authenticator-App (oder ein
+  Wiederherstellungscode). Die App führt dieselbe Sitzung wie der Browser und darf damit **genau, was das Konto im Web
+  darf**, auch als Admin; heikle Änderungen verlangen wie im Web einen frischen Code. Die Zentrale schreibt alles unter
+  dem Namen des Kontos ins Audit-Log. Passwort und Sitzung speichert die App nicht: Nach einem Neustart der App, nach
+  30 Minuten ohne Abfrage oder spätestens nach 12 Stunden (Einstellungen der Zentrale) meldet man sich neu an; die App
+  fragt dann von selbst („Die Sitzung ist abgelaufen.“). Gespeichert wird nur die E-Mail-Adresse. Passkey und SSO gehen
+  nur im Browser; ein Konto, das die Zwei-Faktor-Anmeldung erst einrichten muss, richtet sie zuerst im Browser ein.
+- **API-Token:** für einen Rechner, der nur im Infobereich wacht und auch nach Neustarts ohne Anmeldung melden soll. Das
+  Token legt man unter **Benutzer und Mandanten › API-Tokens** an, Rolle **Operator** zum Pflegen oder **Leser** nur zum
+  Ansehen ([Kapitel 11](11-api-tokens.md)); Admin-Rechte bekommt ein Token nie. Ein Operator-Token ist so mächtig wie
+  ein Operator-Konto ohne zweiten Faktor: nur auf dem eigenen Rechner und mit kurzer Laufzeit. Es liegt in der
+  **Windows-Anmeldeinformationsverwaltung** (Eintrag „OpenWacht Desktop“), nie in einer Datei.
+
+Die App prüft die Anmeldung sofort und nennt die Ursache, wenn es nicht klappt (Passwort, Code, Token unbekannt oder
+abgelaufen, Zertifikat, keine Verbindung). Adresse, Art der Anmeldung, E-Mail und Darstellung stehen in
+`%APPDATA%\OpenWacht\desktop.json`. **Abmelden** (Seitenleiste unten) beendet die Sitzung auch auf der Zentrale bzw.
+vergisst das Token und öffnet die Anmeldung wieder; Rechtsklick aufs Symbol → „Anmeldung ändern …“ wechselt ohne
+Abmelden. `openwacht-desktop entfernen` löscht Token, Einstellungen und Autostart. Die App ist eine einzelne Datei ohne
+Installation, z. B. nach `%LOCALAPPDATA%\Programs\OpenWacht\` kopieren und starten.
+
+**Was die App ändern darf, bestimmt die Rolle** des Kontos bzw. des Tokens je Mandant: Leser nur ansehen (die Knöpfe
+sind dann grau), Operator Geräte, Sensoren, Wartung und Alarme, Admin dazu die Verwaltung. Die Zentrale prüft jede
+Änderung selbst, schreibt sie ins Audit-Log und meldet Fehler im Dialog, z. B. „Intervall: 30 Sekunden bis 1 Tag.“
+Schließen versteckt das Fenster nur; die App läuft im Infobereich weiter.
 
 Die App fragt alle 30 Sekunden `GET /api/v1/alarme` ab, bei offenem Fenster zusätzlich Mandanten, Gruppen, Geräte,
 Sensoren und Checks, nur über HTTPS und ohne Weiterleitungen zu folgen. Das Zertifikat der Zentrale muss Windows vertrauen

@@ -36,7 +36,14 @@ type Config struct {
 	Darstellung string `json:"darstellung,omitempty"` // "" = wie System, "hell", "dunkel"
 	Mandant     string `json:"mandant,omitempty"`     // zuletzt gewählter Mandant
 	OhneUnter   bool   `json:"ohne_unter,omitempty"`  // Untermandanten ausblenden
+	// Anmeldung: "konto" = mit E-Mail, Passwort und Code wie im Browser
+	// (Sitzung nur im Speicher), sonst API-Token aus der Anmeldeinformationsverwaltung.
+	Anmeldung string `json:"anmeldung,omitempty"`
+	Email     string `json:"email,omitempty"` // zuletzt angemeldet (kein Geheimnis)
 }
+
+// MitKonto: Anmeldung wie im Browser statt API-Token.
+func (c Config) MitKonto() bool { return c.Anmeldung == "konto" }
 
 // ConfigPath: %APPDATA%\OpenWacht\desktop.json bzw. ~/.config/OpenWacht/desktop.json.
 func ConfigPath() (string, error) {
@@ -118,6 +125,9 @@ type Client struct {
 	Zentrale string
 	Token    string
 	HTTP     *http.Client
+	// Sitzung: angemeldet mit Konto wie im Browser (statt Token). Nur im
+	// Speicher, nie auf der Platte.
+	Sitzung *Sitzung
 }
 
 // ErrToken: Token ungültig, abgelaufen oder widerrufen.
@@ -169,7 +179,11 @@ func (c Client) send(ctx context.Context, method, pfad string, body, out any) er
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
+	if c.Sitzung != nil {
+		c.Sitzung.anfrage(req)
+	} else {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
 	req.Header.Set("Accept", "application/json")
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -186,11 +200,24 @@ func (c Client) send(ctx context.Context, method, pfad string, body, out any) er
 		return err
 	}
 	defer resp.Body.Close()
+	if c.Sitzung != nil {
+		c.Sitzung.antwort(resp)
+	}
 	data, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if err != nil {
 		return err
 	}
 	switch {
+	case resp.StatusCode == http.StatusUnauthorized && c.Sitzung != nil && strings.HasPrefix(pfad, "/api/v1/sitzung"):
+		// Anmeldung selbst: Meldung der Zentrale („E-Mail oder Passwort falsch.“)
+		var f struct {
+			Fehler string `json:"fehler"`
+		}
+		_ = json.Unmarshal(data, &f)
+		return &FehlerZentrale{Code: resp.StatusCode, Text: Kuerzen(strings.TrimSpace(f.Fehler), 400)}
+	case resp.StatusCode == http.StatusUnauthorized && c.Sitzung != nil:
+		c.Sitzung.vergessen()
+		return ErrSitzung
 	case resp.StatusCode == http.StatusUnauthorized:
 		return ErrToken
 	case resp.StatusCode < 200 || resp.StatusCode > 299:

@@ -63,6 +63,7 @@ const (
 	wmStand       = wmApp + 2 // neuer Stand aus der Abfrage
 	wmAktion      = wmApp + 3 // Ergebnis einer Änderung
 	wmZeigen      = wmApp + 4 // zweiter Start: Fenster zeigen
+	wmSitzungWeg  = wmApp + 6 // Sitzung abgelaufen: neu anmelden
 	asfwAny       = ^uintptr(0)
 
 	ninSelect           = 0x0400

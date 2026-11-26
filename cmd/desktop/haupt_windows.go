@@ -589,6 +589,9 @@ func (a *app) kopfMalen(hdc uintptr, r rect) {
 		t := "Lädt …"
 		if !st.Zeit.IsZero() {
 			t = "Dieses API-Token sieht keine Mandanten."
+			if a.cfg.MitKonto() {
+				t = "Dieses Konto sieht keine Mandanten."
+			}
 		}
 		schreiben(hdc, t, rect{f.s(24), 0, r.Right, r.Bottom}, f.sch.t16, th.f.Leise, 0)
 		return
@@ -949,9 +952,13 @@ func (a *app) detailsMalen(hdc uintptr, r rect) {
 		if k.Rolle != "" {
 			rolle := map[string]string{"leser": "Leser", "operator": "Operator", "admin": "Admin"}[k.Rolle]
 			if !desktop.DarfAendern(k.Rolle) {
-				rolle += " – nur ansehen. Zum Ändern brauchst du ein API-Token mit der Rolle Operator."
+				if a.cfg.MitKonto() {
+					rolle += " – nur ansehen."
+				} else {
+					rolle += " – nur ansehen. Zum Ändern brauchst du ein API-Token mit der Rolle Operator."
+				}
 			}
-			add("Rolle des Tokens", rolle, false)
+			add(map[bool]string{true: "Deine Rolle", false: "Rolle des Tokens"}[a.cfg.MitKonto()], rolle, false)
 		}
 	default:
 		return

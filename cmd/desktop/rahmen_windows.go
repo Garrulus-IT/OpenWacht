@@ -230,6 +230,9 @@ func (a *app) hinweisText() (string, bool) {
 	a.mu.Lock()
 	fehler, zentrale := a.standFehler, a.client.Zentrale
 	a.mu.Unlock()
+	if fehler != "" && a.sitzungWeg.Load() {
+		return "Die Sitzung ist abgelaufen. Melde dich neu an (Klick aufs Symbol im Infobereich oder links unten „Abmelden“).", true
+	}
 	if fehler != "" {
 		return "Die Zentrale " + strings.TrimPrefix(zentrale, "https://") + " antwortet nicht: " + fehlerKurz(fehler) +
 			". Die Anzeige versucht es alle 30 s erneut.", true
