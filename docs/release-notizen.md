@@ -79,6 +79,12 @@
   enthalten (Codepage 1252)
   ([Kapitel 5](handbuch/05-agent.md#msi-unter-windows-doppelklick-gpo-intune)). Unter Wine getestet, auf echtem
   Windows noch nicht.
+- **Neustart-Meldung ruhiger:** Ein Neustart wird nur noch gemeldet, wenn das Gerät davor mindestens 27 Stunden lief;
+  geplante nächtliche Neustarts (Citrix-Worker, Terminalserver) melden nichts mehr. SNMP liest dafür die Laufzeit des
+  Rechners (`hrSystemUptime`) statt nur die des SNMP-Dienstes, so löst ein Neustart allein des SNMP-Dienstes keine
+  Meldung mehr aus. Gilt auch für Proxmox, NetApp, XenServer und FRITZ!Box
+  ([Kapitel 6](handbuch/06-snmp.md#snmp-an-einem-gerät)). Für die Rechnerlaufzeit über einen Sammler braucht dieser den
+  Agent 1.0.6.
 - Beim Anlegen eines Benutzers lautet die Meldung für eine vergebene Adresse immer gleich; höchstens 20 solcher
   Ablehnungen je Admin und Stunde.
 - Die Warnung beim Start ohne Alarmziele nennt richtig, was gesperrt ist (Mail geht weiter).

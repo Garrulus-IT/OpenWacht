@@ -357,9 +357,12 @@ func TestParseDuration(t *testing.T) {
 }
 
 func TestRebooted(t *testing.T) {
-	prev := &snmp.ONTAP{Nodes: []snmp.ONTAPNode{{Name: "a", UptimeS: 5000}, {Name: "b", UptimeS: 5000}}}
-	if Rebooted(prev, &snmp.ONTAP{Nodes: []snmp.ONTAPNode{{Name: "a", UptimeS: 5060}, {Name: "b", UptimeS: 5060}}}) {
+	prev := &snmp.ONTAP{Nodes: []snmp.ONTAPNode{{Name: "a", UptimeS: 5000}, {Name: "b", UptimeS: 100000}}}
+	if Rebooted(prev, &snmp.ONTAP{Nodes: []snmp.ONTAPNode{{Name: "a", UptimeS: 5060}, {Name: "b", UptimeS: 100060}}}) {
 		t.Error("ohne Neustart")
+	}
+	if Rebooted(prev, &snmp.ONTAP{Nodes: []snmp.ONTAPNode{{Name: "a", UptimeS: 100}, {Name: "b", UptimeS: 100060}}}) {
+		t.Error("Neustart von a nach kurzer Laufzeit (< 27 h) gemeldet")
 	}
 	if !Rebooted(prev, &snmp.ONTAP{Nodes: []snmp.ONTAPNode{{Name: "a", UptimeS: 5060}, {Name: "b", UptimeS: 100}}}) {
 		t.Error("Neustart von b nicht erkannt")

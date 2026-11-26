@@ -78,7 +78,7 @@ cat /etc/pve/pve-root-ca.pem
 | Backup je Gast | nur Gäste in einem Backup-Job: letztes erfolgreiches Backup älter als 26 Std.: Warnung, älter als 50 Std. oder keins in 8 Tagen: kritisch; ein fehlgeschlagener letzter Versuch steht in der Meldung |
 | Speicher | eingeschaltet, aber nicht verfügbar: kritisch; Belegung mit Schwellen und Prognose wie bei Platten |
 | Thin-Pool Metadaten | ab 80 % Warnung, ab 90 % kritisch |
-| Neustart | der Knoten läuft kürzer als bei der letzten Abfrage |
+| Neustart | der Knoten läuft kürzer als bei der letzten Abfrage und lief davor mindestens 27 Std. |
 
 Die Schwellen für Backups und Metadaten sind fest. Die Backups liest OpenWacht aus den vzdump-Aufgaben des Knotens;
 einen Proxmox Backup Server fragt es nicht selbst ab.
@@ -171,7 +171,7 @@ Befehle `set` und `security login password`, die die eigene Sitzung betreffen.
 | Shelf | Netzteil, Modul oder Lüfter gestört, Temperatur über den Schwellen des Shelfs |
 | SnapMirror | nicht gesund (mit Grund), getrennt, Verzögerung ab 26 Std. Warnung, ab 50 Std. kritisch |
 | EMS | Ereignisse der Schwere „emergency“ und „alert“ der letzten Stunde, je Meldung ein Sensor (höchstens 20) |
-| Neustart | ein Knoten läuft kürzer als bei der letzten Abfrage |
+| Neustart | ein Knoten läuft kürzer als bei der letzten Abfrage und lief davor mindestens 27 Std. |
 
 Graphen: Belegung der Aggregate und Volumes, IOPS und Latenz je Aggregat. Scheitert ein Teil (zum Beispiel 403 auf
 die Shelves), zeigt die Oberfläche ihn als „nicht abfragbar“, und dessen Sensoren behalten ihren letzten Zustand.
@@ -259,7 +259,7 @@ CPU und RAM („Messwerte nicht abrufbar“), alles andere bleibt.
 | SR Anbindung | auf einem Host nicht angebunden (PBD nicht verbunden): kritisch |
 | HA | überbucht: kritisch; Plan reicht nicht für die eingestellte Zahl an Ausfällen: Warnung |
 | Updates | Updates ausstehend oder nach Updates noch zu tun (z. B. Host neu starten): Warnung; nur XenServer 8 mit Update-Kanal |
-| Neustart | ein Host läuft kürzer als bei der letzten Abfrage |
+| Neustart | ein Host läuft kürzer als bei der letzten Abfrage und lief davor mindestens 27 Std. |
 
 Graphen: CPU und RAM des Pools und je Host, Belegung der SRs, CPU und RAM der 30 VMs mit der höchsten CPU-Last.
 Scheitert ein Teil (zum Beispiel die SRs), zeigt die Oberfläche ihn als „nicht abfragbar“, und dessen Sensoren behalten

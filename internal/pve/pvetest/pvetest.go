@@ -67,7 +67,7 @@ func NewFake() *Fake {
 		Thin: []map[string]any{{"lv": "data", "vg": "pve", "lv_size": 400 << 30, "used": 380 << 30,
 			"metadata_size": 4 << 30, "metadata_used": 3 << 30}},
 		Logs:   map[string][]string{},
-		Uptime: 86400,
+		Uptime: 100000, // über 27 h, damit ein Neustart zählt
 	}
 }
 

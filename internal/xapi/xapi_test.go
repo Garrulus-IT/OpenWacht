@@ -421,12 +421,16 @@ func TestBuildBereinigt(t *testing.T) {
 }
 
 func TestRebooted(t *testing.T) {
-	prev := &snmp.XAPI{Hosts: []snmp.XAPIHost{{Name: "a", UptimeS: 100000}, {Name: "b", UptimeS: 5000}}}
-	cur := &snmp.XAPI{Hosts: []snmp.XAPIHost{{Name: "a", UptimeS: 100300}, {Name: "b", UptimeS: 5300}}}
+	prev := &snmp.XAPI{Hosts: []snmp.XAPIHost{{Name: "a", UptimeS: 100000}, {Name: "b", UptimeS: 5000}, {Name: "c", UptimeS: 200000}}}
+	cur := &snmp.XAPI{Hosts: []snmp.XAPIHost{{Name: "a", UptimeS: 100300}, {Name: "b", UptimeS: 5300}, {Name: "c", UptimeS: 200300}}}
 	if Rebooted(prev, cur) {
 		t.Error("ohne Neustart")
 	}
 	cur.Hosts[1].UptimeS = 120
+	if Rebooted(prev, cur) {
+		t.Error("Neustart nach kurzer Laufzeit (< 27 h) gemeldet")
+	}
+	cur.Hosts[2].UptimeS = 120
 	if !Rebooted(prev, cur) || Rebooted(nil, cur) {
 		t.Error("Neustart nicht erkannt")
 	}

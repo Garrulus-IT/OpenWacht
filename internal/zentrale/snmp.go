@@ -773,7 +773,9 @@ func (s *Server) pollSNMP(ctx context.Context, c claimedSNMP) {
 	var snap, prev *snmp.Snapshot
 	var oids []oidCheck
 	var pollErr error
-	rebooted := false
+	// rebooted: zu meldender Neustart (Rechnerlaufzeit, ≥27 h davor);
+	// counterReset: sysUpTime kleiner, Zähler der eigenen OIDs ungültig
+	rebooted, counterReset := false, false
 	switch {
 	case c.secret == nil && c.version == versionPVE:
 		pollErr = errors.New("kein API-Token gespeichert, bitte neu eingeben")
@@ -819,7 +821,8 @@ func (s *Server) pollSNMP(ctx context.Context, c claimedSNMP) {
 		snap, pollErr = s.snmpFor(c.tenant).Poll(ctx, cfg, prev)
 		if pollErr == nil && prev != nil && prev.Counters != nil && snap.Counters != nil {
 			dt := snap.Counters.At.Sub(prev.Counters.At).Seconds()
-			rebooted = snmp.Rebooted(prev.Counters.UptimeTicks, snap.Counters.UptimeTicks, dt)
+			counterReset = snmp.Rebooted(prev.Counters.UptimeTicks, snap.Counters.UptimeTicks, dt)
+			rebooted = snmp.HostRebooted(prev, snap)
 		}
 	}
 	if ctx.Err() != nil {
@@ -851,7 +854,7 @@ func (s *Server) pollSNMP(ctx context.Context, c claimedSNMP) {
 		slog.Warn("SNMP: Ergebnis nicht gespeichert", "quelle", c.id, "fehler", err)
 	}
 	if stored && pollErr == nil && len(oids) > 0 {
-		s.recordOIDs(ctx, oids, snap, prev, rebooted)
+		s.recordOIDs(ctx, oids, snap, prev, counterReset)
 	}
 }
 

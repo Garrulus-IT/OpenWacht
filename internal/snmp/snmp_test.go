@@ -309,6 +309,36 @@ func TestRebooted(t *testing.T) {
 	}
 }
 
+// TestHostRebooted: Neustart nur nach ≥27 h Laufzeit; ein Neustart allein des
+// SNMP-Dienstes (sysUpTime klein, hrSystemUptime läuft weiter) zählt nicht.
+func TestHostRebooted(t *testing.T) {
+	t0 := time.Date(2026, 11, 26, 3, 0, 0, 0, time.UTC)
+	mk := func(at time.Time, sys, host uint32) *Snapshot {
+		return &Snapshot{System: System{UptimeTicks: sys, HostUptimeTicks: host},
+			Counters: &CounterInfo{At: at, UptimeTicks: sys}}
+	}
+	const h = 360000 // Ticks je Stunde
+	t1 := t0.Add(5 * time.Minute)
+	cases := []struct {
+		name      string
+		prev, cur *Snapshot
+		want      bool
+	}{
+		{"Rechner nach 30 h neu", mk(t0, 30*h, 30*h), mk(t1, 200*100, 200*100), true},
+		{"geplanter Neustart nach 24 h", mk(t0, 24*h, 24*h), mk(t1, 200*100, 200*100), false},
+		{"nur SNMP-Dienst neu", mk(t0, 30*h, 30*h), mk(t1, 200*100, 30*h+300*100), false},
+		{"ohne hrSystemUptime, sysUpTime nach 30 h", mk(t0, 30*h, 0), mk(t1, 200*100, 0), true},
+		{"ohne hrSystemUptime, nach 2 h", mk(t0, 2*h, 0), mk(t1, 200*100, 0), false},
+		{"hrSystemUptime nur in der neuen Abfrage", mk(t0, 30*h, 0), mk(t1, 30*h+300*100, 200*100), false},
+		{"ohne Vorgänger", nil, mk(t1, 1, 1), false},
+	}
+	for _, c := range cases {
+		if got := HostRebooted(c.prev, c.cur); got != c.want {
+			t.Errorf("%s: HostRebooted = %v", c.name, got)
+		}
+	}
+}
+
 func TestRates(t *testing.T) {
 	t0 := time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC)
 	mk := func(at time.Time, ticks uint32, in, out uint64, hc bool, speed uint64) *Snapshot {

@@ -126,3 +126,27 @@ func TestKaputteGeraete(t *testing.T) {
 }
 
 func itoa(i int) string { return strconv.Itoa(i) }
+
+// TestRechnerLaufzeit: hrSystemUptime wird gelesen (1.0.6); fehlt sie, bleibt
+// das Feld 0 und die Abfrage gelingt trotzdem (v1 mit noSuchName).
+func TestRechnerLaufzeit(t *testing.T) {
+	mit := snmptest.New(t, "c", gosnmp.SnmpPDU{Name: oidHrSysUptime, Type: gosnmp.TimeTicks, Value: uint32(98765432)})
+	ohne := snmptest.New(t, "c")
+	c := loopbackClient()
+	for _, v := range []string{V1, V2c} {
+		snap, err := c.Poll(context.Background(), Config{Version: v, Host: "127.0.0.1", Port: mit.Port(), Community: "c"}, nil)
+		if err != nil {
+			t.Fatal(v, err)
+		}
+		if snap.System.HostUptimeTicks != 98765432 || snap.System.UptimeTicks != 123456 {
+			t.Errorf("v%s mit hrSystemUptime: %+v", v, snap.System)
+		}
+		snap, err = c.Poll(context.Background(), Config{Version: v, Host: "127.0.0.1", Port: ohne.Port(), Community: "c"}, nil)
+		if err != nil {
+			t.Fatal(v, err)
+		}
+		if snap.System.HostUptimeTicks != 0 || snap.System.UptimeTicks != 123456 || snap.System.Name != "fake" {
+			t.Errorf("v%s ohne hrSystemUptime: %+v", v, snap.System)
+		}
+	}
+}

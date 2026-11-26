@@ -111,7 +111,7 @@ func TestProbe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Node != "pve-1" || info.Version != "9.2.2" || info.UptimeS != 86400 || len(info.ExtraPrivs) != 0 {
+	if info.Node != "pve-1" || info.Version != "9.2.2" || info.UptimeS != 100000 || len(info.ExtraPrivs) != 0 {
 		t.Fatalf("%+v", info)
 	}
 	f.Mu.Lock()
@@ -233,7 +233,7 @@ func TestPoll(t *testing.T) {
 		t.Fatal(err)
 	}
 	px := snap.Proxmox
-	if px.Node != "pve-1" || px.Version != "9.2.2" || snap.System.UptimeS != 86400 || !px.BackupInfo || len(snap.Partial) != 0 {
+	if px.Node != "pve-1" || px.Version != "9.2.2" || snap.System.UptimeS != 100000 || !px.BackupInfo || len(snap.Partial) != 0 {
 		t.Fatalf("%+v %+v", px, snap.Partial)
 	}
 	if len(px.Guests) != 3 || px.Guests[0].VMID != 100 || px.Guests[1].VMID != 101 || px.Guests[1].Type != "lxc" {
@@ -370,7 +370,11 @@ func TestPollUnplausibel(t *testing.T) {
 }
 
 func TestRebooted(t *testing.T) {
-	if !Rebooted(86400, 120) || Rebooted(0, 10) || Rebooted(100, 90) || Rebooted(100, 200) {
+	// 27 h = 97200 s: erst ab dieser Laufzeit davor zählt ein Neustart (1.0.6)
+	if !Rebooted(97200, 120) || Rebooted(0, 10) || Rebooted(100, 90) || Rebooted(100, 200) {
 		t.Fatal()
+	}
+	if Rebooted(86400, 120) || Rebooted(97199, 120) {
+		t.Fatal("geplanter nächtlicher Neustart (Laufzeit < 27 h) gemeldet")
 	}
 }

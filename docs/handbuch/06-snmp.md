@@ -12,6 +12,12 @@ Gelesen werden feste Werte (keine MIB-Dateien): Name, Laufzeit (Neustart), CPU, 
 Schnittstellen mit Verkehr, Temperaturen, Toner, USV und RAID bei Synology. „Schnittstelle down“ alarmiert nur
 für Ports, die man als überwacht markiert. Antwortet ein Gerät drei Intervalle nicht, gibt es „antwortet nicht“.
 
+**Neustart:** Die Laufzeit kommt aus `hrSystemUptime` (Laufzeit des Rechners); nur wenn ein Gerät sie nicht liefert,
+aus `sysUpTime`. Diese zählt nur den SNMP-Dienst und springt auch zurück, wenn nur er neu startet. Gemeldet wird ein
+Neustart (15 Minuten Warnung) nur, wenn das Gerät **davor mindestens 27 Stunden** lief. Geplante nächtliche Neustarts,
+etwa von Citrix-Workern oder Terminalservern, bleiben so still; ob ein geplanter Neustart ausgeblieben ist, prüft der
+Sensor „Neustart verpasst“. Dieselbe Grenze gilt für Proxmox, NetApp, XenServer und FRITZ!Box.
+
 ![SNMP-Sensoren eines Switches](bilder/host-sensoren.webp)
 
 Zugangsdaten liegen verschlüsselt in der Datenbank und sind an Gerät, Adresse und Port gebunden; ändert man die

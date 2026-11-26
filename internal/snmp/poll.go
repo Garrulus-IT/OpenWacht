@@ -51,6 +51,10 @@ type System struct {
 	// 497 Tagen über) und in Sekunden
 	UptimeTicks uint32 `json:"laufzeit_ticks"`
 	UptimeS     uint64 `json:"laufzeit_s"`
+	// HostUptimeTicks: Laufzeit des Rechners (hrSystemUptime, 1.0.6) in
+	// Hundertstelsekunden; 0 = nicht geliefert. sysUpTime zählt nur den
+	// SNMP-Dienst und springt auch zurück, wenn nur er neu startet.
+	HostUptimeTicks uint32 `json:"rechner_laufzeit_ticks,omitempty"`
 }
 
 type CPU struct {
@@ -157,6 +161,7 @@ const (
 	oidSysUpTime   = "1.3.6.1.2.1.1.3.0"
 	oidSysName     = "1.3.6.1.2.1.1.5.0"
 	oidSysLocation = "1.3.6.1.2.1.1.6.0"
+	oidHrSysUptime = "1.3.6.1.2.1.25.1.1.0"
 
 	oidIfDescr       = "1.3.6.1.2.1.2.2.1.2"
 	oidIfType        = "1.3.6.1.2.1.2.2.1.3"
@@ -252,7 +257,7 @@ func (c *Client) budget(def time.Duration) time.Duration {
 }
 
 func (s *session) system() (System, error) {
-	v, err := s.get(oidSysDescr, oidSysObjectID, oidSysUpTime, oidSysName, oidSysLocation)
+	v, err := s.get(oidSysDescr, oidSysObjectID, oidSysUpTime, oidSysName, oidSysLocation, oidHrSysUptime)
 	if err != nil {
 		return System{}, err
 	}
@@ -272,6 +277,9 @@ func (s *session) system() (System, error) {
 	}
 	sys.UptimeTicks = uint32(up)
 	sys.UptimeS = up / 100
+	if hr, ok := v[oidHrSysUptime].uint(); ok && hr <= math.MaxUint32 {
+		sys.HostUptimeTicks = uint32(hr)
+	}
 	return sys, nil
 }
 
@@ -482,6 +490,33 @@ func delta(old, cur uint64, bits int) (uint64, bool) {
 		return cur + (1 << 32) - old, true
 	}
 	return 0, false
+}
+
+// MinUptimeForReboot: Ein Neustart wird nur gemeldet, wenn das Gerät davor
+// mindestens so lange lief (1.0.6). Geplante nächtliche Neustarts (Laufzeit um
+// 24 Stunden) bleiben so still. Gilt für alle Quellen (SNMP, Proxmox,
+// FRITZ!Box, NetApp, XenServer).
+const MinUptimeForReboot = 27 * time.Hour
+
+// RebootCounts: Lief das Gerät vor dem Neustart lange genug, dass er gemeldet
+// wird?
+func RebootCounts(prevUptimeS uint64) bool {
+	return prevUptimeS >= uint64(MinUptimeForReboot/time.Second)
+}
+
+// HostRebooted: zu meldender Neustart zwischen zwei Abfragen. Bevorzugt die
+// Laufzeit des Rechners (hrSystemUptime), sonst sysUpTime, und nur, wenn
+// das Gerät vorher mindestens MinUptimeForReboot lief.
+func HostRebooted(prev, cur *Snapshot) bool {
+	if prev == nil || cur == nil || prev.Counters == nil || cur.Counters == nil {
+		return false
+	}
+	dt := cur.Counters.At.Sub(prev.Counters.At).Seconds()
+	old, now := prev.System.UptimeTicks, cur.System.UptimeTicks
+	if prev.System.HostUptimeTicks > 0 && cur.System.HostUptimeTicks > 0 {
+		old, now = prev.System.HostUptimeTicks, cur.System.HostUptimeTicks
+	}
+	return RebootCounts(uint64(old)/100) && Rebooted(old, now, dt)
 }
 
 // Rebooted erkennt einen Neustart an der Laufzeit (sysUpTime in
