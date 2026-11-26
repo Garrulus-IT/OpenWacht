@@ -59,14 +59,14 @@ const (
 	wmDestroy     = 0x0002
 	wmCommand     = 0x0111
 	wmTimer       = 0x0113
-	wmLButtonUp   = 0x0202
-	wmRButtonUp   = 0x0205
 	wmContextMenu = 0x007B
 	wmApp         = 0x8000
 	wmTray        = wmApp + 1 // Nachrichten vom Symbol
 	wmStand       = wmApp + 2 // neuer Stand aus der Abfrage
 
 	ninSelect           = 0x0400
+	ninKeySelect        = 0x0401
+	wmNull              = 0x0000
 	ninBalloonUserClick = 0x0405
 
 	nimAdd        = 0

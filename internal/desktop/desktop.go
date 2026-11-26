@@ -240,7 +240,8 @@ func (e Ereignis) Titel() string {
 // Text der Benachrichtigung.
 func (e Ereignis) Text() string {
 	s := e.Alarm.Name
-	if e.Alarm.Gegenstand != "" {
+	// "check" (Sensor der Zentrale) sagt nichts; der Name nennt den Sensor schon.
+	if e.Alarm.Gegenstand != "" && e.Alarm.Gegenstand != "check" {
 		s += " · " + e.Alarm.Gegenstand
 	}
 	if e.Art != "entwarnung" && e.Alarm.Meldung != "" {

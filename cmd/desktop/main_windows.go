@@ -289,6 +289,9 @@ func (a *app) menue() {
 	pGetCursorPos.Call(ptr(&p))
 	pSetForegroundWindow.Call(uintptr(a.hwnd))
 	id, _, _ := pTrackPopupMenu.Call(m, tpmRightButton|tpmReturnCmd, uintptr(p.X), uintptr(p.Y), 0, uintptr(a.hwnd), 0)
+	// Laut Microsoft nötig, damit das Menü beim nächsten Mal sauber öffnet
+	// und schließt (Menüs von Symbolen im Infobereich).
+	pPostMessageW.Call(uintptr(a.hwnd), wmNull, 0, 0)
 	a.befehl(int(id))
 }
 
@@ -304,8 +307,20 @@ func (a *app) befehl(id int) {
 		default:
 		}
 	case cmdAutostart:
-		if err := autostartSetzen(!autostartAn()); err != nil {
-			meldung("OpenWacht Desktop", err.Error(), true)
+		// Rückmeldung nach dem Nachlesen: Der Haken im Menü allein zeigt nicht,
+		// ob Windows den Eintrag wirklich hat.
+		soll := !autostartAn()
+		err := autostartSetzen(soll)
+		switch {
+		case err != nil:
+			meldung("OpenWacht Desktop", "Autostart nicht geändert: "+err.Error(), true)
+		case autostartAn() != soll:
+			meldung("OpenWacht Desktop", "Autostart nicht geändert: Windows hat den Eintrag „OpenWacht“ unter "+
+				`HKCU\`+runSchluessel+" nicht übernommen.", true)
+		case soll:
+			meldung("OpenWacht Desktop", "OpenWacht startet jetzt mit Windows.", false)
+		default:
+			meldung("OpenWacht Desktop", "OpenWacht startet nicht mehr mit Windows.", false)
 		}
 	case cmdEinrichten:
 		go func() {
@@ -343,10 +358,13 @@ func wndProc(hwnd, m, wp, lp uintptr) uintptr {
 	}
 	switch uint32(m) {
 	case wmTray:
+		// Version 4 (nimSetVersion): Windows meldet Klicks als NIN_SELECT bzw.
+		// WM_CONTEXTMENU und schickt die Mausnachrichten zusätzlich. Nur die
+		// ersten auswerten, sonst öffnet ein Klick zwei Tabs.
 		switch uint32(lp & 0xffff) {
-		case wmContextMenu, wmRButtonUp:
+		case wmContextMenu:
 			a.menue()
-		case ninSelect, wmLButtonUp:
+		case ninSelect, ninKeySelect:
 			a.oeffnen("/")
 		case ninBalloonUserClick:
 			a.oeffnen("/alarme")

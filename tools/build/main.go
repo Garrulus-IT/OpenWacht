@@ -294,11 +294,33 @@ func buildWith(out, pkg, prog string, t target, ver, commit, extra string) (stri
 		"-o", filepath.Join(out, name), "./cmd/"+pkg)
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS="+t.os, "GOARCH="+t.arch, "GOARM="+t.arm)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	if t.os == "windows" {
+		// Programmbeschreibung (Name in Benachrichtigungen, Eigenschaften)
+		aufraeumen, err := writeVersionSyso(filepath.Join("cmd", pkg), t.arch, verInfo{
+			Description:  windowsDescription(prog),
+			OriginalName: prog + ".exe",
+			Version:      ver,
+			Commit:       commit,
+		})
+		if err != nil {
+			return "", err
+		}
+		defer aufraeumen()
+	}
 	fmt.Printf("baue %-40s (%s)\n", name, t)
 	if err := cmd.Run(); err != nil {
 		return "", fmt.Errorf("%s für %s: %w", prog, t, err)
 	}
 	return name, nil
+}
+
+// windowsDescription: „openwacht-desktop“ → „OpenWacht Desktop“.
+func windowsDescription(prog string) string {
+	rest := strings.TrimPrefix(prog, "openwacht-")
+	if rest == "" || rest == prog {
+		return "OpenWacht"
+	}
+	return "OpenWacht " + strings.ToUpper(rest[:1]) + rest[1:]
 }
 
 func gitCommit() string {

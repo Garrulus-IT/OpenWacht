@@ -158,3 +158,15 @@ func TestSymbol(t *testing.T) {
 		t.Error("Formen nicht unterscheidbar")
 	}
 }
+
+// „check“ (Sensor der Zentrale) erscheint nicht im Text, andere Gegenstände schon.
+func TestTextOhneCheck(t *testing.T) {
+	zentrale := Ereignis{Art: "neu", Alarm: Alarm{Name: "nas · HTTPS", Gegenstand: "check", Status: "crit", Meldung: "keine Antwort"}}
+	if got := zentrale.Text(); got != "nas · HTTPS\nkeine Antwort" {
+		t.Errorf("Zentrale: %q", got)
+	}
+	agent := Ereignis{Art: "neu", Alarm: Alarm{Name: "srv-db01", Gegenstand: "platte:/", Status: "warn"}}
+	if got := agent.Text(); got != "srv-db01 · platte:/" {
+		t.Errorf("Agent: %q", got)
+	}
+}

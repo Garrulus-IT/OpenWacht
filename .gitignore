@@ -21,3 +21,4 @@
 *.swp
 .DS_Store
 Thumbs.db
+cmd/*/zz_versioninfo_windows_*.syso
