@@ -74,8 +74,8 @@ aufgebaut wie die Weboberfläche, damit niemand zwei Oberflächen lernen muss: g
 Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
 
 - **Seitenleiste links** wie im Browser: Wortmarke, **Mandant** mit „mit Untermandanten“, darunter Überwachen,
-  Einrichten und Verwaltung. **Dashboard, Hosts, Topologie, Zertifikate, Alarme, Berichte, SNMP-Profile,
-  Wandanzeigen und Wartung** sind Seiten der App; Sensor-Vorlagen sowie Benutzer und Mandanten tragen einen Pfeil
+  Einrichten und Verwaltung. **Dashboard, Hosts, Topologie, Zertifikate, Alarme, Berichte, Sensor-Vorlagen,
+  SNMP-Profile, Wandanzeigen und Wartung** sind Seiten der App; sowie Benutzer und Mandanten tragen einen Pfeil
   und öffnen die Seite für denselben Mandanten im Browser. Unten: Konto bzw. Token und Rolle, Zentrale, Verbindung mit Stand, **Darstellung**
   (wie System, Hell, Dunkel) und **Abmelden**. Mandant, Schalter und Darstellung merkt sich die App.
 - **Kopf** mit Brotkrumen („Dashboard › web01“), Knöpfen der Seite („Host hinzufügen“, „Im Browser öffnen“) und der
@@ -111,6 +111,12 @@ Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
 - **Wandanzeigen:** Liste mit Umfang, Netz und letztem Abruf; Admins legen an (der Link erscheint nur einmal, „Link
   kopieren“ legt ihn in die Zwischenablage), erzeugen einen neuen Link, stellen den Ton ein und löschen. Ein Klick auf den
   Namen öffnet die Vorschau im Browser.
+- **Sensor-Vorlagen:** eigene Vorlagen, Vorlagensätze und (aufklappbar) die eingebauten, nach „misst“ gruppiert; die
+  Suche oben rechts filtert nach Name, Art und Notiz. Operatoren und Admins legen Vorlagen an (Typ und Felder wie beim
+  Sensor, {adresse} für die Adresse des Geräts), kopieren eingebaute, bearbeiten und löschen eigene, stellen Sätze aus
+  Vorlagen zusammen und wenden Vorlage oder Satz auf angekreuzte Geräte oder alle Geräte einer Gruppe an (mit Liste der
+  übersprungenen). Darunter die **Kennfarben** mit Anlegen, Ändern (Kontrast je 3:1 auf hell und dunkel wird geprüft)
+  und Löschen. Die Kennfarbe eines neuen Eintrags in einem Satz wählt man im Browser.
 - **Gerät bzw. Auswahl:** oben Name, Adresse, Gruppe, Agent und Wartung mit Marken je Zustand („nur ansehen (Rolle
   Leser)“, wo die Rolle nur lesen darf), darunter die Befehle „+ Sensor“, „Jetzt abfragen“, „Alarm bestätigen …“,
   „Wartung …“, „Pausieren“, rechts „Nur Probleme“ und „Mehr“ (was nicht in die Zeile passt, steht dort). Die

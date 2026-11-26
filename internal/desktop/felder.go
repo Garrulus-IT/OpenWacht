@@ -28,6 +28,7 @@ const (
 	FeldZahlListe          // Ganzzahlen, durch Komma getrennt
 	FeldMehrzeilig         // langer Text (PEM)
 	FeldAuswahl            // einer aus Optionen ("" = keine Angabe)
+	FeldMehrfach           // mehrere aus Optionen (Werte durch Komma getrennt; nur in der App)
 )
 
 // Feld: eine Zeile im Dialog.

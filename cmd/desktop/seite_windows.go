@@ -474,7 +474,11 @@ func (m *maler) zelle(c sZelle, r rect, rechts bool) {
 		if c.klein != "" {
 			mx = unten.Left
 		}
-		mw := m.f.marke(hdc, c.mandant, mx, (map[bool]int32{true: unten.Top, false: oben.Top}[c.klein != ""])+(m.s(20)-m.s(22))/2+m.s(0), th.f.Leise, th.f.Flaeche, th.f.Linie, false)
+		my := mitte - m.s(11)
+		if c.klein != "" {
+			my = unten.Top + (m.s(20)-m.s(22))/2
+		}
+		mw := m.f.marke(hdc, c.mandant, mx, my, th.f.Leise, th.f.Flaeche, th.f.Linie, false)
 		if c.klein != "" {
 			unten.Left += mw + m.s(8)
 		} else {

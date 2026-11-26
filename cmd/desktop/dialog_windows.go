@@ -172,6 +172,14 @@ func (d *dialog) lesen() {
 			}
 		case desktop.FeldJaNein:
 			d.werte[f.schluessel] = map[bool]string{true: "ja", false: ""}[f.an]
+		case desktop.FeldMehrfach:
+			var gew []string
+			for k := range f.werte {
+				if r := send(f.ctrl, lbGetSel, uintptr(k), 0); r > 0 && r != ^uintptr(0) {
+					gew = append(gew, f.werte[k])
+				}
+			}
+			d.werte[f.schluessel] = strings.Join(gew, ",")
 		default:
 			d.werte[f.schluessel] = getText(f.ctrl)
 		}
@@ -244,6 +252,23 @@ func (d *dialog) aufbauen() {
 				g.ctrl = neu("BUTTON", g.beschriftung, bsOwnerDraw|wsTabStop, 0, id)
 				move(g.ctrl, x, fy, w, fh)
 				g.label = rect{} // Beschriftung steht neben dem Kästchen
+			case desktop.FeldMehrfach:
+				// Liste zum Ankreuzen (Klick wählt an und ab)
+				fh = d.s(8 * 24)
+				g.ctrl = neu("LISTBOX", "", wsTabStop|wsVScroll|lbsMultipleSel|lbsNoIntegralHeight|lbsNotify|lbsOwnerDrawFixed|lbsHasStrings, 0, id)
+				move(g.ctrl, x+d.s(2), fy+d.s(2), w-d.s(4), fh-d.s(4))
+				send(g.ctrl, wmSetFont, d.sch.t13, 1)
+				send(g.ctrl, lbSetItemHeight, 0, uintptr(d.s(24)))
+				an := map[string]bool{}
+				for _, v := range strings.Split(wert, ",") {
+					an[v] = true
+				}
+				for k, t := range g.texte {
+					sendP(g.ctrl, lbAddString, 0, unsafe.Pointer(utf16(t)))
+					if an[g.werte[k]] {
+						send(g.ctrl, lbSetSel, 1, uintptr(k))
+					}
+				}
 			case desktop.FeldMehrzeilig:
 				fh = d.s(80)
 				g.ctrl = neu("EDIT", wert, wsTabStop|esMultiline|esAutoVScroll|esWantReturn|wsVScroll, 0, id)
@@ -625,8 +650,11 @@ func dialogProc(hwnd, m, wp, lp uintptr) uintptr {
 		return 0
 	case wmDrawItem:
 		di := zeigerAus[drawItemStruct](lp)
-		if di.CtlType == odtButton {
+		switch di.CtlType {
+		case odtButton:
 			d.knopfMalen(di)
+		case odtListbox:
+			d.listeMalen(di)
 		}
 		return 1
 	case wmCommand:
@@ -694,3 +722,27 @@ var paarFelder = map[string]bool{
 }
 
 func paar(schluessel string) bool { return paarFelder[strings.TrimPrefix(schluessel, "z:")] }
+
+// listeMalen: Eintrag einer Liste zum Ankreuzen (FeldMehrfach) wie .haken im Web.
+func (d *dialog) listeMalen(di *drawItemStruct) {
+	if int32(di.ItemID) < 0 {
+		return
+	}
+	f := d.feldVon(syscall.Handle(di.HwndItem))
+	if f == nil || int(di.ItemID) >= len(f.texte) {
+		return
+	}
+	hdc, r := di.Hdc, di.Rc
+	fuellen(hdc, r, th.f.Flaeche)
+	k := rect{r.Left + d.s(6), (r.Top + r.Bottom - d.s(16)) / 2, r.Left + d.s(22), (r.Top+r.Bottom-d.s(16))/2 + d.s(16)}
+	if di.ItemState&odsSelected != 0 {
+		rund(hdc, k, d.s(3), th.f.Marke, th.f.Marke, true, true, false)
+		haken(hdc, k, th.f.AufMarke, d.s(2))
+	} else {
+		rund(hdc, k, d.s(3), th.f.Flaeche, th.f.Leise, true, true, false)
+	}
+	if di.ItemState&odsFocus != 0 {
+		rund(hdc, rect{r.Left + 1, r.Top + 1, r.Right - 1, r.Bottom - 1}, d.s(3), 0, th.f.LinieZart, false, true, false)
+	}
+	schreiben(hdc, f.texte[di.ItemID], rect{k.Right + d.s(8), r.Top, r.Right - d.s(4), r.Bottom}, d.sch.t13, th.f.Tinte, 0)
+}

@@ -55,3 +55,17 @@ func zwischenablage(owner syscall.Handle, text string) error {
 	}
 	return nil
 }
+
+// Liste zum Ankreuzen im Dialog (FeldMehrfach)
+const (
+	lbsNotify           = 0x0001
+	lbsMultipleSel      = 0x0008
+	lbsNoIntegralHeight = 0x0100
+	lbsOwnerDrawFixed   = 0x0010
+	lbsHasStrings       = 0x0040
+	odtListbox          = 2
+	lbAddString         = 0x0180
+	lbSetSel            = 0x0185
+	lbGetSel            = 0x0187
+	lbSetItemHeight     = 0x01A0
+)
