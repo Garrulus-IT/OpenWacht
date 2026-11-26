@@ -163,7 +163,8 @@ func (e *FehlerZentrale) Error() string {
 	return fmt.Sprintf("Zentrale antwortet mit %d", e.Code)
 }
 
-// send: Anfrage mit dem Token, nur an die eingestellte Zentrale, Antwort ≤ 8 MiB.
+// send: Anfrage mit Token bzw. Sitzung, nur an die eingestellte Zentrale, Antwort ≤ 32 MiB
+// (PDF-Berichte). out vom Typ *[]byte bekommt die Antwort unverändert.
 // body (falls nicht nil) geht als JSON; out (falls nicht nil) nimmt die
 // Antwort auf. Jede Antwort 2xx gilt als Erfolg.
 func (c Client) send(ctx context.Context, method, pfad string, body, out any) error {
@@ -203,7 +204,7 @@ func (c Client) send(ctx context.Context, method, pfad string, body, out any) er
 	if c.Sitzung != nil {
 		c.Sitzung.antwort(resp)
 	}
-	data, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
 	if err != nil {
 		return err
 	}
@@ -226,6 +227,10 @@ func (c Client) send(ctx context.Context, method, pfad string, body, out any) er
 		}
 		_ = json.Unmarshal(data, &f)
 		return &FehlerZentrale{Code: resp.StatusCode, Text: Kuerzen(strings.TrimSpace(f.Fehler), 400)}
+	}
+	if roh, ok := out.(*[]byte); ok {
+		*roh = data // Datei (z. B. PDF), unverändert
+		return nil
 	}
 	if out == nil || len(bytes.TrimSpace(data)) == 0 {
 		return nil
