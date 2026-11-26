@@ -1,6 +1,11 @@
 package desktop
 
-import "testing"
+import (
+	"os"
+	"regexp"
+	"strings"
+	"testing"
+)
 
 func TestVorlagen(t *testing.T) {
 	l := []Vorlage{
@@ -37,5 +42,21 @@ func TestVorlagen(t *testing.T) {
 	}
 	if _, _, f := KennfarbePruefen("#101010"); f == "" {
 		t.Error("Fast-Schwarz auf Dunkel angenommen")
+	}
+}
+
+// Die Vorschläge der App und des Webs sind dieselben (und bestehen beide Prüfungen).
+func TestKennVorschlaegeWieImWeb(t *testing.T) {
+	b, err := os.ReadFile("../../web/src/Kennfarben.tsx")
+	if err != nil {
+		t.Skip(err)
+	}
+	m := regexp.MustCompile(`const VORSCHLAEGE = \[([^\]]*)\]`).FindSubmatch(b)
+	if m == nil {
+		t.Fatal("VORSCHLAEGE im Web nicht gefunden")
+	}
+	web := regexp.MustCompile(`#[0-9a-fA-F]{6}`).FindAllString(string(m[1]), -1)
+	if strings.Join(web, ",") != strings.Join(KennVorschlaege, ",") {
+		t.Errorf("Web %v, App %v", web, KennVorschlaege)
 	}
 }

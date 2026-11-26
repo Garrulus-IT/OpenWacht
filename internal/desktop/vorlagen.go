@@ -178,7 +178,5 @@ func KennfarbePruefen(hex string) (hell, dunkel float64, fehler string) {
 	return hell, dunkel, fehler
 }
 
-// KennVorschlaege: Farben mit genug Kontrast wie VORSCHLAEGE im Web, ohne
-// #8a5a2b: das Braun schafft auf dunklem Grund nur 2,9:1 und fiele durch die
-// eigene Prüfung.
-var KennVorschlaege = []string{"#c0307a", "#e05a00", "#00838a", "#7b5cd6", "#2a78d6"}
+// KennVorschlaege: Farben mit genug Kontrast, gleich wie VORSCHLAEGE im Web.
+var KennVorschlaege = []string{"#c0307a", "#e05a00", "#00838a", "#7b5cd6", "#9a6530", "#2a78d6"}

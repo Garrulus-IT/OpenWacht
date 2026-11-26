@@ -82,6 +82,8 @@
 - Beim Anlegen eines Benutzers lautet die Meldung für eine vergebene Adresse immer gleich; höchstens 20 solcher
   Ablehnungen je Admin und Stunde.
 - Die Warnung beim Start ohne Alarmziele nennt richtig, was gesperrt ist (Mail geht weiter).
+- Kennfarben: Der Vorschlag Braun (#8a5a2b) hatte auf dunklem Grund nur 2,9:1 Kontrast und fiel durch die eigene
+  Prüfung; jetzt #9a6530 (3,5:1 dunkel, 4,9:1 hell).
 - Migrationen 0056 bis 0060 (laufen beim Update von selbst).
 
 ## 1.0.5
