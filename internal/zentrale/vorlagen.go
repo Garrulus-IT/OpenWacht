@@ -251,7 +251,7 @@ var builtinSets = []vorlagenSatz{
 	// Instanzen heißen Dienste und Objekte anders (MSSQL$NAME,
 	// MSSQL$NAME:General Statistics): als eigenen Satz kopieren und anpassen.
 	newSet("satz-sql", "SQL Server", "Microsoft SQL Server, Standardinstanz: Dienste, blockierte Prozesse, Deadlocks, Transaktionsprotokoll, "+
-		"Speicher. Benannte Instanz (ab Agent 0.99.2): als eigenen Satz kopieren, MSSQL$NAME bzw. SQLAgent$NAME und Objekte MSSQL$NAME:… eintragen. Am Agent freigeben: "+
+		"Speicher. Benannte Instanz: als eigenen Satz kopieren, MSSQL$NAME bzw. SQLAgent$NAME und Objekte MSSQL$NAME:… eintragen. Am Agent freigeben: "+
 		`openwacht-agent sensoren -arten "dienst,leistungsindikator" -indikatoren "SQLServer:General Statistics,SQLServer:Locks,SQLServer:Databases,SQLServer:Memory Manager,SQLServer:Buffer Manager"`,
 		[]satzEintrag{
 			{"SQL: Dienst Datenbankmodul", "dienst", `{"name":"MSSQLSERVER"}`, "SQL Server (Standardinstanz)", 60},

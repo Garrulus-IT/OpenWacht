@@ -1,6 +1,6 @@
 # 16. Betrieb und Skalierung
 
-## Lasttest (22.11.2026, Version 0.34.0)
+## Lasttest (22.11.2026, gemessen mit Version 0.34.0)
 
 **Aufbau:** 20 Mandanten (Hauptmandant, 4 Bereiche, 15 Untermandanten darunter), 500 Agents (25 je Mandant,
 simuliert mit `tools/simagent`, Meldung alle 60 s, je Standort eine eigene Absenderadresse) und 2000 SNMP-Geräte
