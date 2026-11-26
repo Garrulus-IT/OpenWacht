@@ -323,7 +323,10 @@ func msiUITabellen() []msiTable {
 				break
 			}
 		}
-		// Tab-Reihenfolge: Eingaben in Reihenfolge, dann die Knöpfe; ein Kreis
+		// Tab-Reihenfolge: Eingaben in Reihenfolge, dann alle Knöpfe (auch
+		// ausgegraute, wie bei WiX). Windows Installer verlangt einen
+		// geschlossenen Kreis, auch bei nur einem Steuerelement (sonst Fehler
+		// 2814), deshalb zeigt ein einzelnes auf sich selbst.
 		var reihe []string
 		for _, c := range d.ctrls {
 			if c.fokus && c.attr&ctlAn != 0 && c.typ != "PushButton" {
@@ -331,15 +334,13 @@ func msiUITabellen() []msiTable {
 			}
 		}
 		for _, c := range d.ctrls {
-			if c.fokus && c.attr&ctlAn != 0 && c.typ == "PushButton" {
+			if c.typ == "PushButton" {
 				reihe = append(reihe, c.name)
 			}
 		}
 		naechst := map[string]any{}
 		for i, n := range reihe {
-			if len(reihe) > 1 {
-				naechst[n] = reihe[(i+1)%len(reihe)]
-			}
+			naechst[n] = reihe[(i+1)%len(reihe)]
 		}
 		w, h := msiDialogGroesse(d.name)
 		dialog.rows = append(dialog.rows, []any{d.name, 50, 50, w, h, d.attr, d.titel, erst, d.vor, d.abbruch})
@@ -373,7 +374,15 @@ func msiUITabellen() []msiTable {
 	bild := msiTable{name: "Binary", cols: []msiCol{{"Name", cK(72)}, {"Data", cV()}}, rows: [][]any{
 		{"OwBanner", msiStrom(msiBanner())},
 	}}
-	return []msiTable{dialog, control, event, cond, mapping, check, style, bild}
+	// Text unter dem Fortschritt, damit das Warten auf die Zentrale einen Namen hat.
+	aktion := msiTable{name: "ActionText", cols: []msiCol{{"Action", cK(72)}, {"Description", cLN(0)}, {"Template", cLN(0)}},
+		rows: [][]any{
+			{"InstallFiles", "Dateien werden kopiert", nil},
+			{"StopServices", "Dienst wird angehalten", nil},
+			{"PaketEinrichten", "Agent wird bei der Zentrale registriert und als Dienst gestartet (bis zu 1 Minute)", nil},
+			{"PaketEntfernen", "Dienst wird entfernt", nil},
+		}}
+	return []msiTable{dialog, control, event, cond, mapping, check, style, bild, aktion}
 }
 
 // msiBanner: Kopf der Dialoge als BMP (24 Bit), 740 × 118 Pixel für 370 × 59

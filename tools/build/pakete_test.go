@@ -596,17 +596,22 @@ func TestMSIAssistent(t *testing.T) {
 		if d["Control_Default"] != "" && ctrl[n][d["Control_Default"]]["Type"] != "PushButton" {
 			t.Errorf("%s: Standard ist kein Knopf", n)
 		}
-		// Tab-Reihenfolge: von Control_First aus ein Kreis
+		// Tab-Reihenfolge: von Control_First aus ein geschlossener Kreis, auch
+		// bei nur einem Steuerelement (Windows Installer: Fehler 2814)
 		start := d["Control_First"]
-		seen := map[string]bool{}
-		for c := start; c != "" && !seen[c]; c = ctrl[n][c]["Control_Next"] {
-			seen[c] = true
-			if !gibt(n, c) {
-				t.Errorf("%s: Control_Next %q fehlt", n, c)
+		c := start
+		for i := 0; ; i++ {
+			nx := ctrl[n][c]["Control_Next"]
+			if nx == "" || !gibt(n, nx) {
+				t.Errorf("%s: Tab-Reihenfolge endet bei %s", n, c)
 				break
 			}
-			if nx := ctrl[n][c]["Control_Next"]; nx == "" && len(seen) > 1 {
-				t.Errorf("%s: Tab-Reihenfolge endet bei %s", n, c)
+			if c = nx; c == start {
+				break
+			}
+			if i > 50 {
+				t.Errorf("%s: Tab-Reihenfolge kommt nicht zu %s zurück", n, start)
+				break
 			}
 		}
 	}
