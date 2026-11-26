@@ -467,6 +467,7 @@ func msiTables(goarch, ver string, exeSize int) []msiTable {
 			{"SecureCustomProperties", msiOeffentlich() + ";OW_ALTE;OW_NEUER;OW_WIN10"},
 			{"DefaultUIFont", "OwText"},
 			{"OW_WAHL", "update"}, // Auswahl, wenn schon ein Agent installiert ist
+			{"OW_ANF", `"`},       // zum Prüfen der Eingaben auf Anführungszeichen (msi_ui.go)
 			{"ErrorDialog", "ErrorDlg"},
 		}},
 		// Mindestens Windows 10 bzw. Server 2016 (0.99.2): VersionNT und WindowsBuild

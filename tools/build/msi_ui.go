@@ -18,6 +18,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Eigenschaften des Assistenten. Die Kästchen setzen ihre Eigenschaft auf
@@ -267,9 +268,21 @@ func msiDialogGroesse(name string) (int, int) {
 
 // Ereignisse der Knöpfe: Dialog, Knopf, Ereignis, Argument, Bedingung, Reihenfolge.
 func msiEreignisse() [][]any {
-	zentraleFehlt := "ZENTRALE AND NOT TOKEN OR TOKEN AND NOT ZENTRALE"
-	ordnerFehlt := "OW_S_DATEI AND NOT ORDNER"
-	indikatorFehlt := "OW_S_INDIKATOR AND NOT INDIKATOREN"
+	// Ein Anführungszeichen in einer Eingabe würde die Befehlszeile der
+	// Einrichtung zerbrechen. OW_ANF enthält genau dieses Zeichen; „><“ heißt
+	// „enthält“ (Bedingungen im MSI kennen kein Maskieren in Text).
+	anf := func(props ...string) string {
+		var t []string
+		for _, p := range props {
+			t = append(t, p+" >< OW_ANF")
+		}
+		return "(" + strings.Join(t, " OR ") + ")"
+	}
+	zentraleFehlt := "ZENTRALE AND NOT TOKEN OR TOKEN AND NOT ZENTRALE OR " + anf("ZENTRALE", "TOKEN", "HOSTNAME")
+	ordnerFehlt := "OW_S_DATEI AND NOT ORDNER OR " + anf("ORDNER")
+	indikatorFehlt := "OW_S_INDIKATOR AND NOT INDIKATOREN OR " + anf("INDIKATOREN")
+	netzFehlt := anf("NETZE")
+	ohneAnf := "Bitte ohne Anführungszeichen eingeben."
 	abbrechen := func(dlg string) []any { return []any{dlg, "Abbrechen", "SpawnDialog", "CancelDlg", "1", 1} }
 	entfernenAlt := `OW_WAHL="entfernen" AND NOT Installed`
 	vorhanden := "Installed OR OW_ALTE"
@@ -279,17 +292,21 @@ func msiEreignisse() [][]any {
 		{"ZentraleDlg", "Zurueck", "NewDialog", "WillkommenDlg", "NOT (" + vorhanden + ")", 1},
 		{"ZentraleDlg", "Zurueck", "NewDialog", "AuswahlDlg", vorhanden, 2},
 		{"ZentraleDlg", "Weiter", "[OW_FEHLER]", "Bitte Adresse und Token zusammen angeben oder beide leer lassen (Update eines registrierten Agents).", zentraleFehlt, 1},
-		{"ZentraleDlg", "Weiter", "SpawnDialog", "FehlerDlg", zentraleFehlt, 2},
-		{"ZentraleDlg", "Weiter", "NewDialog", "SensorenDlg", "NOT (" + zentraleFehlt + ")", 3},
+		{"ZentraleDlg", "Weiter", "[OW_FEHLER]", ohneAnf, anf("ZENTRALE", "TOKEN", "HOSTNAME"), 2},
+		{"ZentraleDlg", "Weiter", "SpawnDialog", "FehlerDlg", zentraleFehlt, 3},
+		{"ZentraleDlg", "Weiter", "NewDialog", "SensorenDlg", "NOT (" + zentraleFehlt + ")", 4},
 		abbrechen("ZentraleDlg"),
 		{"SensorenDlg", "Zurueck", "NewDialog", "ZentraleDlg", "1", 1},
 		{"SensorenDlg", "Weiter", "[OW_FEHLER]", "Für Dateien und Ordner bitte mindestens einen Ordner angeben, z. B. C:\\Daten\\Export.", ordnerFehlt, 1},
 		{"SensorenDlg", "Weiter", "[OW_FEHLER]", "Für Leistungsindikatoren bitte mindestens ein Objekt angeben, z. B. SwyxServer.", indikatorFehlt + " AND NOT (" + ordnerFehlt + ")", 2},
-		{"SensorenDlg", "Weiter", "SpawnDialog", "FehlerDlg", ordnerFehlt + " OR " + indikatorFehlt, 3},
-		{"SensorenDlg", "Weiter", "NewDialog", "SammlerDlg", "NOT (" + ordnerFehlt + ") AND NOT (" + indikatorFehlt + ")", 4},
+		{"SensorenDlg", "Weiter", "[OW_FEHLER]", ohneAnf, anf("ORDNER", "INDIKATOREN"), 3},
+		{"SensorenDlg", "Weiter", "SpawnDialog", "FehlerDlg", ordnerFehlt + " OR " + indikatorFehlt, 4},
+		{"SensorenDlg", "Weiter", "NewDialog", "SammlerDlg", "NOT (" + ordnerFehlt + ") AND NOT (" + indikatorFehlt + ")", 5},
 		abbrechen("SensorenDlg"),
 		{"SammlerDlg", "Zurueck", "NewDialog", "SensorenDlg", "1", 1},
-		{"SammlerDlg", "Weiter", "NewDialog", "BereitDlg", "1", 1},
+		{"SammlerDlg", "Weiter", "[OW_FEHLER]", ohneAnf, netzFehlt, 1},
+		{"SammlerDlg", "Weiter", "SpawnDialog", "FehlerDlg", netzFehlt, 2},
+		{"SammlerDlg", "Weiter", "NewDialog", "BereitDlg", "NOT " + netzFehlt, 3},
 		abbrechen("SammlerDlg"),
 		{"BereitDlg", "Zurueck", "NewDialog", "SammlerDlg", `NOT (` + vorhanden + `) OR OW_WAHL<>"update"`, 1},
 		{"BereitDlg", "Zurueck", "NewDialog", "AuswahlDlg", `(` + vorhanden + `) AND OW_WAHL="update"`, 2},
