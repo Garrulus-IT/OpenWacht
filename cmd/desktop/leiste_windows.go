@@ -21,6 +21,11 @@ type navPunkt struct {
 	pfad     string // Pfad der Weboberfläche (web/src/navigation.ts)
 }
 
+// nativ: Seite der App (sonst öffnet der Punkt den Browser).
+func (p navPunkt) nativ() bool {
+	return p.seite >= 0 && (p.seite <= seiteWartung || seiten[p.seite] != nil)
+}
+
 var navGruppen = []struct {
 	titel  string
 	punkte []navPunkt
@@ -28,19 +33,19 @@ var navGruppen = []struct {
 	{"Überwachen", []navPunkt{
 		{"dashboard", "Dashboard", seiteDashboard, "/"},
 		{"hosts", "Hosts", seiteHosts, "/hosts"},
-		{"topologie", "Topologie", -1, "/topologie"},
-		{"zertifikate", "Zertifikate", -1, "/zertifikate"},
+		{"topologie", "Topologie", seiteTopologie, "/topologie"},
+		{"zertifikate", "Zertifikate", seiteZertifikate, "/zertifikate"},
 		{"alarme", "Alarme", seiteAlarme, "/alarme"},
-		{"berichte", "Berichte", -1, "/berichte"},
+		{"berichte", "Berichte", seiteBerichte, "/berichte"},
 	}},
 	{"Einrichten", []navPunkt{
-		{"vorlagen", "Sensor-Vorlagen", -1, "/sensor-vorlagen"},
-		{"snmpprofile", "SNMP-Profile", -1, "/snmp-profile"},
-		{"anzeigen", "Wandanzeigen", -1, "/wandanzeigen"},
+		{"vorlagen", "Sensor-Vorlagen", seiteVorlagen, "/sensor-vorlagen"},
+		{"snmpprofile", "SNMP-Profile", seiteSNMP, "/snmp-profile"},
+		{"anzeigen", "Wandanzeigen", seiteWandanzeigen, "/wandanzeigen"},
 		{"wartung", "Wartung", seiteWartung, "/wartung"},
 	}},
 	{"Verwaltung", []navPunkt{
-		{"verwaltung", "Benutzer und Mandanten", -1, "/verwaltung"},
+		{"verwaltung", "Benutzer und Mandanten", seiteVerwaltung, "/verwaltung"},
 	}},
 }
 
@@ -155,11 +160,11 @@ func (a *app) leisteMalen(hdc uintptr, r rect) {
 		for _, p := range g.punkte {
 			pr := rect{links, y, rechts, y + f.s(36)}
 			art := "nav"
-			if p.seite < 0 {
+			if !p.nativ() {
 				art = "extern"
 			}
 			hover := ziel(pr, art, p.id)
-			aktiv := p.seite >= 0 && p.seite == f.seite
+			aktiv := p.nativ() && p.seite == f.seite
 			fg, font := th.f.Tinte, f.sch.t16
 			switch {
 			case aktiv:
@@ -173,7 +178,7 @@ func (a *app) leisteMalen(hdc uintptr, r rect) {
 			piktogramm(hdc, p.id, fg, pr.Left+f.s(8), (pr.Top+pr.Bottom-in)/2, in)
 			tx := pr.Left + f.s(8) + in + f.s(8)
 			tr := pr.Right - f.s(8)
-			if p.seite < 0 {
+			if !p.nativ() {
 				e := f.s(14)
 				farbe := th.f.Leise
 				if hover {

@@ -75,6 +75,12 @@ type fenster struct {
 	wartOff   int32
 	wartHoehe int32
 
+	seitenF     syscall.Handle // nachgebildete Seiten (seite_windows.go)
+	seitenZiele []ziel
+	seitenUeber int
+	seitenOff   int32
+	seitenHoehe int32
+
 	meldung     string // kurze Rückmeldung oben im Inhalt
 	meldungZeit time.Time
 	sucheRahmen rect
@@ -97,7 +103,7 @@ func (a *app) fensterAnlegen() (*fenster, error) {
 	themaSetzen(a.dunkel())
 	inst, _, _ := pGetModuleHandleW.Call(0)
 	cursor, _, _ := pLoadCursorW.Call(0, idcArrow)
-	f := &fenster{dpi: 96, sortSp: -1, items: map[string]uintptr{}, ueber: -1, kopfUeber: -1, leisteUeber: -1, uebUeber: -1, wartUeber: -1,
+	f := &fenster{dpi: 96, sortSp: -1, items: map[string]uintptr{}, ueber: -1, kopfUeber: -1, leisteUeber: -1, uebUeber: -1, wartUeber: -1, seitenUeber: -1,
 		mandant: a.cfg.Mandant, mitUnter: !a.cfg.OhneUnter}
 	for _, k := range []struct {
 		name string
@@ -132,6 +138,7 @@ func (a *app) fensterAnlegen() (*fenster, error) {
 	f.sonne = flaeche(idSonne)
 	f.uebers = flaeche(idUebersicht)
 	f.wartungF = flaeche(idWartung)
+	f.seitenF = flaeche(idSeite)
 
 	f.baum = kind(f.hwnd, "SysTreeView32", "", wsTabStop|tvsHasButtons|tvsLinesAtRoot|tvsShowSelAlways|tvsFullRowSelect|tvsTrackSelect, 0, idBaum)
 	send(f.baum, tvmSetExtStyle, tvsExDoubleBuffer, tvsExDoubleBuffer)
@@ -302,10 +309,13 @@ func (f *fenster) anordnen() {
 		detail = rect{x + bb + gap, y, x + cw, y + ch}
 	case f.seite == seiteWartung:
 		move(f.wartungF, x, y, cw, ch)
+	case seiten[f.seite] != nil:
+		move(f.seitenF, x, y, cw, ch)
 	default:
 		detail = rect{x, y, x + cw, y + ch}
 	}
 	zeigen(f.wartungF, f.seite == seiteWartung)
+	zeigen(f.seitenF, seiten[f.seite] != nil)
 	zeigen(f.sonne, dash)
 	zeigen(f.uebers, dash && !hostOffen)
 	zeigen(f.baum, f.seite == seiteHosts)
@@ -397,6 +407,10 @@ func (a *app) aktualisieren(immer bool) {
 	pInvalidateRect.Call(uintptr(f.leiste), 0, 0)
 	pInvalidateRect.Call(uintptr(f.uebers), 0, 0)
 	pInvalidateRect.Call(uintptr(f.wartungF), 0, 0)
+	if immer && seiten[f.seite] != nil {
+		a.seiteNeu(f.seite)
+	}
+	pInvalidateRect.Call(uintptr(f.seitenF), 0, 0)
 }
 
 func (f *fenster) eintrag(key string) *baumEintrag {
@@ -420,6 +434,10 @@ func (f *fenster) knoten() *desktop.Knoten {
 		}
 	case seiteWartung:
 		return nil
+	default:
+		if seiten[f.seite] != nil {
+			return nil
+		}
 	}
 	if e := f.eintrag(key); e != nil {
 		return e.knoten
@@ -442,6 +460,10 @@ func (a *app) seiteWechseln(s int) {
 	if s == seiteWartung {
 		f.wartOff = 0
 		a.wartungLaden()
+	}
+	if seiten[s] != nil {
+		f.seitenOff, f.seitenUeber = 0, -1
+		a.seiteLaden(s)
 	}
 	f.anordnen()
 	a.auswahlZeigen(true)
@@ -600,6 +622,8 @@ func flaecheProc(hwnd, m, wp, lp uintptr) uintptr {
 				a.uebersichtMalen(hdc, r)
 			case f.wartungF:
 				a.wartungMalen(hdc, r)
+			case f.seitenF:
+				a.seiteMalen(hdc, r)
 			default:
 				fuellen(hdc, r, th.f.Grund)
 			}
@@ -622,6 +646,11 @@ func flaecheProc(hwnd, m, wp, lp uintptr) uintptr {
 		if h == f.wartungF {
 			d := int32(int16(wp >> 16))
 			f.wartungScrollen(-d * f.s(48) / 120)
+			return 0
+		}
+		if h == f.seitenF {
+			d := int32(int16(wp >> 16))
+			f.seitenScrollen(-d * f.s(48) / 120)
 			return 0
 		}
 	case wmSetCursor:
@@ -659,6 +688,8 @@ func flaecheProc(hwnd, m, wp, lp uintptr) uintptr {
 			neuUeber(&f.uebUeber, zielBei(f.uebZiele, x, y))
 		case f.wartungF:
 			neuUeber(&f.wartUeber, zielBei(f.wartZiele, x, y))
+		case f.seitenF:
+			neuUeber(&f.seitenUeber, zielBei(f.seitenZiele, x, y))
 		}
 		return 0
 	case wmMouseLeave:
@@ -675,6 +706,8 @@ func flaecheProc(hwnd, m, wp, lp uintptr) uintptr {
 			f.uebUeber = -1
 		case f.wartungF:
 			f.wartUeber = -1
+		case f.seitenF:
+			f.seitenUeber = -1
 		}
 		pInvalidateRect.Call(hwnd, 0, 0)
 		return 0
@@ -723,6 +756,10 @@ func flaecheProc(hwnd, m, wp, lp uintptr) uintptr {
 			if i := zielBei(f.wartZiele, x, y); i >= 0 {
 				a.wartungKlick(f.wartZiele[i])
 			}
+		case f.seitenF:
+			if i := zielBei(f.seitenZiele, x, y); i >= 0 {
+				a.seiteKlick(f.seitenZiele[i])
+			}
 		}
 		return 0
 	}
@@ -739,6 +776,8 @@ func (f *fenster) klickbar(h syscall.Handle, x, y int32) bool {
 		return zielBei(f.uebZiele, x, y) >= 0
 	case f.wartungF:
 		return zielBei(f.wartZiele, x, y) >= 0
+	case f.seitenF:
+		return zielBei(f.seitenZiele, x, y) >= 0
 	case f.sonne:
 		return f.sonnenUeber != ""
 	case f.kopf:
@@ -853,8 +892,9 @@ func fensterProc(hwnd, m, wp, lp uintptr) uintptr {
 		switch {
 		case id == idSuche && code == enChange:
 			a.auswahlZeigen(true)
-			f.wartOff = 0
+			f.wartOff, f.seitenOff = 0, 0
 			pInvalidateRect.Call(uintptr(f.wartungF), 0, 0)
+			pInvalidateRect.Call(uintptr(f.seitenF), 0, 0)
 		case id == idSuche && (code == 0x0100 || code == 0x0200): // EN_SETFOCUS, EN_KILLFOCUS
 			pInvalidateRect.Call(uintptr(f.kopfleiste), 0, 0)
 		}

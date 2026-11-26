@@ -102,7 +102,7 @@ func (a *app) befehlFenster(id int) {
 		a.ueber()
 	case cmdImBrowser:
 		switch {
-		case f.seite == seiteWartung:
+		case f.seite == seiteWartung || seiten[f.seite] != nil:
 			a.oeffnen(desktop.WebPfad(f.seitePfad(), f.mandant, f.mitUnter))
 		case z != nil:
 			a.oeffnen(desktop.GeraetPfad(z.GeraetID))

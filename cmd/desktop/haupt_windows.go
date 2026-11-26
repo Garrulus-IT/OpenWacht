@@ -41,6 +41,7 @@ const (
 	idUebersicht = 211
 	idHinweis    = 212
 	idWartung    = 213
+	idSeite      = 214
 )
 
 // Seiten in der App (alle anderen öffnen den Browser).
@@ -49,9 +50,17 @@ const (
 	seiteHosts
 	seiteAlarme
 	seiteWartung
+	seiteTopologie
+	seiteZertifikate
+	seiteBerichte
+	seiteVorlagen
+	seiteSNMP
+	seiteWandanzeigen
+	seiteVerwaltung
 )
 
-var seitenTitel = [...]string{"Dashboard", "Hosts", "Alarme", "Wartung"}
+var seitenTitel = [...]string{"Dashboard", "Hosts", "Alarme", "Wartung", "Topologie", "Zertifikate", "Berichte",
+	"Sensor-Vorlagen", "SNMP-Profile", "Wandanzeigen", "Benutzer und Mandanten"}
 
 // Befehle aus Befehlsleiste, Menü „Mehr“ und Kontextmenüs.
 const (

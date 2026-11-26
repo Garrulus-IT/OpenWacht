@@ -74,9 +74,9 @@ aufgebaut wie die Weboberfläche, damit niemand zwei Oberflächen lernen muss: g
 Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
 
 - **Seitenleiste links** wie im Browser: Wortmarke, **Mandant** mit „mit Untermandanten“, darunter Überwachen,
-  Einrichten und Verwaltung. **Dashboard, Hosts, Alarme und Wartung** sind Seiten der App; Topologie, Zertifikate,
-  Berichte, Sensor-Vorlagen, SNMP-Profile, Wandanzeigen sowie Benutzer und Mandanten tragen einen Pfeil und öffnen die
-  Seite für denselben Mandanten im Browser. Unten: Konto bzw. Token und Rolle, Zentrale, Verbindung mit Stand, **Darstellung**
+  Einrichten und Verwaltung. **Dashboard, Hosts, Alarme, Wartung und Zertifikate** sind Seiten der App;
+  Topologie, Berichte, Sensor-Vorlagen, SNMP-Profile, Wandanzeigen sowie Benutzer und Mandanten tragen einen Pfeil
+  und öffnen die Seite für denselben Mandanten im Browser. Unten: Konto bzw. Token und Rolle, Zentrale, Verbindung mit Stand, **Darstellung**
   (wie System, Hell, Dunkel) und **Abmelden**. Mandant, Schalter und Darstellung merkt sich die App.
 - **Kopf** mit Brotkrumen („Dashboard › web01“), Knöpfen der Seite („Host hinzufügen“, „Im Browser öffnen“) und der
   **Suche** (Strg+K oder Strg+F; filtert die Sensoren nach Gerät, Sensor und Meldung).
@@ -97,6 +97,9 @@ Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
   **Fortsetzen** und **Löschen** (mit Rückfrage; eine laufende Wartung aus dem Fenster endet sofort). „Fenster anlegen“
   und „Bearbeiten“ öffnen das Formular im Browser. Die Suche filtert nach Ziel, Name und Grund; die Seite fragt alle
   30 s neu ab.
+- **Zertifikate:** alle Sensoren „TLS-Zertifikat“ im Bereich, das zuerst ablaufende oben, mit Zustand, Adresse, Gerät,
+  Ablaufdatum, Rest und Aussteller bzw. Hinweis; umschalten zwischen Alle, Bald fällig (14, 30, 60 oder 90 Tage) und
+  Mit Problem. Ein Klick aufs Gerät öffnet es unter Hosts.
 - **Gerät bzw. Auswahl:** oben Name, Adresse, Gruppe, Agent und Wartung mit Marken je Zustand („nur ansehen (Rolle
   Leser)“, wo die Rolle nur lesen darf), darunter die Befehle „+ Sensor“, „Jetzt abfragen“, „Alarm bestätigen …“,
   „Wartung …“, „Pausieren“, rechts „Nur Probleme“ und „Mehr“ (was nicht in die Zeile passt, steht dort). Die

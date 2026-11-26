@@ -61,7 +61,10 @@ type app struct {
 	wartungGeladen bool
 	wartungFehler  string
 	wartungSicht   atomic.Bool
-	ergebnisse     chan func() // Ergebnisse aus imHintergrund für den Oberflächen-Thread
+
+	// nachgebildete Seiten (seite_windows.go)
+	seitenSt   seitenStand
+	ergebnisse chan func() // Ergebnisse aus imHintergrund für den Oberflächen-Thread
 }
 
 func (a *app) zentrale() string {
@@ -296,6 +299,9 @@ func (a *app) abfragen() {
 }
 
 func (a *app) standZeigen() {
+	if a.f != nil && a.fensterOffen.Load() && seiten[a.f.seite] != nil {
+		a.seiteLaden(a.f.seite) // alle 30 s wie im Web
+	}
 	a.mu.Lock()
 	z, fehler, melden := a.z, a.fehler, a.melden
 	a.melden = nil
