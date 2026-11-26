@@ -215,11 +215,12 @@ func msiDialoge() []msiDlg {
 		)},
 		{name: "FatalErrorDlg", titel: titel, attr: modal, vor: "Fertig", abbruch: "Fertig", ctrls: rahmen(
 			"Einrichtung fehlgeschlagen",
-			"Der Rechner ist unverändert.",
+			"Agent und Dienst sind wieder entfernt.",
 			msiCtrl{name: "Fertig", typ: "PushButton", x: 304, y: 243, w: 56, h: 17, attr: ctlKnopf, text: "&Fertig", fokus: true},
-			text("Text", 72, 80, "Häufige Ursachen: Adresse oder Token falsch, Token abgelaufen oder schon benutzt, oder die "+
-				"Zentrale ist von hier nicht erreichbar (Port 8444). Einzelheiten stehen im Protokoll, wenn du das Paket mit "+
-				"„msiexec /i <Datei> /l*v agent.log“ startest."),
+			text("Text", 72, 50, "Die Ursache steht in der Ereignisanzeige unter Windows-Protokolle › Anwendung, Quelle "+
+				"„openwacht-agent“, z. B. Token falsch oder abgelaufen, Zentrale nicht erreichbar oder falscher Port für Agents."),
+			text("Text2", 128, 50, "Hatte sich der Agent schon registriert, bleibt die Registrierung erhalten: Ein zweiter "+
+				"Versuch braucht dann kein neues Token."),
 		)},
 		{name: "UserExitDlg", titel: titel, attr: modal, vor: "Fertig", abbruch: "Fertig", ctrls: rahmen(
 			"Abgebrochen",
@@ -379,7 +380,7 @@ func msiUITabellen() []msiTable {
 		rows: [][]any{
 			{"InstallFiles", "Dateien werden kopiert", nil},
 			{"StopServices", "Dienst wird angehalten", nil},
-			{"PaketEinrichten", "Agent wird bei der Zentrale registriert und als Dienst gestartet (bis zu 1 Minute)", nil},
+			{"PaketEinrichten", "Agent wird als Dienst eingerichtet, bei der Zentrale registriert und gestartet", nil},
 			{"PaketEntfernen", "Dienst wird entfernt", nil},
 		}}
 	return []msiTable{dialog, control, event, cond, mapping, check, style, bild, aktion}

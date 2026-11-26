@@ -265,6 +265,17 @@ func TestMSI(t *testing.T) {
 		if !strings.Contains(find(seq, "Action", "PaketEntfernen")["Condition"], "NOT UPGRADINGPRODUCTCODE") {
 			t.Error("Ein Update entfernt den Dienst")
 		}
+		// Dienst anhalten (2 | 32), nicht starten (1 | 16 bis 1.0.6)
+		if sc := find(db["ServiceControl"], "ServiceControl", "AgentStop"); sc == nil || sc["Event"] != strconv.Itoa(2|32) {
+			t.Errorf("ServiceControl: %v", sc)
+		}
+		zr := find(db["CustomAction"], "Action", "PaketZurueck")
+		if typ, _ := strconv.Atoi(zr["Type"]); typ&caRollback == 0 || typ&caContinue == 0 || zr["Target"] != "paket-entfernen" {
+			t.Errorf("PaketZurueck: %v", zr)
+		}
+		if !(at("PaketZurueck") > 0 && at("PaketZurueck") < at("PaketEinrichten")) {
+			t.Error("PaketZurueck steht nicht vor PaketEinrichten")
+		}
 		if find(db["LaunchCondition"], "Condition", "NOT OW_NEUER") == nil {
 			t.Error("Rückstufung nicht verhindert")
 		}

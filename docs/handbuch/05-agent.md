@@ -95,7 +95,11 @@ msiexec /i openwacht-agent_1.0.4_amd64.msi /qn ZENTRALE=https://openwacht.beispi
   `INDIKATOREN=SwyxServer` (zur Art `leistungsindikator`) und `NETZE=10.20.0.0/16` für den Sammler. Eine ungültige
   Freigabe bricht die Installation nicht ab: Der Agent läuft dann ohne sie, die Ursache steht im Protokoll.
 - Ohne `ZENTRALE`/`TOKEN` kopiert das MSI nur; registrieren dann von Hand (unten). Scheitert die Registrierung (Token
-  abgelaufen), bricht die Installation mit Fehler 1603 ab und rollt zurück: Intune zeigt das als fehlgeschlagen.
+  abgelaufen), bricht die Installation mit Fehler 1603 ab und rollt zurück: Intune zeigt das als fehlgeschlagen. Die
+  Ursache steht ab 1.0.6 in der **Ereignisanzeige** (Windows-Protokolle › Anwendung, Quelle `openwacht-agent`), z. B.
+  „keine Verbindung zur Zentrale“, „antwortet nicht auf TLS (richtiger Port für Agents?)“ oder „Zertifikat passt nicht
+  zum Token“. Der Agent richtet erst den Dienst ein, dann registriert er sich: Ein Fehler beim Einrichten kostet so kein
+  Token, und startet der Dienst nicht sofort, bricht die Installation nicht ab (Windows startet ihn später).
 - **Intune** (Win32-App oder „Branchenspezifische App“): Befehlszeile wie oben, Erkennung über den MSI-Produktcode
   oder die Datei `C:\Program Files\OpenWacht\openwacht-agent.exe`. Das Token für viele Rechner gilt höchstens 7 Tage;
   danach die App mit neuem Token aktualisieren.

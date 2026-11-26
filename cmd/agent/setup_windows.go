@@ -137,6 +137,12 @@ func (h *eventLogHandler) Handle(_ context.Context, r slog.Record) error {
 // packageSetup: Aufruf aus dem MSI (Custom Action als SYSTEM, nach dem
 // Kopieren der Dateien). Mehrfach ausführbar; bei einem Update startet der
 // Dienst neu. Ohne Token und ohne Registrierung bleibt es beim Kopieren.
+//
+// Reihenfolge (1.0.6): erst den Dienst einrichten (ohne Start), dann
+// registrieren, dann starten. So kostet ein Fehler beim Einrichten kein
+// Token; scheitert die Registrierung, entfernt der Agent den Dienst wieder.
+// Ein Fehler beim Start bricht nicht ab: Autostart und Neustart bei Fehlern
+// holen ihn nach, die Meldung steht im Ereignisprotokoll.
 func packageSetup(ctx context.Context, o packageOptions, out io.Writer) error {
 	bin, err := executable()
 	if err != nil {
@@ -145,21 +151,52 @@ func packageSetup(ctx context.Context, o packageOptions, out io.Writer) error {
 	if err := agent.CheckBinary(bin); err != nil {
 		return err
 	}
-	if err := registerFromPackage(ctx, o, out); err != nil {
-		return err
-	}
-	if !agent.Registered(o.dir) {
+	war := agent.Registered(o.dir)
+	if !war && o.token == "" {
 		fmt.Fprintln(out, "OpenWacht-Agent installiert, noch nicht registriert (MSI-Eigenschaften ZENTRALE und TOKEN fehlen).")
 		return nil
 	}
 	if err := agent.InstallService(bin, o.dir); err != nil {
 		return err
 	}
-	if err := agent.StartService(); err != nil {
-		return fmt.Errorf("Dienst starten: %w", err)
+	fmt.Fprintf(out, "Dienst %s eingerichtet (Konto %s).\n", agent.ServiceName, agent.ServiceAccount)
+	if err := registerFromPackage(ctx, o, out); err != nil {
+		if !war {
+			if rerr := agent.RemoveService(); rerr != nil {
+				fmt.Fprintf(out, "Dienst nach dem Fehler nicht entfernt: %v\n", rerr)
+			}
+		}
+		return err
 	}
-	fmt.Fprintf(out, "Dienst %s läuft.\n", agent.ServiceName)
+	if err := agent.StartService(); err != nil {
+		fmt.Fprintf(out, "Warnung: Dienst nicht gestartet (%v). Windows startet ihn beim nächsten Systemstart; "+
+			"von Hand: Start-Service %s\n", err, agent.ServiceName)
+		return nil
+	}
+	fmt.Fprintf(out, "Dienst %s gestartet.\n", agent.ServiceName)
 	return nil
+}
+
+// packageLog: Ausgabe und Fehler von paket-einrichten bzw. paket-entfernen
+// ins Anwendungsprotokoll (Quelle openwacht-agent), denn Windows Installer
+// zeigt die Ausgabe einer Programmaktion nirgends an. Das Token steht nie in
+// der Ausgabe.
+func packageLog(befehl, ausgabe string, err error) {
+	if e := eventlog.InstallAsEventCreate(agent.ServiceName, eventlog.Error|eventlog.Warning|eventlog.Info); e != nil &&
+		!strings.Contains(e.Error(), "already exists") {
+		return
+	}
+	el, e := eventlog.Open(agent.ServiceName)
+	if e != nil {
+		return
+	}
+	defer el.Close()
+	text := befehl + ":\n" + strings.TrimSpace(ausgabe)
+	if err != nil {
+		el.Error(3, text+"\nFehler: "+err.Error())
+		return
+	}
+	el.Info(1, text)
 }
 
 func packageRemove(out io.Writer) error {

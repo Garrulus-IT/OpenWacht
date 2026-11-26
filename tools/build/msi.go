@@ -442,6 +442,7 @@ const (
 	caSetProperty  = 51     // Eigenschaft aus formatiertem Text setzen
 	caContinue     = 0x40   // Fehler ignorieren
 	caInScript     = 0x400  // verzögert (im Installationsskript)
+	caRollback     = 0x100  // nur beim Zurückrollen
 	caNoImpersonat = 0x800  // als SYSTEM
 	caHideTarget   = 0x2000 // Befehlszeile nicht protokollieren
 )
@@ -506,10 +507,11 @@ func msiTables(goarch, ver string, exeSize int) []msiTable {
 			{"Cabinet", cSN(255)}, {"VolumeLabel", cSN(32)}, {"Source", cSN(72)}}, rows: [][]any{
 			{1, 1, nil, "#agent.cab", nil, nil},
 		}},
-		// Dienst vor dem Austausch und beim Entfernen anhalten (1 = beim Installieren, 16 = beim Entfernen).
+		// Dienst vor dem Austausch und beim Entfernen anhalten (2 = beim Installieren, 32 = beim Entfernen;
+		// bis 1.0.6 standen hier versehentlich 1|16 = starten).
 		{name: "ServiceControl", cols: []msiCol{{"ServiceControl", cK(72)}, {"Name", cL(255)}, {"Event", cI2()},
 			{"Arguments", cLN(255)}, {"Wait", cI2N()}, {"Component_", cS(72)}}, rows: [][]any{
-			{"AgentStop", "openwacht-agent", 1 | 16, nil, 1, "Agent"},
+			{"AgentStop", "openwacht-agent", 2 | 32, nil, 1, "Agent"},
 		}},
 		// Altes Binary eines Selbst-Updates beim Entfernen mitnehmen (2 = beim Entfernen).
 		// Die Widerrufsliste (openwacht-agent.exe.widerrufen) bleibt bewusst liegen.
@@ -530,6 +532,8 @@ func msiTables(goarch, ver string, exeSize int) []msiTable {
 		{name: "CustomAction", cols: []msiCol{{"Action", cK(72)}, {"Type", cI2()}, {"Source", cSN(72)}, {"Target", cSN(255)}}, rows: [][]any{
 			{"ArtenSetzen", caSetProperty, "OW_ARTEN", msiArtenZiel()},
 			{"PaketEinrichten", caExeFromFile | caInScript | caNoImpersonat | caHideTarget, "AgentExe", setup},
+			// Rückweg: scheitert die Installation nach PaketEinrichten, kommt der Dienst wieder weg.
+			{"PaketZurueck", caExeFromFile | caInScript | caRollback | caNoImpersonat | caContinue, "AgentExe", "paket-entfernen"},
 			{"PaketEntfernen", caExeFromFile | caInScript | caNoImpersonat | caContinue, "AgentExe", "paket-entfernen"},
 		}},
 		{name: "InstallExecuteSequence", cols: []msiCol{{"Action", cK(72)}, {"Condition", cSN(255)}, {"Sequence", cI2N()}}, rows: [][]any{
@@ -543,6 +547,7 @@ func msiTables(goarch, ver string, exeSize int) []msiTable {
 			{"RemoveFiles", nil, 3500}, {"RemoveFolders", nil, 3600}, {"CreateFolders", nil, 3700},
 			{"InstallFiles", nil, 4000}, {"RegisterUser", nil, 6000}, {"RegisterProduct", nil, 6100},
 			{"PublishFeatures", nil, 6300}, {"PublishProduct", nil, 6400},
+			{"PaketZurueck", "NOT Installed AND NOT OW_ALTE AND NOT REMOVE~=\"ALL\"", 6490},
 			{"PaketEinrichten", "NOT REMOVE~=\"ALL\"", 6500},
 			{"InstallFinalize", nil, 6600},
 		}},

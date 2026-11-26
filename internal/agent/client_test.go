@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -380,4 +381,22 @@ func mustCA(t *testing.T) *x509.Certificate {
 		t.Fatal(err)
 	}
 	return ca.Cert
+}
+
+// Die Registrierung nennt den Schritt, an dem sie scheiterte (1.0.6).
+func TestRegisterError(t *testing.T) {
+	for _, c := range []struct {
+		err  error
+		soll string
+	}{
+		{&net.DNSError{Err: "no such host", Name: "x"}, "nicht gefunden"},
+		{&net.OpError{Op: "dial", Err: errors.New("refused")}, "keine Verbindung"},
+		{errors.New("net/http: TLS handshake timeout"), "TLS"},
+		{errors.New("die CA des Servers passt nicht zum Fingerabdruck im Token"), "passt nicht zum Token"},
+		{errors.New("sonst"), "Registrierung bei"},
+	} {
+		if got := registerError("z:8444", c.err).Error(); !strings.Contains(got, c.soll) {
+			t.Errorf("%v: %q", c.err, got)
+		}
+	}
 }

@@ -17,6 +17,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -102,10 +103,17 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdUpdatesSetup(args[1:], stdout)
 	case "update-installieren":
 		err = cmdUpdateInstall(args[1:], stdout)
-	case "paket-einrichten":
-		err = cmdPackageSetup(ctx, args[1:], stdin, stdout)
-	case "paket-entfernen":
-		err = cmdPackageRemove(args[1:], stdout)
+	case "paket-einrichten", "paket-entfernen":
+		// Unter Windows landet die Ausgabe zusätzlich im Ereignisprotokoll
+		// (Windows Installer zeigt sie nicht an).
+		var mit bytes.Buffer
+		w := io.MultiWriter(stdout, &mit)
+		if args[0] == "paket-einrichten" {
+			err = cmdPackageSetup(ctx, args[1:], stdin, w)
+		} else {
+			err = cmdPackageRemove(args[1:], w)
+		}
+		packageLog("openwacht-agent "+args[0], mit.String(), err)
 	case "-h", "--help", "hilfe":
 		fmt.Fprint(stdout, usage)
 		return 0

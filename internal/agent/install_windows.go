@@ -358,7 +358,7 @@ const UpdateTaskName = `OpenWacht-Agent-Update`
 // bereitgelegt hat, und prüft selbst noch einmal.
 func InstallUpdateUnits(bin, dir string) error {
 	tr := syscall.EscapeArg(bin) + " update-installieren -verzeichnis " + syscall.EscapeArg(dir)
-	out, err := exec.Command("schtasks.exe", "/Create", "/F", "/RU", "SYSTEM", "/SC", "MINUTE", "/MO", "15",
+	out, err := exec.Command(schtasks(), "/Create", "/F", "/RU", "SYSTEM", "/SC", "MINUTE", "/MO", "15",
 		"/TN", UpdateTaskName, "/TR", tr).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("geplante Aufgabe für Updates: %v: %s", err, out)
@@ -431,7 +431,7 @@ func RemoveService() error {
 			return fmt.Errorf("Dienst entfernen: %w", err)
 		}
 	}
-	if out, err := exec.Command("schtasks.exe", "/Delete", "/F", "/TN", UpdateTaskName).CombinedOutput(); err != nil &&
+	if out, err := exec.Command(schtasks(), "/Delete", "/F", "/TN", UpdateTaskName).CombinedOutput(); err != nil &&
 		!strings.Contains(strings.ToLower(string(out)), "cannot find") && !strings.Contains(string(out), "nicht gefunden") {
 		return fmt.Errorf("geplante Aufgabe entfernen: %v: %s", err, out)
 	}
@@ -451,4 +451,13 @@ func emptyACL() *windows.ACL {
 	h := (*[8]byte)(unsafe.Pointer(&b[0]))
 	h[0], h[2] = 2, 8
 	return (*windows.ACL)(unsafe.Pointer(&b[0]))
+}
+
+// schtasks: voller Pfad, damit kein schtasks.exe aus dem Arbeitsverzeichnis greift.
+func schtasks() string {
+	root := os.Getenv("SystemRoot")
+	if root == "" {
+		root = `C:\Windows`
+	}
+	return filepath.Join(root, "System32", "schtasks.exe")
 }

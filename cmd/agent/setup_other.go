@@ -21,3 +21,6 @@ func packageSetup(context.Context, packageOptions, io.Writer) error {
 }
 
 func packageRemove(io.Writer) error { return errors.New("Pakete gibt es nur für Linux und Windows") }
+
+// packageLog: Die Ausgabe des Paketmanagers zeigt alles an; nichts zu tun.
+func packageLog(string, string, error) {}
