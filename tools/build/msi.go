@@ -33,10 +33,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // Spaltentypen (_Columns.Type, MSI SDK msiquery: icd…).
@@ -45,6 +47,7 @@ const (
 	colLocal   = 0x0200
 	colShort   = 0x0400
 	colString  = 0x0C00
+	colBinary  = 0x0800 // mit colPersist: Strom „Tabelle.Schlüssel“
 	colNull    = 0x1000
 	colKey     = 0x2000
 )
@@ -62,11 +65,13 @@ func cI2K() uint16      { return cI2() | colKey }                     // i2, Sch
 func cSNK(n int) uint16 { return cSN(n) | colKey }                    // SNN, Schlüssel
 func cI4K() uint16      { return cI4() | colKey }                     // i4, Schlüssel
 
+func cV() uint16                { return colBinary | colPersist } // v0, Datenstrom (Binary.Data)
 func colIsString(t uint16) bool { return t&colString == colString }
+func colIsBinary(t uint16) bool { return t&^colNull == colBinary|colPersist }
 func colIsKey(t uint16) bool    { return t&colKey != 0 }
 func colWidth(t uint16) int {
 	switch {
-	case colIsString(t):
+	case colIsString(t), colIsBinary(t):
 		return 2
 	case t&colShort != 0:
 		return 2
@@ -79,7 +84,10 @@ type msiCol struct {
 	typ  uint16
 }
 
-// msiTable: Werte sind string, int oder nil (NULL).
+// msiStrom: Inhalt einer Spalte vom Typ v0 (eigener Strom „Tabelle.Schlüssel“).
+type msiStrom []byte
+
+// msiTable: Werte sind string, int, msiStrom oder nil (NULL).
 type msiTable struct {
 	name string
 	cols []msiCol
@@ -93,14 +101,35 @@ type msiStrings struct {
 	count []int
 }
 
+// cp1252Hoch: Zeichen 0x80–0x9F der Codepage 1252 (darüber gilt Latin-1).
+var cp1252Hoch = []rune("€\x81‚ƒ„…†‡ˆ‰Š‹Œ\x8dŽ\x8f\x90‘’“”•–—˜™š›œ\x9džŸ")
+
+// cp1252 kodiert Text für die Zeichenkettentabelle (Codepage 1252 wie in der
+// Zusammenfassung). Steuerzeichen und Zeichen außerhalb der Codepage sind ein Fehler.
+func cp1252(s string) (string, error) {
+	var b []byte
+	for _, r := range s {
+		switch {
+		case r >= 0x20 && r <= 0x7e, r >= 0xa0 && r <= 0xff:
+			b = append(b, byte(r))
+		default:
+			i := slices.Index(cp1252Hoch, r)
+			if i < 0 || r < 0x100 {
+				return "", fmt.Errorf("MSI: Zeichen %q gibt es in Codepage 1252 nicht (in %q)", r, s)
+			}
+			b = append(b, byte(0x80+i))
+		}
+	}
+	return string(b), nil
+}
+
 func (p *msiStrings) ref(s string) (int, error) {
 	if s == "" {
 		return 0, nil
 	}
-	for _, r := range s {
-		if r < 0x20 || r > 0x7e {
-			return 0, fmt.Errorf("MSI: nur ASCII-Text (Codepage 1252), nicht %q", s)
-		}
+	s, err := cp1252(s)
+	if err != nil {
+		return 0, err
 	}
 	id, ok := p.ids[s]
 	if !ok {
@@ -177,6 +206,7 @@ func encodeDB(tables []msiTable) ([]cfbStream, error) {
 		}
 	}
 	all := append([]msiTable{tablesTbl, columnsTbl}, tables...)
+	var extra []cfbStream
 	// Werte in Rohwerte (Kennung der Zeichenkette, verschobene Zahl) umsetzen.
 	raw := make([][][]uint32, len(all))
 	for ti, t := range all {
@@ -199,7 +229,7 @@ func encodeDB(tables []msiTable) ([]cfbStream, error) {
 					if x == "" && c.typ&colNull == 0 {
 						return nil, fmt.Errorf("MSI: %s.%s darf nicht leer sein", t.name, c.name)
 					}
-					if n := int(c.typ & 0xff); n > 0 && len(x) > n {
+					if n := int(c.typ & 0xff); n > 0 && utf8.RuneCountInString(x) > n {
 						return nil, fmt.Errorf("MSI: %s.%s länger als %d Zeichen", t.name, c.name, n)
 					}
 					id, err := pool.ref(x)
@@ -207,6 +237,18 @@ func encodeDB(tables []msiTable) ([]cfbStream, error) {
 						return nil, err
 					}
 					rr[ci] = uint32(id)
+				case msiStrom:
+					if !colIsBinary(c.typ) || ci == 0 {
+						return nil, fmt.Errorf("MSI: %s.%s ist keine Spalte für Daten", t.name, c.name)
+					}
+					key, ok := r[0].(string)
+					if !ok {
+						return nil, fmt.Errorf("MSI: %s: Daten brauchen einen Text als Schlüssel", t.name)
+					}
+					// Wie Windows Installer: In der Zelle steht 1, die Daten liegen im
+					// Strom „Tabelle.Schlüssel“ (Namen ohne Tabellenzeichen kodiert).
+					rr[ci] = 1
+					extra = append(extra, cfbStream{name: msiStreamName(t.name+"."+key, false), data: x})
 				case int:
 					switch {
 					case colIsString(c.typ):
@@ -279,7 +321,7 @@ func encodeDB(tables []msiTable) ([]cfbStream, error) {
 	streams = append(streams,
 		cfbStream{name: msiStreamName("_StringPool", true), data: sp.Bytes()},
 		cfbStream{name: msiStreamName("_StringData", true), data: sd.Bytes()})
-	return streams, nil
+	return append(streams, extra...), nil
 }
 
 // Eigenschaften der Zusammenfassung (MSI SDK „Summary Information Stream“).
@@ -397,6 +439,7 @@ func msiVersion(v string) (string, error) {
 // Benutzerdefinierte Aktionen (MSI SDK „Custom Action Types“).
 const (
 	caExeFromFile  = 18     // Programm aus der File-Tabelle
+	caSetProperty  = 51     // Eigenschaft aus formatiertem Text setzen
 	caContinue     = 0x40   // Fehler ignorieren
 	caInScript     = 0x400  // verzögert (im Installationsskript)
 	caNoImpersonat = 0x800  // als SYSTEM
@@ -409,15 +452,20 @@ func msiTables(goarch, ver string, exeSize int) []msiTable {
 	upgradeCode := msiGUID("agent upgrade " + goarch)
 	component := msiGUID("agent component exe " + goarch)
 	str := func(s string) any { return s }
-	setup := "paket-einrichten -zentrale \"[ZENTRALE]\" -token \"[TOKEN]\" -hostname \"[HOSTNAME]\""
-	return []msiTable{
+	// Ein Leerzeichen vor dem schließenden Anführungszeichen: Endet ein Ordner
+	// auf \, würde \" sonst das Anführungszeichen maskieren (der Agent kürzt es).
+	setup := "paket-einrichten -zentrale \"[ZENTRALE]\" -token \"[TOKEN]\" -hostname \"[HOSTNAME]\"" +
+		" -arten \"[OW_ARTEN]\" -ordner \"[ORDNER] \" -indikatoren \"[INDIKATOREN]\" -netze \"[NETZE]\""
+	return append(msiUITabellen(), []msiTable{
 		{name: "Property", cols: []msiCol{{"Property", cK(72)}, {"Value", cL(0)}}, rows: [][]any{
 			{"ProductCode", productCode}, {"ProductName", "OpenWacht-Agent"}, {"ProductVersion", ver},
 			{"ProductLanguage", "1033"}, {"Manufacturer", "OpenWacht"}, {"UpgradeCode", upgradeCode},
 			{"ALLUSERS", "1"}, {"ARPNOMODIFY", "1"}, {"ARPNOREPAIR", "1"},
 			{"ARPURLINFOABOUT", "https://github.com/garrulus-it/openwacht"},
 			{"MsiHiddenProperties", "TOKEN"},
-			{"SecureCustomProperties", "ZENTRALE;TOKEN;HOSTNAME;OW_ALTE;OW_NEUER;OW_WIN10"},
+			{"SecureCustomProperties", msiOeffentlich() + ";OW_ALTE;OW_NEUER;OW_WIN10"},
+			{"DefaultUIFont", "OwText"},
+			{"ErrorDialog", "ErrorDlg"},
 		}},
 		// Mindestens Windows 10 bzw. Server 2016 (0.99.2): VersionNT und WindowsBuild
 		// melden dort aus Kompatibilitätsgründen 603/9600 wie Windows 8.1 bzw.
@@ -480,13 +528,15 @@ func msiTables(goarch, ver string, exeSize int) []msiTable {
 			{"Installed OR OW_WIN10", "Der OpenWacht-Agent braucht Windows 10 bzw. Windows Server 2016 oder neuer. Aeltere Windows-Versionen (z. B. Server 2012 R2) bitte ohne Agent von aussen ueberwachen (Ping, SNMP)."},
 		}},
 		{name: "CustomAction", cols: []msiCol{{"Action", cK(72)}, {"Type", cI2()}, {"Source", cSN(72)}, {"Target", cSN(255)}}, rows: [][]any{
+			{"ArtenSetzen", caSetProperty, "OW_ARTEN", msiArtenZiel()},
 			{"PaketEinrichten", caExeFromFile | caInScript | caNoImpersonat | caHideTarget, "AgentExe", setup},
 			{"PaketEntfernen", caExeFromFile | caInScript | caNoImpersonat | caContinue, "AgentExe", "paket-entfernen"},
 		}},
 		{name: "InstallExecuteSequence", cols: []msiCol{{"Action", cK(72)}, {"Condition", cSN(255)}, {"Sequence", cI2N()}}, rows: [][]any{
 			{"FindRelatedProducts", nil, 25}, {"AppSearch", nil, 50}, {"LaunchConditions", nil, 100}, {"ValidateProductID", nil, 700},
 			{"CostInitialize", nil, 800}, {"FileCost", nil, 900}, {"CostFinalize", nil, 1000},
-			{"MigrateFeatureStates", nil, 1200}, {"InstallValidate", nil, 1400}, {"InstallInitialize", nil, 1500},
+			{"MigrateFeatureStates", nil, 1200}, {"InstallValidate", nil, 1400}, {"ArtenSetzen", nil, 1450},
+			{"InstallInitialize", nil, 1500},
 			{"RemoveExistingProducts", nil, 1501}, {"ProcessComponents", nil, 1600}, {"UnpublishFeatures", nil, 1800},
 			{"StopServices", "VersionNT", 1900},
 			{"PaketEntfernen", "REMOVE~=\"ALL\" AND NOT UPGRADINGPRODUCTCODE", 1910},
@@ -499,9 +549,12 @@ func msiTables(goarch, ver string, exeSize int) []msiTable {
 		{name: "InstallUISequence", cols: []msiCol{{"Action", cK(72)}, {"Condition", cSN(255)}, {"Sequence", cI2N()}}, rows: [][]any{
 			{"FindRelatedProducts", nil, 25}, {"AppSearch", nil, 50}, {"LaunchConditions", nil, 100}, {"ValidateProductID", nil, 700},
 			{"CostInitialize", nil, 800}, {"FileCost", nil, 900}, {"CostFinalize", nil, 1000},
-			{"MigrateFeatureStates", nil, 1200}, {"ExecuteAction", nil, 1300},
+			{"MigrateFeatureStates", nil, 1200},
+			{"WillkommenDlg", "NOT Installed", 1230}, {"WartungDlg", "Installed AND NOT Preselected", 1250},
+			{"ProgressDlg", nil, 1280}, {"ExecuteAction", nil, 1300},
+			{"ExitDlg", nil, -1}, {"UserExitDlg", nil, -2}, {"FatalErrorDlg", nil, -3},
 		}},
-	}
+	}...)
 }
 
 // buildMSI baut openwacht-agent_<version>_<arch>.msi aus dem Windows-Binary.

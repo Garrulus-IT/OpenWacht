@@ -61,10 +61,29 @@ ohne GPG-Prüfung).
 Für Ansible und ähnliche Werkzeuge: Paket kopieren, mit den beiden Variablen installieren, fertig. Das Token für viele
 Rechner (z. B. 50 Registrierungen, 24 Stunden) gehört in den Tresor des Werkzeugs, nicht in das Playbook.
 
-### MSI unter Windows (GPO, Intune)
+### MSI unter Windows (Doppelklick, GPO, Intune)
 
 Das MSI installiert nach `C:\Program Files\OpenWacht` und ruft danach als SYSTEM `openwacht-agent paket-einrichten`
-auf. Stille Installation:
+auf.
+
+**Per Doppelklick (ab 1.0.6)** führt ein Assistent durch die Einrichtung, ohne Kommandozeile:
+
+1. **Willkommen:** was der Agent tut und was man braucht.
+2. **Verbindung zur Zentrale:** Adresse des Agent-Ports (z. B. `https://openwacht.firma.de:8444`),
+   Registrierungs-Token (Eingabe verdeckt) und optional der Name des Rechners. Bei einem Update eines registrierten
+   Agents bleiben Adresse und Token leer; nur eines von beiden lehnt der Assistent ab.
+3. **Sensoren freigeben:** Häkchen für Windows-Dienste, alle automatisch startenden Dienste, Prozesse, Dateien und
+   Ordner (mit den Ordnern), Leistungsindikatoren (mit den Objekten) und Hyper-V, genau wie `openwacht-agent sensoren`.
+   Ohne Häkchen meldet der Agent nur CPU, Speicher, Platten und Netz; Dateien ohne Ordner nimmt der Assistent nicht an.
+4. **Sammler für SNMP-Geräte:** Netze, in denen der Agent SNMP-Geräte abfragen darf (leer = kein Sammler), wie
+   `openwacht-agent sammler -netze`.
+5. **Bereit:** „Installieren“ fragt nach Administratorrechten; danach „Fertig“ bzw. bei einem Fehler (Token falsch oder
+   abgelaufen, Zentrale nicht erreichbar) „Einrichtung fehlgeschlagen“, und der Rechner bleibt unverändert.
+
+Ein zweiter Doppelklick auf dieselbe Version bietet nur „Entfernen“ an. Nicht angehakte Freigaben ändern bei einem
+Update nichts; zurücknehmen geht weiter mit `openwacht-agent sensoren -aus` bzw. `sammler -aus`.
+
+**Stille Installation:**
 
 ```powershell
 msiexec /i openwacht-agent_1.0.4_amd64.msi /qn ZENTRALE=https://openwacht.beispiel.example:8444 TOKEN=owa1.…
@@ -72,6 +91,9 @@ msiexec /i openwacht-agent_1.0.4_amd64.msi /qn ZENTRALE=https://openwacht.beispi
 
 - `TOKEN` ist eine versteckte Eigenschaft: Sie erscheint nicht im Installationsprotokoll (`/l*v`), die Befehlszeile der
   Einrichtung ebenfalls nicht. `HOSTNAME=` setzt optional den angezeigten Namen.
+- Freigaben wie im Assistenten (ab 1.0.6): `SENSOREN=dienst,prozess,datei ORDNER="D:\Export"`,
+  `INDIKATOREN=SwyxServer` (zur Art `leistungsindikator`) und `NETZE=10.20.0.0/16` für den Sammler. Eine ungültige
+  Freigabe bricht die Installation nicht ab: Der Agent läuft dann ohne sie, die Ursache steht im Protokoll.
 - Ohne `ZENTRALE`/`TOKEN` kopiert das MSI nur; registrieren dann von Hand (unten). Scheitert die Registrierung (Token
   abgelaufen), bricht die Installation mit Fehler 1603 ab und rollt zurück: Intune zeigt das als fehlgeschlagen.
 - **Intune** (Win32-App oder „Branchenspezifische App“): Befehlszeile wie oben, Erkennung über den MSI-Produktcode

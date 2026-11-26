@@ -55,6 +55,13 @@
   trägt Programmbeschreibung, Version und das Bildzeichen
   ([Kapitel 8](handbuch/08-alarme-und-wartung.md#fenster-wie-die-weboberfläche-ab-106)). Unter Wine getestet, auf
   echtem Windows noch nicht. Die Stückliste führt die eingebetteten Schriften (TTF) mit.
+- **Agent-MSI mit Assistent:** Per Doppelklick führt das MSI durch Zentrale, Token, Sensor-Freigaben (Dienste,
+  automatische Dienste, Prozesse, Dateien mit Ordnern, Leistungsindikatoren, Hyper-V) und Sammler-Netze, mit Prüfung
+  der Eingaben und eigenem Kopf in Nachtblau. Still per GPO/Intune gehen dieselben Freigaben über die neuen
+  Eigenschaften `SENSOREN`, `ORDNER`, `INDIKATOREN` und `NETZE`; `paket-einrichten` kennt dafür `-arten`, `-ordner`,
+  `-indikatoren` und `-netze`. Texte im MSI dürfen jetzt Umlaute enthalten (Codepage 1252)
+  ([Kapitel 5](handbuch/05-agent.md#msi-unter-windows-doppelklick-gpo-intune)). Unter Wine getestet, auf echtem
+  Windows noch nicht.
 - Beim Anlegen eines Benutzers lautet die Meldung für eine vergebene Adresse immer gleich; höchstens 20 solcher
   Ablehnungen je Admin und Stunde.
 - Die Warnung beim Start ohne Alarmziele nennt richtig, was gesperrt ist (Mail geht weiter).

@@ -212,7 +212,7 @@ Dienste wieder. Einzelheiten zur Rücksicherung: [Kapitel 13](13-sicherung.md).
 - **Müssen nicht mit.** Eine neuere Zentrale nimmt Meldungen älterer Agents an. Neue Sensorarten oder Korrekturen im
   Agent stehen in den Release-Notizen; erst dann lohnt das Update der Agents.
 - **Windows:** neues MSI über das alte installieren (GPO, Intune, Softwareverteilung oder per Skript); Registrierung und
-  Freigaben bleiben ([Kapitel 5](05-agent.md#msi-unter-windows-gpo-intune)).
+  Freigaben bleiben ([Kapitel 5](05-agent.md#msi-unter-windows-doppelklick-gpo-intune)).
 - **Linux:** neues `.deb` bzw. `.rpm` installieren; Registrierung und Freigaben bleiben.
 - **Selbst-Update:** Mit signierten Paketen holen sich ausgewählte Agents die neue Version beim nächsten Melden selbst
   ([Kapitel 12](12-agent-updates.md)).

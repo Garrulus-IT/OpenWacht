@@ -343,13 +343,20 @@ func TestMSIStromnamen(t *testing.T) {
 	}
 }
 
-func TestMSINurASCII(t *testing.T) {
-	_, err := encodeDB([]msiTable{{name: "Property", cols: []msiCol{{"Property", cK(72)}, {"Value", cL(0)}},
-		rows: [][]any{{"X", "Grüße"}}}})
-	if err == nil {
-		t.Fatal("Nicht-ASCII angenommen")
+// Text in Codepage 1252 (1.0.6, für die deutschen Dialoge): Umlaute und
+// Anführungszeichen ja, Steuerzeichen und Zeichen außerhalb der Codepage nein.
+func TestMSICodepage1252(t *testing.T) {
+	if s, err := cp1252("Grüße „Agent“ › …"); err != nil || s != "Gr\xfc\xdfe \x84Agent\x93 \x9b \x85" {
+		t.Fatalf("cp1252: %q %v", s, err)
 	}
-	_, err = encodeDB([]msiTable{{name: "Property", cols: []msiCol{{"Property", cK(72)}, {"Value", cL(0)}},
+	for _, x := range []string{"Pfeil →", "Zeile\r\n", "\u0081"} {
+		_, err := encodeDB([]msiTable{{name: "Property", cols: []msiCol{{"Property", cK(72)}, {"Value", cL(0)}},
+			rows: [][]any{{"X", x}}}})
+		if err == nil {
+			t.Fatalf("%q angenommen", x)
+		}
+	}
+	_, err := encodeDB([]msiTable{{name: "Property", cols: []msiCol{{"Property", cK(72)}, {"Value", cL(0)}},
 		rows: [][]any{{"X", "a"}, {"X", "b"}}}})
 	if err == nil {
 		t.Fatal("doppelter Schlüssel angenommen")
@@ -560,4 +567,116 @@ func readFile(t *testing.T, p string) []byte {
 		t.Fatal(err)
 	}
 	return b
+}
+
+// Der Assistent im MSI (1.0.6): alle Verweise zwischen den Tabellen stimmen,
+// die Tab-Reihenfolge ist je Dialog ein Kreis, und alles, was die Oberfläche
+// setzt, kommt in der Ausführung an.
+func TestMSIAssistent(t *testing.T) {
+	b, err := msiPackage([]byte("MZ"), "amd64", "1.0.6", testTime)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := msiDB(t, readCFB(t, b))
+	ctrl := map[string]map[string]map[string]string{}
+	for _, c := range db["Control"] {
+		if ctrl[c["Dialog_"]] == nil {
+			ctrl[c["Dialog_"]] = map[string]map[string]string{}
+		}
+		ctrl[c["Dialog_"]][c["Control"]] = c
+	}
+	gibt := func(dlg, c string) bool { _, ok := ctrl[dlg][c]; return ok }
+	for _, d := range db["Dialog"] {
+		n := d["Dialog"]
+		for _, k := range []string{"Control_First", "Control_Default", "Control_Cancel"} {
+			if d[k] != "" && !gibt(n, d[k]) {
+				t.Errorf("%s.%s: %q fehlt", n, k, d[k])
+			}
+		}
+		if d["Control_Default"] != "" && ctrl[n][d["Control_Default"]]["Type"] != "PushButton" {
+			t.Errorf("%s: Standard ist kein Knopf", n)
+		}
+		// Tab-Reihenfolge: von Control_First aus ein Kreis
+		start := d["Control_First"]
+		seen := map[string]bool{}
+		for c := start; c != "" && !seen[c]; c = ctrl[n][c]["Control_Next"] {
+			seen[c] = true
+			if !gibt(n, c) {
+				t.Errorf("%s: Control_Next %q fehlt", n, c)
+				break
+			}
+			if nx := ctrl[n][c]["Control_Next"]; nx == "" && len(seen) > 1 {
+				t.Errorf("%s: Tab-Reihenfolge endet bei %s", n, c)
+			}
+		}
+	}
+	dialoge := map[string]bool{}
+	for _, d := range db["Dialog"] {
+		dialoge[d["Dialog"]] = true
+	}
+	for _, e := range db["ControlEvent"] {
+		if !gibt(e["Dialog_"], e["Control_"]) {
+			t.Errorf("Ereignis an %s.%s ohne Steuerelement", e["Dialog_"], e["Control_"])
+		}
+		if (e["Event"] == "NewDialog" || e["Event"] == "SpawnDialog") && !dialoge[e["Argument"]] {
+			t.Errorf("Ereignis %s → %s: Dialog fehlt", e["Event"], e["Argument"])
+		}
+	}
+	for _, tab := range []string{"EventMapping", "ControlCondition"} {
+		for _, e := range db[tab] {
+			if !gibt(e["Dialog_"], e["Control_"]) {
+				t.Errorf("%s an %s.%s ohne Steuerelement", tab, e["Dialog_"], e["Control_"])
+			}
+		}
+	}
+	for _, s := range db["InstallUISequence"] {
+		if strings.HasSuffix(s["Action"], "Dlg") && !dialoge[s["Action"]] {
+			t.Errorf("InstallUISequence: %s fehlt", s["Action"])
+		}
+	}
+	for _, n := range []string{"ExitDlg", "UserExitDlg", "FatalErrorDlg"} {
+		if find(db["InstallUISequence"], "Action", n) == nil {
+			t.Errorf("%s nicht in InstallUISequence", n)
+		}
+	}
+	props := db["Property"]
+	if !dialoge[find(props, "Property", "ErrorDialog")["Value"]] {
+		t.Error("ErrorDialog fehlt")
+	}
+	secure := ";" + find(props, "Property", "SecureCustomProperties")["Value"] + ";"
+	checkbox := map[string]bool{}
+	for _, c := range db["CheckBox"] {
+		checkbox[c["Property"]] = true
+	}
+	target := find(db["CustomAction"], "Action", "PaketEinrichten")["Target"]
+	arten := find(db["CustomAction"], "Action", "ArtenSetzen")["Target"]
+	for _, c := range db["Control"] {
+		p := c["Property"]
+		if p == "" || c["Type"] == "Text" {
+			continue
+		}
+		if !strings.Contains(secure, ";"+p+";") {
+			t.Errorf("%s nicht in SecureCustomProperties (käme bei der Ausführung nicht an)", p)
+		}
+		if c["Type"] == "CheckBox" && (!checkbox[p] || !strings.Contains(arten, "["+p+"]")) {
+			t.Errorf("Kästchen %s: kein Wert in CheckBox oder fehlt in ArtenSetzen", p)
+		}
+		if c["Type"] == "Edit" && !strings.Contains(target, "["+p+"]") && !strings.Contains(target, "["+p+" ]") &&
+			!strings.Contains(target, "["+p+"] ") {
+			t.Errorf("Feld %s kommt in paket-einrichten nicht vor", p)
+		}
+		if p == "TOKEN" {
+			if a, _ := strconv.Atoi(c["Attributes"]); a&ctlPasswort == 0 {
+				t.Error("Token-Feld zeigt die Eingabe")
+			}
+		}
+	}
+	if len(target) > 255 {
+		t.Errorf("Befehlszeile %d Zeichen (höchstens 255)", len(target))
+	}
+	seq := db["InstallExecuteSequence"]
+	at := func(a string) int { n, _ := strconv.Atoi(find(seq, "Action", a)["Sequence"]); return n }
+	if !(at("ArtenSetzen") > 0 && at("ArtenSetzen") < at("InstallInitialize")) {
+		t.Error("ArtenSetzen läuft nicht vor dem Installationsskript")
+	}
 }
