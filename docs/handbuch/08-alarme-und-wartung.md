@@ -74,9 +74,9 @@ aufgebaut wie die Weboberfläche, damit niemand zwei Oberflächen lernen muss: g
 Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
 
 - **Seitenleiste links** wie im Browser: Wortmarke, **Mandant** mit „mit Untermandanten“, darunter Überwachen,
-  Einrichten und Verwaltung. **Dashboard, Hosts, Topologie, Zertifikate, Alarme, Berichte, Sensor-Vorlagen,
-  SNMP-Profile, Wandanzeigen und Wartung** sind Seiten der App; sowie Benutzer und Mandanten tragen einen Pfeil
-  und öffnen die Seite für denselben Mandanten im Browser. Unten: Konto bzw. Token und Rolle, Zentrale, Verbindung mit Stand, **Darstellung**
+  Einrichten und Verwaltung. **alle Punkte** (Dashboard, Hosts, Topologie, Zertifikate, Alarme, Berichte,
+  Sensor-Vorlagen, SNMP-Profile, Wandanzeigen, Wartung, Benutzer und Mandanten) sind Seiten der App wie im Web; „Im
+  Browser öffnen“ oben rechts zeigt dieselbe Seite für denselben Mandanten im Browser. Unten: Konto bzw. Token und Rolle, Zentrale, Verbindung mit Stand, **Darstellung**
   (wie System, Hell, Dunkel) und **Abmelden**. Mandant, Schalter und Darstellung merkt sich die App.
 - **Kopf** mit Brotkrumen („Dashboard › web01“), Knöpfen der Seite („Host hinzufügen“, „Im Browser öffnen“) und der
   **Suche** (Strg+K oder Strg+F; filtert die Sensoren nach Gerät, Sensor und Meldung).
@@ -117,6 +117,13 @@ Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
   Vorlagen zusammen und wenden Vorlage oder Satz auf angekreuzte Geräte oder alle Geräte einer Gruppe an (mit Liste der
   übersprungenen). Darunter die **Kennfarben** mit Anlegen, Ändern (Kontrast je 3:1 auf hell und dunkel wird geprüft)
   und Löschen. Die Kennfarbe eines neuen Eintrags in einem Satz wählt man im Browser.
+- **Benutzer und Mandanten** (nur mit Anmeldung über ein Konto) mit den Reitern des Webs für den links gewählten
+  Mandanten: **Mandanten** (Untermandant anlegen bzw. beantragen, umbenennen, Rezertifizierung als PDF oder CSV in den
+  Ordner Downloads, löschen; Anträge freigeben oder ablehnen), **Benutzer** (anlegen mit Startpasswort, Rolle ändern,
+  Passwort neu setzen und kopieren, deaktivieren, aktivieren, löschen), **Agent-Tokens** (widerrufen), **Agent-Updates**
+  (Automatik, Freigabe für angekreuzte Agents, als Betreiber Pakete hochladen und löschen), **API-Tokens** (anlegen mit
+  Code aus der App, das Token erscheint einmal zum Kopieren; widerrufen) und **Anmeldung (AD, SSO)** (anbinden und
+  bearbeiten in zwei Schritten, testen, löschen; Speichern und Löschen mit Code). Den Mandanten wählt man links oben.
 - **Gerät bzw. Auswahl:** oben Name, Adresse, Gruppe, Agent und Wartung mit Marken je Zustand („nur ansehen (Rolle
   Leser)“, wo die Rolle nur lesen darf), darunter die Befehle „+ Sensor“, „Jetzt abfragen“, „Alarm bestätigen …“,
   „Wartung …“, „Pausieren“, rechts „Nur Probleme“ und „Mehr“ (was nicht in die Zeile passt, steht dort). Die
@@ -129,8 +136,9 @@ Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
   Der Sensor-Dialog bietet je Typ genau die Felder der Weboberfläche, Adresse bzw. URL sind mit der des Geräts vorbelegt.
   Löschen fragt immer nach („Sensor löschen?“); ein Gerät mit Inhalt löscht die App nur nach Eingabe seines Namens, wie im
   Browser.
-- Werte des Agents und der SNMP-Abfrage (CPU, Platten, Schnittstellen …) zeigt die Liste mit; ihre Grenzen und Vorlagen,
-  Benutzer, Alarmwege und alle Einstellungen bleiben in der Weboberfläche.
+- Werte des Agents und der SNMP-Abfrage (CPU, Platten, Schnittstellen …) zeigt die Liste mit. Im Browser bleiben, was
+  die Seitenleiste nicht führt (Alarmwege und Kanäle, Einstellungen, eigenes Konto mit 2FA und Passkeys), die
+  Grenzen der Agent- und SNMP-Werte sowie die Formulare für Wartungsfenster und „hängt ab von“.
 
 **Anmelden (ab 1.0.6 zwei Wege):** Beim ersten Start öffnet sich **„Bei OpenWacht anmelden“** mit der Adresse der
 Zentrale (wie im Browser, nicht Port 8444) und der Wahl **„Anmelden mit“**:

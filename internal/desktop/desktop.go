@@ -168,13 +168,25 @@ func (e *FehlerZentrale) Error() string {
 // body (falls nicht nil) geht als JSON; out (falls nicht nil) nimmt die
 // Antwort auf. Jede Antwort 2xx gilt als Erfolg.
 func (c Client) send(ctx context.Context, method, pfad string, body, out any) error {
+	if body == nil {
+		return c.roh(ctx, method, pfad, nil, nil, out)
+	}
+	b, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	return c.roh(ctx, method, pfad, b, map[string]string{"Content-Type": "application/json"}, out)
+}
+
+// AnfrageDatei schickt Bytes unverändert (z. B. ein Agent-Paket) mit eigenen Kopfzeilen.
+func (c Client) AnfrageDatei(ctx context.Context, methode, pfad string, daten []byte, kopf map[string]string, out any) error {
+	return c.roh(ctx, methode, pfad, daten, kopf, out)
+}
+
+func (c Client) roh(ctx context.Context, method, pfad string, daten []byte, kopf map[string]string, out any) error {
 	var rd io.Reader
-	if body != nil {
-		b, err := json.Marshal(body)
-		if err != nil {
-			return err
-		}
-		rd = bytes.NewReader(b)
+	if daten != nil {
+		rd = bytes.NewReader(daten)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, c.Zentrale+pfad, rd)
 	if err != nil {
@@ -186,8 +198,8 @@ func (c Client) send(ctx context.Context, method, pfad string, body, out any) er
 		req.Header.Set("Authorization", "Bearer "+c.Token)
 	}
 	req.Header.Set("Accept", "application/json")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
+	for k, v := range kopf {
+		req.Header.Set(k, v)
 	}
 	hc := c.HTTP
 	if hc == nil {
