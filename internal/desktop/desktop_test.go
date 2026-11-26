@@ -170,3 +170,9 @@ func TestTextOhneCheck(t *testing.T) {
 		t.Errorf("Agent: %q", got)
 	}
 }
+
+func TestAgentPort(t *testing.T) {
+	if !AgentPort("https://openwacht.example:8444") || AgentPort("https://openwacht.example") || AgentPort("https://x:443") {
+		t.Fatal("AgentPort")
+	}
+}

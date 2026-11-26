@@ -111,7 +111,7 @@ func anmelden(owner syscall.Handle, alt desktop.Config) (desktop.Config, bool) {
 	d.okText = "Anmelden"
 	d.werte["zentrale"] = alt.Zentrale
 	d.aufbau = func(d *dialog) {
-		d.feld("zentrale", "Adresse der Zentrale", desktop.FeldText, "https://openwacht.firma.de")
+		d.feld("zentrale", "Adresse der Zentrale (wie im Browser)", desktop.FeldText, "https://openwacht.firma.de")
 		d.feld("token", "API-Token", desktop.FeldText, "owt1.…").geheim = true
 	}
 	d.speichern = func(d *dialog, fertig func(error)) {
@@ -119,6 +119,12 @@ func anmelden(owner syscall.Handle, alt desktop.Config) (desktop.Config, bool) {
 		if err != nil {
 			d.fehlerFeld = "zentrale"
 			fertig(err)
+			return
+		}
+		if desktop.AgentPort(zentrale) {
+			d.fehlerFeld = "zentrale"
+			fertig(errors.New("Port 8444 ist der Port für Agents. Die App braucht die Adresse der Weboberfläche, wie im Browser, z. B. " +
+				strings.TrimSuffix(zentrale, ":8444") + "."))
 			return
 		}
 		token, err := desktop.CleanToken(d.werte["token"])
@@ -166,7 +172,7 @@ func anmeldeFehler(err error) error {
 	l := strings.ToLower(err.Error())
 	if strings.Contains(l, "x509") || strings.Contains(l, "certificate") {
 		return errors.New("Windows vertraut dem Zertifikat der Zentrale nicht. Die Zentrale braucht ein Zertifikat, " +
-			"dem Windows vertraut (bei einer eigenen CA: deren Stammzertifikat unter „Vertrauenswürdige Stammzertifizierungsstellen“ installieren).")
+			"dem Windows vertraut (Adresse wie im Browser, nicht der Port 8444 für Agents; bei einer eigenen CA deren Stammzertifikat unter „Vertrauenswürdige Stammzertifizierungsstellen“ installieren).")
 	}
 	return errors.New(fehlerKurz(err.Error()))
 }

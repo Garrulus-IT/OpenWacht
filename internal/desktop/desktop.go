@@ -358,3 +358,11 @@ func Kuerzen(s string, n int) string {
 	}
 	return s
 }
+
+// AgentPort: Adresse auf dem üblichen Port für Agents (8444) statt der
+// Weboberfläche. Dort zeigt die Zentrale ein Zertifikat ihrer eigenen CA,
+// dem Windows nicht vertraut; die App braucht die Adresse aus dem Browser.
+func AgentPort(zentrale string) bool {
+	u, err := url.Parse(zentrale)
+	return err == nil && u.Port() == "8444"
+}
