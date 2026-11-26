@@ -47,11 +47,13 @@
   Piktogrammen des Webs, Kopf mit Brotkrumen und Suche, Darstellung wie System, hell oder dunkel. Das **Dashboard**
   zeigt dauerhaft das Sonnendiagramm wie im Web (Fugen, Namen entlang des Bogens) und daneben Geräte je Zustand und
   „Aktuell“; ein Klick auf ein Gerät öffnet daneben seine Sensoren. **Kennfarben** färben Sonne, „Aktuell“ und
-  Sensorliste wie in der Wandanzeige („Rot gewinnt immer“). Dazu die Seiten **Hosts** (Baum und Gerät), **Alarme** und
-  **Wartung** (laufende Wartungen beenden, Wartungsfenster pausieren, fortsetzen, löschen; Anlegen und Bearbeiten im
-  Browser); die übrigen Punkte der Seitenleiste öffnen die Seite im Browser. Mit einem API-Token der Rolle
-  **Operator** lassen sich Geräte und Sensoren anlegen, ändern, löschen, pausieren, jetzt abfragen, in Wartung setzen
-  und Alarme bestätigen; mit **Leser** nur ansehen. Angemeldet wird in einem eigenen Fenster statt in der Konsole,
+  Sensorliste wie in der Wandanzeige („Rot gewinnt immer“). **Jeder Punkt der Seitenleiste ist eine Seite der App:**
+  Hosts (Baum und Gerät), Topologie, Zertifikate, Alarme, Berichte (mit PDF in den Ordner Downloads), Sensor-Vorlagen
+  mit Kennfarben, SNMP-Profile, Wandanzeigen, Wartung sowie Benutzer und Mandanten mit allen Reitern (Benutzer,
+  Agent- und API-Tokens, Agent-Updates, Anmeldung über AD und SSO), jeweils mit Anlegen, Ändern und Löschen wie im
+  Web. Im Browser bleiben nur Formulare für Wartungsfenster und „hängt ab von“, Alarmwege, Einstellungen und das eigene
+  Konto. Mit einem API-Token der Rolle **Operator** lassen sich Geräte und Sensoren anlegen, ändern, löschen,
+  pausieren, jetzt abfragen, in Wartung setzen und Alarme bestätigen; mit **Leser** nur ansehen. Angemeldet wird in einem eigenen Fenster statt in der Konsole,
   „Abmelden“ steht unten in der Seitenleiste. **Anmeldung wie im Browser:** mit E-Mail, Passwort und Code aus der
   Authenticator-App führt die App dieselbe Sitzung wie der Browser und darf genau, was das Konto darf, auch als Admin,
   mit frischem Code für heikle Änderungen; die Sitzung lebt nur im Speicher. Das API-Token bleibt als zweiter Weg für
