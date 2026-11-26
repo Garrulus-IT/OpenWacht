@@ -29,13 +29,13 @@ type Font struct {
 var allowedFontLicenses = map[string]bool{"OFL-1.1": true}
 
 var (
-	fontFileRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,100}\.woff2$`)
+	fontFileRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,100}\.(woff2|ttf)$`)
 	fontTextRe = regexp.MustCompile(`^[\p{L}\p{N} .,()&-]{1,120}$`)
 	fontVerRe  = regexp.MustCompile(`^[0-9][0-9A-Za-z.+-]{0,30}$`)
 )
 
 // LoadFonts liest die Liste schriften.json aus dir und prüft sie gegen die
-// Dateien im selben Verzeichnis: Jede .woff2-Datei muss genau einmal
+// Dateien im selben Verzeichnis: Jede Schriftdatei (.woff2, .ttf, .otf) muss genau einmal
 // eingetragen sein und jeder Eintrag muss existieren. Zurück kommen die
 // Dateien mit SHA-256, sortiert nach Dateiname.
 func LoadFonts(dir fs.FS) ([]Font, error) {
@@ -99,7 +99,8 @@ func LoadFonts(dir fs.FS) ([]Font, error) {
 		return nil, err
 	}
 	for _, e := range entries {
-		if !e.IsDir() && strings.EqualFold(path.Ext(e.Name()), ".woff2") && !listed[e.Name()] {
+		ext := strings.ToLower(path.Ext(e.Name()))
+		if !e.IsDir() && (ext == ".woff2" || ext == ".ttf" || ext == ".otf") && !listed[e.Name()] {
 			return nil, fmt.Errorf("sbom: Schriftdatei %s fehlt in schriften.json", e.Name())
 		}
 	}

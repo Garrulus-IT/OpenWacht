@@ -19,6 +19,7 @@ Nicht über Issues, sondern vertraulich: siehe [`SECURITY.md`](SECURITY.md).
 - `gofmt`, `go vet`, `go test -race ./...` und `govulncheck` müssen grün sein.
 - Neue Abhängigkeiten nur mit Begründung und nur unter MIT, BSD-2/3-Clause, ISC, Apache-2.0 oder MPL-2.0; keine GPL,
   LGPL oder AGPL. Ausnahme nur für Schriftdateien: SIL OFL 1.1 (unverändert, Lizenztext unter `web/public/lizenzen/`,
-  eingetragen in `web/src/schriften/schriften.json`).
+  eingetragen in `web/src/schriften/schriften.json`, für die Desktop-App in `internal/desktop/schriften/schriften.json`
+  mit Lizenztext daneben).
 - Statisch bauen (`CGO_ENABLED=0`), über `go run ./tools/build`; möglichst nur die Standardbibliothek.
 - Kommentare, Fehlermeldungen, Oberfläche und Doku auf Deutsch, Bezeichner auf Englisch.

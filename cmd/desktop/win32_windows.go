@@ -36,6 +36,8 @@ var (
 	pDestroyIcon              = user32.NewProc("DestroyIcon")
 	pRegisterWindowMessageW   = user32.NewProc("RegisterWindowMessageW")
 	pMessageBoxW              = user32.NewProc("MessageBoxW")
+	pFindWindowW              = user32.NewProc("FindWindowW")
+	pAllowSetForegroundWindow = user32.NewProc("AllowSetForegroundWindow")
 	pShellNotifyIconW         = shell32.NewProc("Shell_NotifyIconW")
 	pShellExecuteW            = shell32.NewProc("ShellExecuteW")
 	pGetModuleHandleW         = kernel32.NewProc("GetModuleHandleW")
@@ -63,6 +65,9 @@ const (
 	wmApp         = 0x8000
 	wmTray        = wmApp + 1 // Nachrichten vom Symbol
 	wmStand       = wmApp + 2 // neuer Stand aus der Abfrage
+	wmAktion      = wmApp + 3 // Ergebnis einer Änderung
+	wmZeigen      = wmApp + 4 // zweiter Start: Fenster zeigen
+	asfwAny       = ^uintptr(0)
 
 	ninSelect           = 0x0400
 	ninKeySelect        = 0x0401

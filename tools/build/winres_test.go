@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"os"
 	"testing"
 	"unicode/utf16"
 )
@@ -58,6 +59,11 @@ func TestVersionSyso(t *testing.T) {
 			binary.LittleEndian.Uint16(raw[88:]) != uint16(size) {
 			t.Errorf("%s: Daten bei %d, Größe %d", arch, off, size)
 		}
+		// mit Manifest: zwei Typen, aufsteigend
+		m, err := resourceSyso(arch, []winResource{{rtVersion, 1, langDeutsch, versionInfo(vi)}, {rtManifest, 1, 0, desktopManifest("1.0.6")}})
+		if err != nil || !bytes.Contains(m, []byte("PerMonitorV2")) || !bytes.Contains(m, []byte(`version="1.0.6.0"`)) {
+			t.Errorf("%s: Manifest fehlt (%v)", arch, err)
+		}
 		// reproduzierbar
 		b2, _ := versionSyso(arch, vi)
 		if !bytes.Equal(b, b2) {
@@ -66,5 +72,29 @@ func TestVersionSyso(t *testing.T) {
 	}
 	if _, err := versionSyso("mips", vi); err == nil {
 		t.Error("unbekannte Architektur angenommen")
+	}
+}
+
+func TestIconResources(t *testing.T) {
+	if err := os.Chdir("../.."); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir("tools/build")
+	pngs, err := desktopIcons()
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := iconResources(pngs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res) != len(pngs)+1 || res[len(res)-1].typ != rtGroupIcon || len(res[len(res)-1].data) != 6+14*len(pngs) {
+		t.Fatalf("Gruppe falsch: %d Einträge", len(res))
+	}
+	if _, err := resourceSyso("amd64", append(res, winResource{rtVersion, 1, 0, []byte("x")})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := resourceSyso("amd64", []winResource{{rtIcon, 1, 0, nil}, {rtIcon, 1, 0, nil}}); err == nil {
+		t.Fatal("doppelte ID nicht abgelehnt")
 	}
 }

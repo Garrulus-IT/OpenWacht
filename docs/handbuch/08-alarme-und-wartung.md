@@ -63,20 +63,62 @@ Infobereich neben der Uhr, **auch ohne offenes Browserfenster**:
   nennt die Zahlen.
 - **Benachrichtigungen von Windows** bei neuen Alarmen, Verschlechterungen und Entwarnungen (ab vier auf einmal eine
   zusammengefasste); ein Klick öffnet die Alarme im Browser.
-- **Menü** (Rechtsklick): OpenWacht öffnen, Alarme öffnen, jetzt prüfen, mit Windows starten, einrichten, beenden.
-  Linksklick öffnet OpenWacht.
+- **Menü** (Rechtsklick aufs Symbol): OpenWacht öffnen (Fenster), im Browser öffnen, Alarme im Browser, jetzt prüfen,
+  mit Windows starten (mit Rückmeldung), einrichten, beenden.
 
-**Einrichten:** In OpenWacht unter **Verwaltung → API-Tokens** ein Token mit der Rolle **Leser** für den Mandanten
-anlegen ([Kapitel 11](11-api-tokens.md)). Die Datei z. B. nach `%LOCALAPPDATA%\Programs\OpenWacht\` kopieren und
-starten. Beim ersten Start fragt ein Konsolenfenster nach der Adresse der Zentrale und dem Token (Eingabe unsichtbar),
-prüft beides mit einer Abfrage und speichert das Token in der **Windows-Anmeldeinformationsverwaltung** (Eintrag
-„OpenWacht Desktop“), nie in einer Datei. Die Adresse steht in `%APPDATA%\OpenWacht\desktop.json`.
-`openwacht-desktop entfernen` löscht Token, Einstellungen und Autostart wieder.
+#### Fenster mit Baum und Sensorliste (ab 1.0.6)
 
-Die App fragt alle 30 Sekunden `GET /api/v1/alarme` ab, nur über HTTPS und ohne Weiterleitungen zu folgen; sie ändert
-nichts. Das Zertifikat der Zentrale muss Windows vertrauen (z. B. Firmen-CA). Sie ist wie der Windows-Agent nicht
-Authenticode-signiert: SmartScreen warnt beim ersten Start, und ein Virenschutz braucht ggf. eine Ausnahme. Unter Windows
-ist sie bisher nur gebaut, nicht von uns ausgeführt worden.
+Ein Start der Datei (oder Linksklick aufs Symbol) öffnet das Fenster, **ohne Browser**; startet die App mit Windows,
+bleibt sie nur im Infobereich. Startet man sie ein zweites Mal, kommt das offene Fenster nach vorn. Das Fenster folgt dem
+Corporate Design der Oberfläche (Farben, D-DIN und JetBrains Mono, Zustandsformen) und der Einstellung „Hell/Dunkel“ von
+Windows.
+
+- **Oben** die Markenleiste mit Suche (Strg+F, filtert nach Gerät, Sensor und Meldung), darunter die Befehle: „Sensor
+  hinzufügen“, „Gerät hinzufügen“, „Jetzt abfragen“, „Alarm bestätigen …“, „Wartung setzen …“, „Sensor pausieren“,
+  rechts die Ansicht „Liste“ oder „Sonne“, der Schalter „Nur Probleme“ und „Mehr“ (Bearbeiten, Löschen, Im Browser
+  öffnen, Ansicht aktualisieren, Über).
+- **Links der Baum:** Mandanten, Untermandanten, Gruppen und Geräte, jeweils mit der Form des schlimmsten Zustands
+  darunter und rechts der Zahl der kritischen, gewarnten und unbekannten Sensoren.
+- **Rechts oben** der gewählte Knoten mit Adresse, Gruppe, Agent und Wartung sowie Marken mit den Zahlen je Zustand;
+  „nur ansehen (Rolle Leser)“ steht dort, wo das Token nur lesen darf.
+- **Sensorliste** der Geräte unter dem Knoten, schlimmste zuerst; ein Klick auf die Spaltenüberschrift sortiert. Bei
+  einem gewählten Gerät entfällt die Spalte „Gerät“. **Darunter** die Einzelheiten des gewählten Sensors (Meldung, Typ,
+  Ziel, Intervall, Wert, letzte und nächste Abfrage, Wartung, Alarm) bzw. des Geräts; der Teiler darüber lässt sich ziehen.
+- **Ansicht „Sonne“:** das Sonnendiagramm wie im Dashboard für den gewählten Mandanten bzw. die gewählte Gruppe (bei
+  einem Gerät dessen Gruppe): innen der Knoten, nach außen Untermandanten, Gruppen und Geräte, jedes Gerät gleich breit,
+  mit Problem tritt es hervor. Die Maus zeigt Pfad und Zustand, ein Klick wählt das Segment im Baum (und zoomt so hinein),
+  ein Klick in die Mitte geht eine Ebene hinauf. Kennfarben der Weboberfläche zeigt die App nicht.
+- **Pflegen** über die Befehle, Rechtsklick oder Tasten: Gerät hinzufügen, bearbeiten (Name, Adresse, Gruppe) und
+  löschen; Sensor hinzufügen (Strg+N), bearbeiten (Doppelklick, F2), jetzt abfragen, pausieren und fortsetzen, löschen
+  (Entf); Wartung für Gerät oder Sensor setzen und beenden; offenen Alarm mit Kommentar bestätigen; F5 fragt sofort ab.
+  Der Sensor-Dialog bietet je Typ genau die Felder der Weboberfläche, Adresse bzw. URL sind mit der des Geräts vorbelegt.
+  Löschen fragt immer nach („Sensor löschen?“); ein Gerät mit Inhalt löscht die App nur nach Eingabe seines Namens, wie im
+  Browser.
+- Werte des Agents und der SNMP-Abfrage (CPU, Platten, Schnittstellen …) zeigt die Liste mit; ihre Grenzen und Vorlagen,
+  Benutzer, Alarmwege und alle Einstellungen bleiben in der Weboberfläche („Im Browser öffnen“).
+
+**Was die App ändern darf, bestimmt das Token:** mit der Rolle **Operator** alles oben Genannte im Mandanten des Tokens
+und darunter, mit **Leser** nur ansehen (die Knöpfe sind dann grau). Die Zentrale prüft jede Änderung selbst, schreibt sie
+ins Audit-Log (als „API-Token …“) und meldet Fehler im Dialog, z. B. „Intervall: 30 Sekunden bis 1 Tag.“ Schließen
+versteckt das Fenster nur; die App läuft im Infobereich weiter.
+
+**Einrichten:** In OpenWacht unter **Verwaltung → API-Tokens** ein Token für den Mandanten anlegen, Rolle **Operator** zum
+Pflegen oder **Leser** nur zum Ansehen ([Kapitel 11](11-api-tokens.md)). Ein Operator-Token ist so mächtig wie ein
+Operator-Konto ohne zweiten Faktor: nur auf dem eigenen Rechner einrichten und mit kurzer Laufzeit. Die Datei z. B. nach
+`%LOCALAPPDATA%\Programs\OpenWacht\` kopieren und starten. Beim ersten Start fragt ein Konsolenfenster nach der
+Adresse der Zentrale und dem Token (Eingabe unsichtbar), prüft beides mit einer Abfrage und speichert das Token in der
+**Windows-Anmeldeinformationsverwaltung** (Eintrag „OpenWacht Desktop“), nie in einer Datei. Die Adresse steht in
+`%APPDATA%\OpenWacht\desktop.json`. Rechtsklick aufs Symbol → Einrichten tauscht das Token, `openwacht-desktop
+entfernen` löscht Token, Einstellungen und Autostart wieder.
+
+Die App fragt alle 30 Sekunden `GET /api/v1/alarme` ab, bei offenem Fenster zusätzlich Mandanten, Gruppen, Geräte,
+Sensoren und Checks, nur über HTTPS und ohne Weiterleitungen zu folgen. Das Zertifikat der Zentrale muss Windows vertrauen
+(z. B. Firmen-CA). Sie ist wie der Windows-Agent nicht Authenticode-signiert: SmartScreen warnt beim ersten Start, und ein
+Virenschutz braucht ggf. eine Ausnahme. Ab 1.0.6 trägt die Datei eine Programmbeschreibung (Eigenschaften → Details:
+„OpenWacht Desktop“, Version, Commit) und das Bildzeichen als Programmsymbol. Die Schriften D-DIN und JetBrains Mono
+(SIL Open Font License 1.1) sind unverändert eingebettet und werden nur für die App geladen, nicht installiert;
+`openwacht-desktop lizenzen` (oder Mehr → Über) legt die Lizenztexte unter `%APPDATA%\OpenWacht\lizenzen` ab. Das
+Fenster ist unter Wine gegen eine nachgebaute Zentrale getestet, auf echtem Windows noch nicht.
 
 Die Oberfläche fragt dafür alle 15 Sekunden die Alarme ab, mit Windows-Benachrichtigung auch im Hintergrund. Den Ton einer
 **Wandanzeige** stellen Admins in der Liste der Wandanzeigen unter „Ton“ ein

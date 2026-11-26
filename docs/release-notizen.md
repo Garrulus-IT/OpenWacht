@@ -42,6 +42,16 @@
 - **Oberfläche aufgeräumt:** Dashboard-Widget „Zustand“ neu (Zahlen je Zustand statt Sechsecke; Probleme bleiben auch
   unter vielen OK-Sensoren sichtbar); Gruppen unter Hosts ab Werk zugeklappt, mit „Alle aufklappen“; Sensor-Vorlagen mit
   Suche, Abschnitten zum Zuklappen und nach Ort und Art geordnet, lange Hinweise gekürzt.
+- **Desktop-App mit eigenem Fenster:** Start der Datei oder Linksklick aufs Symbol öffnet ein Fenster ohne Browser im
+  Corporate Design (nachtblaue Markenleiste, D-DIN, Zustandsformen, hell und dunkel nach Windows): Baum aus Mandanten,
+  Gruppen und Geräten, Sensorliste mit Suche und Sortierung oder das Sonnendiagramm wie im Dashboard (Klick zoomt
+  hinein), Einzelheiten und Marken je Zustand. Mit einem API-Token der
+  Rolle **Operator** lassen sich dort Geräte und Sensoren anlegen, ändern, löschen, pausieren, jetzt abfragen, in Wartung
+  setzen und Alarme bestätigen; mit **Leser** nur ansehen. Die Zentrale ändert sich dafür nicht. Dazu: ein Klick öffnet
+  nicht mehr zwei Tabs, „Mit Windows starten“ meldet, ob es geklappt hat, der Autostart startet nur ins Infobereich, und
+  die Datei trägt Programmbeschreibung, Version und das Bildzeichen
+  ([Kapitel 8](handbuch/08-alarme-und-wartung.md#fenster-mit-baum-und-sensorliste-ab-106)). Unter Wine getestet, auf
+  echtem Windows noch nicht. Die Stückliste führt die eingebetteten Schriften (TTF) mit.
 - Beim Anlegen eines Benutzers lautet die Meldung für eine vergebene Adresse immer gleich; höchstens 20 solcher
   Ablehnungen je Admin und Stunde.
 - Die Warnung beim Start ohne Alarmziele nennt richtig, was gesperrt ist (Mail geht weiter).

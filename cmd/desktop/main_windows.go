@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 	"unsafe"
@@ -22,6 +24,7 @@ const takt = 30 * time.Second
 // Menüeinträge
 const (
 	cmdOeffnen = 1 + iota
+	cmdBrowser
 	cmdAlarme
 	cmdPruefen
 	cmdAutostart
@@ -43,6 +46,20 @@ type app struct {
 	melden   []desktop.Ereignis
 	gezeigt  desktop.Zustand // Symbol, das gerade steht
 	stoerung bool            // Störung schon gemeldet
+
+	// Hauptfenster (1.0.6): Baum und Sensoren nur abfragen, solange es offen ist.
+	f            *fenster
+	fensterOffen atomic.Bool
+	stand        desktop.Stand
+	standFehler  string
+	baum         []*desktop.Knoten
+	ergebnisse   chan func() // Ergebnisse aus imHintergrund für den Oberflächen-Thread
+}
+
+func (a *app) zentrale() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.client.Zentrale
 }
 
 var a *app
@@ -58,18 +75,30 @@ func run(args []string) int {
 			autostartSetzen(false)
 			meldung("OpenWacht Desktop", "Token, Einstellungen und Autostart sind entfernt. Die Datei openwacht-desktop.exe kannst du jetzt löschen.", false)
 			return 0
-		case "einrichten", "-version", "--version", "version":
+		case "lizenzen":
+			lizenzenAblegen()
+			return 0
+		case "einrichten", "infobereich", "-version", "--version", "version":
 		default:
-			meldung("OpenWacht Desktop", "Aufruf: openwacht-desktop [einrichten | entfernen]", true)
+			meldung("OpenWacht Desktop", "Aufruf: openwacht-desktop [einrichten | infobereich | lizenzen | entfernen]", true)
 			return 2
 		}
-		if args[0] != "einrichten" {
+		if args[0] != "einrichten" && args[0] != "infobereich" {
 			meldung("OpenWacht Desktop", version.String("openwacht-desktop"), false)
 			return 0
 		}
 	}
 	// Nur einmal je Benutzer.
+	nurSymbol := len(args) > 0 && args[0] == "infobereich"
 	if _, _, err := pCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(utf16(`Local\OpenWachtDesktop`)))); err == syscall.Errno(errorAlreadyExists) {
+		// Läuft schon: dessen Fenster nach vorn holen (Doppelklick auf die App).
+		if h, _, _ := pFindWindowW.Call(uintptr(unsafe.Pointer(utf16("OpenWachtDesktop"))), 0); h != 0 {
+			if !nurSymbol {
+				pAllowSetForegroundWindow.Call(asfwAny)
+				pPostMessageW.Call(h, wmZeigen, 0, 0)
+			}
+			return 0
+		}
 		meldung("OpenWacht Desktop", "OpenWacht läuft schon im Infobereich neben der Uhr.", false)
 		return 0
 	}
@@ -91,19 +120,37 @@ func run(args []string) int {
 		}
 	}
 	runtime.LockOSThread()
-	a = &app{icons: map[desktop.Zustand]syscall.Handle{}, jetzt: make(chan struct{}, 1),
+	a = &app{icons: map[desktop.Zustand]syscall.Handle{}, jetzt: make(chan struct{}, 1), ergebnisse: make(chan func(), 64),
 		client: desktop.Client{Zentrale: cfg.Zentrale, Token: token}, gezeigt: "start"}
 	if err := a.fenster(); err != nil {
 		meldung("OpenWacht Desktop", err.Error(), true)
 		return 1
 	}
 	a.symbolHinzufuegen()
+	if autostartAn() {
+		autostartSetzen(true) // Pfad und Aufruf „infobereich“ auf den Stand dieser Datei
+	}
 	go a.abfragen()
+	if !nurSymbol {
+		a.fensterZeigen()
+	}
 	var m msg
 	for {
 		r, _, _ := pGetMessageW.Call(ptr(&m), 0, 0, 0)
 		if int32(r) <= 0 {
 			break
+		}
+		if a.f != nil {
+			// Kurzbefehle (F5, Strg+F, Strg+N, F2, Entf) im Hauptfenster
+			if m.Message == wmKeyDown {
+				if r, _, _ := pGetAncestor.Call(uintptr(m.Hwnd), gaRoot); syscall.Handle(r) == a.f.hwnd && a.taste(m.WParam) {
+					continue
+				}
+			}
+			// Tab und Pfeiltasten zwischen den Teilen des Fensters
+			if d, _, _ := pIsDialogMessageW.Call(uintptr(a.f.hwnd), ptr(&m)); d != 0 {
+				continue
+			}
 		}
 		pTranslateMessage.Call(ptr(&m))
 		pDispatchMessageW.Call(ptr(&m))
@@ -195,6 +242,21 @@ func (a *app) abfragen() {
 			a.z = desktop.Zusammenfassen(alarme)
 		}
 		a.mu.Unlock()
+		if a.fensterOffen.Load() {
+			ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+			st, err := c.StandHolen(ctx)
+			cancel()
+			a.mu.Lock()
+			if err != nil {
+				a.standFehler = err.Error()
+				if errors.Is(err, desktop.ErrToken) {
+					a.standFehler = "API-Token ungültig, abgelaufen oder widerrufen (Rechtsklick aufs Symbol → Einrichten)"
+				}
+			} else {
+				a.stand, a.standFehler = st, ""
+			}
+			a.mu.Unlock()
+		}
 		pPostMessageW.Call(uintptr(a.hwnd), wmStand, 0, 0)
 		select {
 		case <-t.C:
@@ -220,6 +282,10 @@ func (a *app) standZeigen() {
 	setUTF16(n.Tip[:], tip)
 	pShellNotifyIconW.Call(nimModify, ptr(&n))
 	a.gezeigt = zust
+	a.symbolFuerFenster()
+	if a.fensterOffen.Load() {
+		a.aktualisieren(false)
+	}
 
 	// Störung einmal melden, Erholung still.
 	if fehler != "" && !a.stoerung {
@@ -273,8 +339,9 @@ func (a *app) menue() {
 		pAppendMenuW.Call(m, mfString|flags, uintptr(id), uintptr(unsafe.Pointer(utf16(text))))
 	}
 	add(cmdOeffnen, "OpenWacht öffnen", 0)
-	add(cmdAlarme, "Alarme öffnen", 0)
-	add(cmdPruefen, "Jetzt prüfen", 0)
+	add(cmdBrowser, "Im Browser öffnen", 0)
+	add(cmdAlarme, "Alarme im Browser", 0)
+	add(cmdPruefen, "Jetzt abfragen", 0)
 	pAppendMenuW.Call(m, mfSeparator, 0, 0)
 	auto := uintptr(0)
 	if autostartAn() {
@@ -298,6 +365,8 @@ func (a *app) menue() {
 func (a *app) befehl(id int) {
 	switch id {
 	case cmdOeffnen:
+		a.fensterZeigen()
+	case cmdBrowser:
 		a.oeffnen("/")
 	case cmdAlarme:
 		a.oeffnen("/alarme")
@@ -338,6 +407,7 @@ func (a *app) befehl(id int) {
 			a.mu.Lock()
 			a.client = desktop.Client{Zentrale: cfg.Zentrale, Token: token}
 			a.letzte, a.melden = nil, nil
+			a.stand, a.standFehler = desktop.Stand{}, ""
 			a.mu.Unlock()
 			select {
 			case a.jetzt <- struct{}{}:
@@ -365,13 +435,27 @@ func wndProc(hwnd, m, wp, lp uintptr) uintptr {
 		case wmContextMenu:
 			a.menue()
 		case ninSelect, ninKeySelect:
-			a.oeffnen("/")
+			a.fensterZeigen()
 		case ninBalloonUserClick:
-			a.oeffnen("/alarme")
+			a.fensterZeigen()
 		}
 		return 0
 	case wmStand:
 		a.standZeigen()
+		return 0
+	case wmZeigen:
+		a.fensterZeigen()
+		return 0
+	case wmAktion:
+	leeren:
+		for {
+			select {
+			case fn := <-a.ergebnisse:
+				fn()
+			default:
+				break leeren
+			}
+		}
 		return 0
 	case wmDestroy:
 		n := a.nid()
@@ -386,4 +470,26 @@ func wndProc(hwnd, m, wp, lp uintptr) uintptr {
 	}
 	r, _, _ := pDefWindowProcW.Call(hwnd, m, wp, lp)
 	return r
+}
+
+// lizenzenAblegen schreibt die Lizenztexte der eingebetteten Schriften nach
+// %APPDATA%\OpenWacht\lizenzen und öffnet den Ordner.
+func lizenzenAblegen() {
+	d, err := os.UserConfigDir()
+	if err != nil {
+		meldung("OpenWacht Desktop", err.Error(), true)
+		return
+	}
+	ordner := filepath.Join(d, "OpenWacht", "lizenzen")
+	if err := os.MkdirAll(ordner, 0o700); err != nil {
+		meldung("OpenWacht Desktop", err.Error(), true)
+		return
+	}
+	for name, text := range desktop.Lizenztexte() {
+		if err := os.WriteFile(filepath.Join(ordner, name), text, 0o600); err != nil {
+			meldung("OpenWacht Desktop", err.Error(), true)
+			return
+		}
+	}
+	pShellExecuteW.Call(0, uintptr(unsafe.Pointer(utf16("open"))), uintptr(unsafe.Pointer(utf16(ordner))), 0, 0, swShowNormal)
 }

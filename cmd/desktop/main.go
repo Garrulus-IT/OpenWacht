@@ -3,8 +3,10 @@
 // openwacht-desktop (1.0.4): OpenWacht im Infobereich von Windows. Das Symbol
 // zeigt den schlimmsten offenen Alarm (Form und Farbe), neue Alarme,
 // Verschlechterungen und Entwarnungen kommen als Benachrichtigung von Windows.
-// Die App liest nur, mit einem API-Token der Rolle Leser; das Token liegt in
-// der Windows-Anmeldeinformationsverwaltung.
+// Ab 1.0.6 zeigt ein eigenes Fenster Mandanten, Gruppen, Geräte und Sensoren
+// in einem Baum mit Sensorliste; mit einem API-Token der Rolle Operator lassen sich dort
+// Geräte und Sensoren pflegen, mit der Rolle Leser nur ansehen. Das Token
+// liegt in der Windows-Anmeldeinformationsverwaltung.
 //
 // Aufruf: openwacht-desktop             Symbol im Infobereich (beim ersten Start Einrichtung)
 //

@@ -194,9 +194,14 @@ func writeSBOM(out string, built []string, ver, commit string, mtime time.Time) 
 	if err != nil {
 		return "", err
 	}
-	fonts, err := sbom.LoadFonts(os.DirFS("web/src/schriften"))
-	if err != nil {
-		return "", err
+	// Schriften der Oberfläche (WOFF2) und der Desktop-App (TTF)
+	var fonts []sbom.Font
+	for _, dir := range []string{"web/src/schriften", "internal/desktop/schriften"} {
+		f, err := sbom.LoadFonts(os.DirFS(dir))
+		if err != nil {
+			return "", err
+		}
+		fonts = append(fonts, f...)
 	}
 	var bins []string
 	for _, n := range built {
@@ -296,12 +301,21 @@ func buildWith(out, pkg, prog string, t target, ver, commit, extra string) (stri
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if t.os == "windows" {
 		// Programmbeschreibung (Name in Benachrichtigungen, Eigenschaften)
+		var manifest []byte
+		var icons [][]byte
+		if pkg == "desktop" {
+			manifest = desktopManifest(ver) // Fenster: moderne Steuerelemente, DPI
+			var err error
+			if icons, err = desktopIcons(); err != nil { // Bildzeichen als Programmsymbol
+				return "", err
+			}
+		}
 		aufraeumen, err := writeVersionSyso(filepath.Join("cmd", pkg), t.arch, verInfo{
 			Description:  windowsDescription(prog),
 			OriginalName: prog + ".exe",
 			Version:      ver,
 			Commit:       commit,
-		})
+		}, manifest, icons)
 		if err != nil {
 			return "", err
 		}

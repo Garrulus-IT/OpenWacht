@@ -28,7 +28,7 @@ func tokenSpeichern(token string) error {
 	c := credential{
 		Type:       credTypeGeneric,
 		TargetName: utf16(credZiel),
-		Comment:    utf16("API-Token (Leser) für openwacht-desktop"),
+		Comment:    utf16("API-Token für openwacht-desktop"),
 		BlobSize:   uint32(len(blob)),
 		Blob:       &blob[0],
 		Persist:    credPersistLocalMachine,
@@ -85,7 +85,8 @@ func autostartSetzen(an bool) error {
 	if err != nil {
 		return err
 	}
-	v, _ := syscall.UTF16FromString(`"` + exe + `"`)
+	// Beim Anmelden nur ins Infobereich, ohne Fenster.
+	v, _ := syscall.UTF16FromString(`"` + exe + `" infobereich`)
 	if r, _, err := pRegSetValueExW.Call(uintptr(k), uintptr(unsafe.Pointer(utf16(runWert))), 0, regSZ,
 		uintptr(unsafe.Pointer(&v[0])), uintptr(len(v)*2)); r != 0 {
 		return fmt.Errorf("Autostart setzen: %w", err)
@@ -112,7 +113,8 @@ func einrichten(alt desktop.Config) (desktop.Config, bool) {
 	}
 	fmt.Fprintln(out, "OpenWacht Desktop einrichten")
 	fmt.Fprintln(out, "")
-	fmt.Fprintln(out, "Das Token legst du in OpenWacht unter Verwaltung → API-Tokens an, Rolle „Leser“.")
+	fmt.Fprintln(out, "Das Token legst du in OpenWacht unter Verwaltung → API-Tokens an:")
+	fmt.Fprintln(out, "Rolle „Operator“, um im Fenster Geräte und Sensoren zu pflegen, „Leser“ nur zum Ansehen.")
 	fmt.Fprintln(out, "Es wird in der Windows-Anmeldeinformationsverwaltung gespeichert, nicht in einer Datei.")
 	fmt.Fprintln(out, "Leere Eingabe bricht ab.")
 	fmt.Fprintln(out, "")

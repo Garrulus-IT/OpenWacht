@@ -5,12 +5,16 @@
 // Symbol im Infobereich. Die Oberfläche unter Windows steht in cmd/desktop;
 // alles hier ist ohne Windows testbar.
 //
-// Die App liest nur: Sie fragt alle 30 Sekunden GET /api/v1/alarme mit einem
-// API-Token (Rolle Leser, Entscheidung des Herausgebers 25.11.2026). Das Token liegt
-// in der Windows-Anmeldeinformationsverwaltung, nie in einer Datei.
+// Die App fragt alle 30 Sekunden GET /api/v1/alarme ab (bei offenem Fenster
+// auch Mandanten, Gruppen, Geräte, Sensoren und Checks) mit einem API-Token.
+// Was sie darf, bestimmt dessen Rolle: Leser nur sehen, Operator auch Geräte
+// und Sensoren pflegen (Entscheidung des Herausgebers 26.11.2026, vorher nur
+// Leser). Das Token liegt in der Windows-Anmeldeinformationsverwaltung, nie in
+// einer Datei.
 package desktop
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -90,7 +94,7 @@ func CleanToken(s string) (string, error) {
 	s = strings.TrimSpace(s)
 	rest, ok := strings.CutPrefix(s, "owt1.")
 	if !ok || len(rest) != 43 || strings.Trim(rest, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_") != "" {
-		return "", errors.New("API-Token: erwartet owt1.… (in OpenWacht unter Verwaltung → API-Tokens, Rolle Leser)")
+		return "", errors.New("API-Token: erwartet owt1.… (in OpenWacht unter Verwaltung → API-Tokens, Rolle Leser oder Operator)")
 	}
 	return s, nil
 }
@@ -118,12 +122,55 @@ var ErrToken = errors.New("API-Token ungültig, abgelaufen oder widerrufen")
 
 // Alarme holt die Alarme der letzten 30 Tage (offene zuerst).
 func (c Client) Alarme(ctx context.Context) ([]Alarm, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.Zentrale+"/api/v1/alarme?limit=500", nil)
-	if err != nil {
+	var out struct {
+		Alarme []Alarm `json:"alarme"`
+	}
+	if err := c.get(ctx, "/api/v1/alarme?limit=500", &out); err != nil {
 		return nil, err
+	}
+	return out.Alarme, nil
+}
+
+// get: GET mit dem Token, nur an die eingestellte Zentrale, Antwort ≤ 8 MiB.
+func (c Client) get(ctx context.Context, pfad string, out any) error {
+	return c.send(ctx, http.MethodGet, pfad, nil, out)
+}
+
+// FehlerZentrale: die Zentrale hat die Anfrage abgelehnt; Text ist ihre
+// Meldung (für Menschen geschrieben, z. B. „Intervall: 30 Sekunden bis 1 Tag.“).
+type FehlerZentrale struct {
+	Code int
+	Text string
+}
+
+func (e *FehlerZentrale) Error() string {
+	if e.Text != "" {
+		return e.Text
+	}
+	return fmt.Sprintf("Zentrale antwortet mit %d", e.Code)
+}
+
+// send: Anfrage mit dem Token, nur an die eingestellte Zentrale, Antwort ≤ 8 MiB.
+// body (falls nicht nil) geht als JSON; out (falls nicht nil) nimmt die
+// Antwort auf. Jede Antwort 2xx gilt als Erfolg.
+func (c Client) send(ctx context.Context, method, pfad string, body, out any) error {
+	var rd io.Reader
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return err
+		}
+		rd = bytes.NewReader(b)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.Zentrale+pfad, rd)
+	if err != nil {
+		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+c.Token)
 	req.Header.Set("Accept", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	hc := c.HTTP
 	if hc == nil {
 		hc = &http.Client{Timeout: 20 * time.Second}
@@ -133,26 +180,30 @@ func (c Client) Alarme(ctx context.Context) ([]Alarm, error) {
 	hc2.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	resp, err := hc2.Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	switch {
 	case resp.StatusCode == http.StatusUnauthorized:
-		return nil, ErrToken
-	case resp.StatusCode != http.StatusOK:
-		return nil, fmt.Errorf("Zentrale antwortet mit %d", resp.StatusCode)
+		return ErrToken
+	case resp.StatusCode < 200 || resp.StatusCode > 299:
+		var f struct {
+			Fehler string `json:"fehler"`
+		}
+		_ = json.Unmarshal(data, &f)
+		return &FehlerZentrale{Code: resp.StatusCode, Text: Kuerzen(strings.TrimSpace(f.Fehler), 400)}
 	}
-	var out struct {
-		Alarme []Alarm `json:"alarme"`
+	if out == nil || len(bytes.TrimSpace(data)) == 0 {
+		return nil
 	}
-	if err := json.Unmarshal(body, &out); err != nil {
-		return nil, fmt.Errorf("Antwort nicht lesbar: %w", err)
+	if err := json.Unmarshal(data, out); err != nil {
+		return fmt.Errorf("Antwort nicht lesbar: %w", err)
 	}
-	return out.Alarme, nil
+	return nil
 }
 
 // Zustand fürs Symbol: schlimmster offener, nicht bestätigter Alarm.
