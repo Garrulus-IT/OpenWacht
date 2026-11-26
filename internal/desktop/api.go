@@ -78,6 +78,10 @@ type Check struct {
 	Wartung   *Wartung        `json:"wartung"`
 	Herkunft  *string         `json:"herkunft"`
 	AmAgent   bool            `json:"am_agent"`
+	// 1.0.6: eigene Fehlversuche bis zum Alarm (nil = Standard) und die
+	// geltende Zahl (0 bei einer älteren Zentrale)
+	Fehlversuche *int `json:"fehlversuche"`
+	FehlGrenze   int  `json:"fehlversuche_gilt"`
 }
 
 // Stand: alles, was das Hauptfenster zeigt, aus einem Durchgang.
@@ -133,6 +137,8 @@ type CheckEingabe struct {
 	Ziel      json.RawMessage `json:"ziel"`
 	Intervall int             `json:"intervall_sekunden"`
 	Aktiv     *bool           `json:"aktiv,omitempty"`
+	// 1.0.6: 1 bis 10, 0 = Standard; nil = beim Ändern unverändert lassen
+	Fehlversuche *int `json:"fehlversuche,omitempty"`
 }
 
 func p(id string) string { return url.PathEscape(id) }

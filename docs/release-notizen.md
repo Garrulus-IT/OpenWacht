@@ -79,6 +79,11 @@
   enthalten (Codepage 1252)
   ([Kapitel 5](handbuch/05-agent.md#msi-unter-windows-doppelklick-gpo-intune)). Unter Wine getestet, auf echtem
   Windows noch nicht.
+- **Alarm erst nach 3 Fehlschlägen, je Sensor einstellbar:** Sensoren melden „kritisch“ jetzt nach 3 statt 2
+  Fehlschlägen in Folge, damit kurze Aussetzer (Neustart, verlorenes Paket) keinen Alarm auslösen. Am Sensor, in eigenen
+  Vorlagen und Vorlagensätzen lässt sich „Alarm nach“ von 1 (sofort) bis 10 setzen, im Web und in der Desktop-App;
+  die API kennt dafür `fehlversuche` und zeigt die geltende Zahl als `fehlversuche_gilt`. Warnungen gehen weiter
+  sofort raus ([Kapitel 7](handbuch/07-sensoren-und-vorlagen.md#sensoren)).
 - **Neustart-Meldung ruhiger:** Ein Neustart wird nur noch gemeldet, wenn das Gerät davor mindestens 27 Stunden lief;
   geplante nächtliche Neustarts (Citrix-Worker, Terminalserver) melden nichts mehr. SNMP liest dafür die Laufzeit des
   Rechners (`hrSystemUptime`) statt nur die des SNMP-Dienstes, so löst ein Neustart allein des SNMP-Dienstes keine
@@ -90,7 +95,7 @@
 - Die Warnung beim Start ohne Alarmziele nennt richtig, was gesperrt ist (Mail geht weiter).
 - Kennfarben: Der Vorschlag Braun (#8a5a2b) hatte auf dunklem Grund nur 2,9:1 Kontrast und fiel durch die eigene
   Prüfung; jetzt #9a6530 (3,5:1 dunkel, 4,9:1 hell).
-- Migrationen 0056 bis 0060 (laufen beim Update von selbst).
+- Migrationen 0056 bis 0061 (laufen beim Update von selbst).
 
 ## 1.0.5
 

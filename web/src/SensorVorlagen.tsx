@@ -63,7 +63,7 @@ export function SensorVorlagen({ bereich, melden }: { bereich: Bereich; melden: 
     ? (alle.find((v) => v.id === form.slice(6)) ?? null)
     : (eigene.find((v) => v.id === form) ?? null);
 
-  const speichern = async (body: { name: string; typ: CheckTyp; ziel: CheckZiel; intervall_sekunden: number }) => {
+  const speichern = async (body: { name: string; typ: CheckTyp; ziel: CheckZiel; intervall_sekunden: number; fehlversuche: number }) => {
     if (form && !form.startsWith("kopie:") && form !== "neu") {
       await api("PUT", `/api/v1/sensor-vorlagen/${form}`, { ...body, notiz: vorbelegt?.notiz ?? "" });
     } else {
@@ -86,7 +86,10 @@ export function SensorVorlagen({ bereich, melden }: { bereich: Bereich; melden: 
       <td>{typText[v.typ]}</td>
       <td>{v.am_agent ? "Agent" : v.typ === "snmp_oid" ? "SNMP" : "Zentrale"}</td>
       <td className="umbruch klein">{zielText(v)}</td>
-      <td>{intervallKurz(v.intervall_sekunden)}</td>
+      <td>
+        {intervallKurz(v.intervall_sekunden)}
+        {v.fehlversuche ? <span className="klein"> · Alarm nach {v.fehlversuche}</span> : null}
+      </td>
       <td className="aktionen-zelle">
         {darf && (
           <button className="knopf knopf-klein knopf-haupt" onClick={() => setAnwenden(v)}>
@@ -422,6 +425,7 @@ function SatzFormular(props: {
         intervall_sekunden: v.intervall_sekunden,
         notiz: v.notiz,
         ...(v.kennfarbe_id ? { kennfarbe_id: v.kennfarbe_id } : {}),
+        ...(v.fehlversuche ? { fehlversuche: v.fehlversuche } : {}),
       })),
     };
     try {

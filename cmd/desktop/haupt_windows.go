@@ -905,6 +905,13 @@ func (a *app) detailsMalen(hdc uintptr, r rect) {
 				}
 			}
 			add("Intervall", desktop.IntervallText(c.Intervall), false)
+			if c.FehlGrenze > 0 {
+				txt := desktop.FehlversucheText(c.FehlGrenze)
+				if c.Fehlversuche == nil {
+					txt += " (Standard)"
+				}
+				add("Alarm nach", txt, false)
+			}
 			if c.Messwert != nil {
 				add("Wert", *c.Messwert, true)
 			}

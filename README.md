@@ -162,7 +162,7 @@ openwacht-zentrale starten ... -alarm-ziele http://127.0.0.1:2586,https://ntfy.e
 ```
 
 - Ohne `-alarm-ziele` werden keine Alarme verschickt. `https` ist Pflicht, `http` nur für Loopback.
-- Gemeldet wird so: ein Fehler nach 2 Fehlschlägen in Folge und nur bei Zustandswechsel, eine Erinnerung
+- Gemeldet wird so: ein Fehler nach 3 Fehlschlägen in Folge (je Sensor änderbar) und nur bei Zustandswechsel, eine Erinnerung
   nach 12 Stunden, Warnungen sofort und einmalig, eine Entwarnung bei Erholung. Alle 15 Sekunden gehen die
   Ereignisse gesammelt je Kanal raus. Scheitert der Versand, versucht es der nächste Durchlauf erneut.
 - Hosts: Ein Agent, der sich `-stumm-nach` lang (Standard `3m`, mindestens zwei Meldeintervalle) nicht meldet, löst

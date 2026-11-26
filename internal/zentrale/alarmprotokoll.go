@@ -135,19 +135,20 @@ func (s *Server) syncAlarmsTx(ctx context.Context, tx pgx.Tx, now time.Time, mai
 	var in alarmInput
 	// Checks: Warnungen sofort, Fehler erst ab der Schwelle, ab der auch
 	// gemeldet wird (wie alarm.Decide).
-	rows, err = tx.Query(ctx, `SELECT check_id::text, name, status, message, fails FROM openwacht.alarm_check_sources()`)
+	rows, err = tx.Query(ctx, `SELECT check_id::text, name, status, message, fails, fail_threshold FROM openwacht.alarm_check_sources()`)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
 		var id, name, status, msg string
 		var fails int
-		if err := rows.Scan(&id, &name, &status, &msg, &fails); err != nil {
+		var threshold *int
+		if err := rows.Scan(&id, &name, &status, &msg, &fails, &threshold); err != nil {
 			rows.Close()
 			return nil, err
 		}
 		_, isOpen := open[alarmKeyCheck(id)]
-		if isOpen || (status == alarm.Warn || fails >= s.cfg.AlertThreshold) && !maint.check(id) {
+		if isOpen || (status == alarm.Warn || fails >= s.threshold(threshold)) && !maint.check(id) {
 			in.add(&id, nil, subjectCheck, name, status, msg)
 		}
 	}

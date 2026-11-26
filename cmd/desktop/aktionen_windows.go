@@ -247,6 +247,10 @@ func (a *app) sensorDialog(g *desktop.Geraet, c *desktop.Check) {
 	if c != nil {
 		d.titel, d.okText, typ = "Sensor bearbeiten", "Sensor speichern", c.Typ
 		d.werte["name"], d.werte["intervall"] = c.Name, strconv.Itoa(c.Intervall)
+		d.werte["fehlversuche"] = "0"
+		if c.Fehlversuche != nil {
+			d.werte["fehlversuche"] = strconv.Itoa(*c.Fehlversuche)
+		}
 		if c.Aktiv {
 			d.werte["aktiv"] = "ja"
 		}
@@ -256,9 +260,10 @@ func (a *app) sensorDialog(g *desktop.Geraet, c *desktop.Check) {
 			}
 		}
 	} else {
-		d.werte["intervall"], d.werte["aktiv"] = "300", "ja"
+		d.werte["intervall"], d.werte["aktiv"], d.werte["fehlversuche"] = "300", "ja", "0"
 	}
 	d.werte["typ"] = typ
+	fvTexte, fvWerte := desktop.FehlversucheAuswahl()
 	vorbelegt := map[string]bool{}
 	vorbelegen := func(t desktop.Typ) {
 		if c != nil || adresse == "" {
@@ -329,7 +334,8 @@ func (a *app) sensorDialog(g *desktop.Geraet, c *desktop.Check) {
 			}
 		}
 		d.auswahl("intervall", "Intervall", ivTexte, ivWerte, "").halb = true
-		d.feld("aktiv", "Sensor ist aktiv", desktop.FeldJaNein, "").halb = true
+		d.auswahl("fehlversuche", "Alarm nach", fvTexte, fvWerte, "").halb = true
+		d.feld("aktiv", "Sensor ist aktiv", desktop.FeldJaNein, "")
 		if t.AmAgent {
 			d.einleitung = "Gerät " + g.Name + ". Diesen Sensor misst der Agent auf dem Gerät; ohne Agent lehnt die Zentrale ihn ab."
 		} else {
@@ -363,7 +369,9 @@ func (a *app) sensorDialog(g *desktop.Geraet, c *desktop.Check) {
 		}
 		iv, _ := strconv.Atoi(d.werte["intervall"])
 		aktiv := d.werte["aktiv"] == "ja"
-		in := desktop.CheckEingabe{Name: strings.TrimSpace(d.werte["name"]), Typ: t.Schluessel, Ziel: ziel, Intervall: iv, Aktiv: &aktiv}
+		fv, _ := strconv.Atoi(d.werte["fehlversuche"])
+		in := desktop.CheckEingabe{Name: strings.TrimSpace(d.werte["name"]), Typ: t.Schluessel, Ziel: ziel, Intervall: iv, Aktiv: &aktiv,
+			Fehlversuche: &fv}
 		a.imHintergrund(func(ctx context.Context, cl desktop.Client) error {
 			if c == nil {
 				return cl.CheckAnlegen(ctx, g.ID, in)

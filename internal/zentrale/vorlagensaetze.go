@@ -34,6 +34,8 @@ type satzEintragDB struct {
 	Intervall int             `json:"intervall_sekunden"`
 	Notiz     string          `json:"notiz"`
 	Kennfarbe string          `json:"kennfarbe,omitempty"` // 1.0.1
+	// 1.0.6: Fehlversuche bis zum Alarm; 0 = Standard
+	Fehlversuche int `json:"fehlversuche,omitempty"`
 }
 
 type eigenerSatzOut struct {
@@ -89,7 +91,12 @@ func parseSetIn(in satzIn) (satzIn, []byte, error) {
 			}
 			color = strings.ToLower(*v.Kennfarbe)
 		}
-		items = append(items, satzEintragDB{Name: v.Name, Typ: v.Typ, Ziel: target, Intervall: v.Intervall, Notiz: v.Notiz, Kennfarbe: color})
+		fails := 0
+		if v.Fehlversuche != nil {
+			fails = *v.Fehlversuche
+		}
+		items = append(items, satzEintragDB{Name: v.Name, Typ: v.Typ, Ziel: target, Intervall: v.Intervall, Notiz: v.Notiz, Kennfarbe: color,
+			Fehlversuche: fails})
 	}
 	raw, err := json.Marshal(items)
 	return in, raw, err
@@ -131,6 +138,10 @@ func setItemsOut(id string, raw []byte) ([]vorlageOut, error) {
 		if t.Kennfarbe != "" {
 			k := t.Kennfarbe
 			out[i].Kennfarbe = &k
+		}
+		if t.Fehlversuche >= 1 && t.Fehlversuche <= maxFailThreshold {
+			n := t.Fehlversuche
+			out[i].Fehlversuche = &n
 		}
 	}
 	return out, nil

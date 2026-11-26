@@ -19,6 +19,10 @@ import { CheckVerlauf } from "./Verlauf";
 import { vor } from "./zeit";
 import { WartungHinweis, WartungMarke, WartungSteuerung } from "./Wartung";
 
+// Fehlschläge in Folge bis zum Alarm, wenn der Sensor nichts Eigenes hat
+// (Standard der Zentrale seit 1.0.6; Warnungen gehen sofort raus).
+export const STANDARD_FEHLVERSUCHE = 3;
+
 // Anzeigezustand: Status des letzten Laufs, dazu „neu“ und „pausiert“.
 export type Anzeige = CheckStatus | "neu" | "pause";
 
@@ -438,7 +442,7 @@ export function CheckFormular(props: {
   // Namen der Checks am Gerät (für die Nummer im Vorschlag, wie die Zentrale)
   vergeben?: string[];
   // Vorlage bearbeiten statt Sensor anlegen: speichert über diese Funktion
-  speichern?: (body: { name: string; typ: CheckTyp; ziel: CheckZiel; intervall_sekunden: number }) => Promise<void>;
+  speichern?: (body: { name: string; typ: CheckTyp; ziel: CheckZiel; intervall_sekunden: number; fehlversuche: number }) => Promise<void>;
   titel?: string;
   onFertig: (neueId?: string) => void;
   melden: (e: unknown) => void;
@@ -452,6 +456,8 @@ export function CheckFormular(props: {
   const [eigenerName, setEigenerName] = useState<string | null>(c?.name ?? v?.name ?? (props.speichern ? "" : null));
   const [typ, setTyp] = useState<CheckTyp>(c?.typ ?? v?.typ ?? "ping");
   const [intervall, setIntervall] = useState(c?.intervall_sekunden ?? v?.intervall_sekunden ?? 300);
+  // 1.0.6: Fehlversuche bis zum Alarm, 0 = Standard der Zentrale
+  const [fehlversuche, setFehlversuche] = useState(c?.fehlversuche ?? v?.fehlversuche ?? 0);
   const [geraetId, setGeraetId] = useState(props.geraet.id);
   // Neuer Check: Adresse des Geräts als Vorschlag, frei änderbar.
   const [host, setHost] = useState(z.host ?? (c || v ? "" : adresse));
@@ -647,10 +653,18 @@ export function CheckFormular(props: {
     // Leer oder unverändert beim Vorschlag: Die Zentrale bildet den Namen.
     const eigen = (eigenerName ?? "").trim();
     const name = props.speichern ? eigen : eigen === "" || (!c && eigen === vorschlag) ? "" : eigen;
-    const body = { name, typ, ziel: ziel(), intervall_sekunden: intervall, aktiv: c?.aktiv ?? true, ...(v ? { herkunft: v.name } : {}) };
+    const body = {
+      name,
+      typ,
+      ziel: ziel(),
+      intervall_sekunden: intervall,
+      aktiv: c?.aktiv ?? true,
+      fehlversuche,
+      ...(v ? { herkunft: v.name } : {}),
+    };
     try {
       if (props.speichern) {
-        await props.speichern({ name, typ, ziel: ziel(), intervall_sekunden: intervall });
+        await props.speichern({ name, typ, ziel: ziel(), intervall_sekunden: intervall, fehlversuche });
         props.onFertig();
       } else if (c) {
         await api("PUT", `/api/v1/checks/${c.id}`, geraetId !== props.geraet.id ? { ...body, geraet_id: geraetId } : body);
@@ -755,6 +769,17 @@ export function CheckFormular(props: {
               </option>
             ))}
             {!intervalle.some(([w]) => w === intervall) && <option value={intervall}>{intervallText(intervall)}</option>}
+          </select>
+        </label>
+        <label className="feld">
+          <span>Alarm nach</span>
+          <select value={fehlversuche} onChange={(e) => setFehlversuche(Number(e.target.value))}>
+            <option value={0}>Standard ({STANDARD_FEHLVERSUCHE} Fehlschläge)</option>
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>
+                {n === 1 ? "1 Fehlschlag (sofort)" : `${n} Fehlschlägen in Folge`}
+              </option>
+            ))}
           </select>
         </label>
 

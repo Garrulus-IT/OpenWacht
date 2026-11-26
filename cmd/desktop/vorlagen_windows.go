@@ -102,7 +102,7 @@ func vorlagenMalen(m *maler, daten any) {
 						sKnopf{text: "Löschen", art: "loeschen", wert: v.ID, stil: kGefahr})
 				}
 				tab = append(tab, []sZelle{name, {text: desktop.TypName(v.Typ)}, {text: v.Wo()},
-					{text: desktop.ZielText(v.Typ, v.Ziel), farbe: th.f.Leise}, {text: desktop.IntervallKurz(v.Intervall)}, {knoepfe: k}})
+					{text: desktop.ZielText(v.Typ, v.Ziel), farbe: th.f.Leise}, {text: vorlageTakt(v)}, {knoepfe: k}})
 			}
 			m.tabelle([]sSpalte{{"Vorlage", 22, false}, {"Art", 13, false}, {"misst", 8, false}, {"Vorbelegung", 21, false},
 				{"Takt", 7, false}, {"", 29, false}}, tab)
@@ -319,11 +319,14 @@ func vorlageDialog(v *desktop.Vorlage, bearbeiten bool) {
 	}
 	d := neuerDialog(f.hwnd, titel)
 	typ := "ping"
-	d.werte["intervall"] = "300"
+	d.werte["intervall"], d.werte["fehlversuche"] = "300", "0"
 	notiz := ""
 	if v != nil {
 		typ, notiz = v.Typ, v.Notiz
 		d.werte["name"], d.werte["intervall"] = v.Name, strconv.Itoa(v.Intervall)
+		if v.Fehlversuche != nil {
+			d.werte["fehlversuche"] = strconv.Itoa(*v.Fehlversuche)
+		}
 		if t, ok := desktop.TypNach(v.Typ); ok {
 			for k, w := range desktop.WerteAusZiel(t, v.Ziel) {
 				d.werte["z:"+k] = w
@@ -387,7 +390,9 @@ func vorlageDialog(v *desktop.Vorlage, bearbeiten bool) {
 				}
 			}
 		}
-		d.auswahl("intervall", "Intervall", ivTexte, ivWerte, "")
+		d.auswahl("intervall", "Intervall", ivTexte, ivWerte, "").halb = true
+		fvTexte, fvWerte := desktop.FehlversucheAuswahl()
+		d.auswahl("fehlversuche", "Alarm nach", fvTexte, fvWerte, "").halb = true
 	}
 	d.speichern = func(d *dialog, fertig func(error)) {
 		t, ok := desktop.TypNach(d.werte["typ"])
@@ -407,8 +412,9 @@ func vorlageDialog(v *desktop.Vorlage, bearbeiten bool) {
 			return
 		}
 		iv, _ := strconv.Atoi(d.werte["intervall"])
+		fv, _ := strconv.Atoi(d.werte["fehlversuche"])
 		body := map[string]any{"name": strings.TrimSpace(d.werte["name"]), "typ": t.Schluessel, "ziel": ziel,
-			"intervall_sekunden": iv, "notiz": notiz}
+			"intervall_sekunden": iv, "notiz": notiz, "fehlversuche": fv}
 		a.imHintergrund(func(ctx context.Context, cl desktop.Client) error {
 			if bearbeiten {
 				return cl.Anfrage(ctx, http.MethodPut, "/api/v1/sensor-vorlagen/"+v.ID, body, nil)
@@ -709,3 +715,12 @@ func kennfarbeDialog(k *desktop.KennfarbeEintrag) {
 }
 
 func komma(x float64) string { return strings.Replace(strconv.FormatFloat(x, 'f', 1, 64), ".", ",", 1) }
+
+// vorlageTakt: „5 Min.“, mit eigenen Fehlversuchen „5 Min. · 5×“ (1.0.6).
+func vorlageTakt(v desktop.Vorlage) string {
+	t := desktop.IntervallKurz(v.Intervall)
+	if v.Fehlversuche != nil && *v.Fehlversuche > 0 {
+		t += " · " + strconv.Itoa(*v.Fehlversuche) + "×"
+	}
+	return t
+}

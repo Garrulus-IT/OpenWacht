@@ -244,6 +244,7 @@ export interface Vorlage {
   braucht_adresse: boolean;
   geaendert?: string;
   kennfarbe_id?: string; // 1.0.1: nur in eigenen Vorlagensätzen
+  fehlversuche?: number | null; // 1.0.6: null = Standard der Zentrale
 }
 
 export interface Check {
@@ -267,6 +268,9 @@ export interface Check {
   herkunft: string | null;
   am_agent: boolean;
   veraltet: boolean;
+  // 1.0.6: eigene Fehlversuche bis zum Alarm (null = Standard) und die geltende Zahl
+  fehlversuche: number | null;
+  fehlversuche_gilt: number;
 }
 
 // Was die Zentrale meldet (Schalter der Zentrale). Schwellen 0 = aus.

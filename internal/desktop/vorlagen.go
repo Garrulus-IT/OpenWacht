@@ -26,6 +26,8 @@ type Vorlage struct {
 	AmAgent        bool            `json:"am_agent"`
 	BrauchtAdresse bool            `json:"braucht_adresse"`
 	KennfarbeID    string          `json:"kennfarbe_id,omitempty"`
+	// 1.0.6: Fehlversuche bis zum Alarm (nil = Standard)
+	Fehlversuche *int `json:"fehlversuche,omitempty"`
 }
 
 // VorlagenSatz: mehrere Vorlagen für eine Anwendung.
@@ -149,6 +151,9 @@ func SatzEingabe(name, notiz string, eintraege []Vorlage) map[string]any {
 		e := map[string]any{"name": v.Name, "typ": v.Typ, "ziel": v.Ziel, "intervall_sekunden": v.Intervall, "notiz": v.Notiz}
 		if v.KennfarbeID != "" {
 			e["kennfarbe_id"] = v.KennfarbeID
+		}
+		if v.Fehlversuche != nil && *v.Fehlversuche > 0 {
+			e["fehlversuche"] = *v.Fehlversuche
 		}
 		s[i] = e
 	}

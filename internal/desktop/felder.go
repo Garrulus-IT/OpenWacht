@@ -276,6 +276,28 @@ var Intervalle = []struct {
 	{900, "15 Minuten"}, {1800, "30 Minuten"}, {3600, "1 Stunde"}, {21600, "6 Stunden"}, {86400, "1 Tag"},
 }
 
+// StandardFehlversuche: Fehlschläge in Folge bis zum Alarm, wenn ein Sensor
+// nichts Eigenes hat (Standard der Zentrale seit 1.0.6).
+const StandardFehlversuche = 3
+
+// FehlversucheAuswahl: Texte und Werte für „Alarm nach“ (0 = Standard).
+func FehlversucheAuswahl() (texte, werte []string) {
+	texte = append(texte, "Standard ("+strconv.Itoa(StandardFehlversuche)+" Fehlschläge)")
+	werte = append(werte, "0")
+	for n := 1; n <= 10; n++ {
+		texte, werte = append(texte, FehlversucheText(n)), append(werte, strconv.Itoa(n))
+	}
+	return texte, werte
+}
+
+// FehlversucheText: „1 Fehlschlag (sofort)“, „5 Fehlschlägen in Folge“.
+func FehlversucheText(n int) string {
+	if n == 1 {
+		return "1 Fehlschlag (sofort)"
+	}
+	return strconv.Itoa(n) + " Fehlschlägen in Folge"
+}
+
 // IntervallText: „5 Minuten“ bzw. „450 s“ für Werte außerhalb der Liste.
 func IntervallText(s int) string {
 	for _, i := range Intervalle {

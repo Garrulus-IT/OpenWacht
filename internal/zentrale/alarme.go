@@ -822,7 +822,7 @@ func (s *Server) alertRoundR(ctx context.Context) (sent, failed int, err error) 
 	acked := s.syncAlarms(ctx, tx, now, maint)
 
 	rows, err := tx.Query(ctx, `SELECT check_id::text, tenant_name, check_name, status, message, fails,
-		channel_id::text, coalesce(alerted, ''), alerted_at FROM openwacht.alert_candidates()`)
+		channel_id::text, coalesce(alerted, ''), alerted_at, fail_threshold FROM openwacht.alert_candidates()`)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -839,8 +839,9 @@ func (s *Server) alertRoundR(ctx context.Context) (sent, failed int, err error) 
 		var fails int
 		var channel, alerted string
 		var alertedAt *time.Time
+		var threshold *int
 		if err := rows.Scan(&p.checkID, &p.item.Tenant, &p.item.Check, &p.status, &p.item.Message, &fails,
-			&channel, &alerted, &alertedAt); err != nil {
+			&channel, &alerted, &alertedAt, &threshold); err != nil {
 			rows.Close()
 			return 0, 0, err
 		}
@@ -848,7 +849,7 @@ func (s *Server) alertRoundR(ctx context.Context) (sent, failed int, err error) 
 		if alertedAt != nil {
 			at = *alertedAt
 		}
-		ev := alarm.Decide(p.status, fails, alerted, at, s.cfg.AlertThreshold, s.cfg.AlertReminder, now)
+		ev := alarm.Decide(p.status, fails, alerted, at, s.threshold(threshold), s.cfg.AlertReminder, now)
 		if ev == alarm.None || ev == alarm.Reminder && acked[alarmKeyCheck(p.checkID)] ||
 			suppressed(ev, maint.check(p.checkID)) {
 			continue
@@ -1239,3 +1240,16 @@ func (s *Server) snmpAlerts(ctx context.Context, tx pgx.Tx, now time.Time, acked
 	}
 	return rows.Err()
 }
+
+// threshold: Fehlschläge in Folge bis zum Alarm für einen Sensor; nil heißt
+// Standard der Zentrale (1.0.6).
+func (s *Server) threshold(perCheck *int) int {
+	if perCheck != nil && *perCheck >= 1 && *perCheck <= maxFailThreshold {
+		return *perCheck
+	}
+	return s.cfg.AlertThreshold
+}
+
+// maxFailThreshold: höchste einstellbare Zahl an Fehlversuchen je Sensor
+// (wie die Prüfung in Migration 0061).
+const maxFailThreshold = 10

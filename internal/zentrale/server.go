@@ -92,7 +92,8 @@ type Config struct {
 	AlertTargets *alarm.Targets
 	// AlertPoll: wie oft nach zu meldenden Ereignissen gesehen wird (Standard 15 s).
 	AlertPoll time.Duration
-	// AlertThreshold: Fehlschläge in Folge bis zum Alarm (Standard 2).
+	// AlertThreshold: Fehlschläge in Folge bis zum Alarm (Standard 3, bis
+	// 1.0.5 2); je Sensor änderbar (fail_threshold, 1.0.6).
 	AlertThreshold int
 	// AlertReminder: Erinnerung bei anhaltendem Fehler (Standard 12 h; negativ = aus).
 	AlertReminder time.Duration
@@ -193,7 +194,7 @@ func (c *Config) setDefaults() {
 		c.AlertPoll = 15 * time.Second
 	}
 	if c.AlertThreshold == 0 {
-		c.AlertThreshold = 2
+		c.AlertThreshold = 3
 	}
 	if c.AlertReminder == 0 {
 		c.AlertReminder = 12 * time.Hour

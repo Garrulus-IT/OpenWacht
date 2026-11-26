@@ -98,8 +98,10 @@ func newTestServerNoCleanup() (*Server, *httptest.Server) {
 	srv.Start()
 	u := mustURL(srv.URL)
 	vNtfy = newFakeNtfy()
+	// AlertThreshold 2: Die Abläufe der Alarm-Tests sind mit zwei Fehlschlägen
+	// geschrieben; den Standard 3 und die Zahl je Sensor prüft TestFehlversuche.
 	s, err := New(Config{BaseURL: u, PasswordParams: &testParams, LoginsPerMinutePerIP: 1000, UserRequestsPerMinute: 1 << 30, AlertCollect: -1,
-		AlertTargets: alarm.NewTargets(vNtfy.URL, "https://ntfy.test.invalid", "http://127.0.0.1:9")}, pool, testKey)
+		AlertThreshold: 2, AlertTargets: alarm.NewTargets(vNtfy.URL, "https://ntfy.test.invalid", "http://127.0.0.1:9")}, pool, testKey)
 	if err != nil {
 		panic(err)
 	}

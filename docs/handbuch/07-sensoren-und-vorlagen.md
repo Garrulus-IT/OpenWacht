@@ -28,6 +28,14 @@ Agent-Sensoren laufen höchstens jede Minute; Messwerte vom Agent kommen gesamme
 
 Agent-Sensoren sind **feste Messarten mit Parametern**, keine Skripte: Die Zentrale kann darüber nichts ausführen.
 
+**Alarm nach:** Ein Sensor meldet „kritisch“ oder „unbekannt“ erst nach **3 Fehlschlägen in Folge** (bis 1.0.5 nach 2),
+damit ein kurzer Aussetzer, etwa ein Neustart oder ein verlorenes Ping-Paket, keinen Alarm auslöst. Am Sensor lässt
+sich das unter „Alarm nach“ ändern: 1 (sofort) bis 10 Fehlschläge. Mit 5 Minuten Takt und 3 Fehlschlägen kommt ein
+Alarm also nach etwa 10 bis 15 Minuten. Warnungen (z. B. Zertifikat läuft bald ab) gehen weiter sofort raus. Eigene
+Vorlagen und eigene Vorlagensätze tragen den Wert mit und geben ihn beim Anwenden an den Sensor weiter. Für Agents
+(„meldet sich nicht“) und SNMP-Geräte („antwortet nicht“) gilt eigenes: Sie gelten erst nach drei ausgebliebenen
+Meldungen bzw. Abfragen als stumm.
+
 **Löschen** direkt im Reiter „Sensoren“: unter dem Namen „Löschen“, mit Bestätigung. Über der Tabelle
 steht je Vorlage bzw. Vorlagensatz, aus dem Sensoren stammen, „Von diesem Gerät entfernen“: Das löscht alle Sensoren
 dieser Herkunft am Gerät auf einmal (z. B. einen versehentlich angewandten Satz), andere Sensoren bleiben. Verlauf und

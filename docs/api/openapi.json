@@ -1685,6 +1685,17 @@
           "veraltet": {
             "type": "boolean",
             "description": "Ergebnis älter als erwartet"
+          },
+          "fehlversuche": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "eigene Fehlversuche bis zum Alarm (1 bis 10), null = Standard der Zentrale"
+          },
+          "fehlversuche_gilt": {
+            "type": "integer",
+            "description": "geltende Fehlversuche bis zum Alarm"
           }
         },
         "required": [
