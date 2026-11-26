@@ -55,6 +55,10 @@
   trägt Programmbeschreibung, Version und das Bildzeichen
   ([Kapitel 8](handbuch/08-alarme-und-wartung.md#fenster-wie-die-weboberfläche-ab-106)). Unter Wine getestet, auf
   echtem Windows noch nicht. Die Stückliste führt die eingebetteten Schriften (TTF) mit.
+- **Signieren unter Windows vorbereitet:** `tools/signieren/authenticode.ps1` signiert mit dem Zertifikat aus Certum
+  SimplySign Agent und Desktop-App, baut die MSI aus den signierten Agents neu, signiert sie, berechnet
+  `SHA256SUMS` neu und prüft alles ([Kapitel 15](handbuch/15-signieren-und-verteilen.md)). Die Dateien von 1.0.6
+  sind noch unsigniert, bis das Zertifikat ausgestellt ist.
 - **Agent-MSI mit Assistent:** Per Doppelklick führt das MSI durch Zentrale, Token, Sensor-Freigaben (Dienste,
   automatische Dienste, Prozesse, Dateien mit Ordnern, Leistungsindikatoren, Hyper-V) und Sammler-Netze, mit Prüfung
   der Eingaben und eigenem Kopf in Nachtblau. Still per GPO/Intune gehen dieselben Freigaben über die neuen

@@ -4,8 +4,9 @@ Den Windows-Agent gibt es als MSI. Damit Smart App Control (SAC) ihn startet und
 Programm **und** MSI mit einem Authenticode-Zertifikat einer öffentlichen Zertifizierungsstelle signiert sein. Ein
 selbst erzeugtes Zertifikat hilft dagegen nicht.
 
-> **Stand 1.0: Programm und MSI sind nicht Authenticode-signiert.** Das Zertifikat folgt nach 1.0.
-> Bis dahin gilt:
+> **Stand 1.0.6: Programme und MSI sind noch nicht Authenticode-signiert.** Ein Certum „Open Source Code Signing in
+> the Cloud“ ist beantragt; sobald es ausgestellt ist, signiert der Herausgeber jedes Release mit
+> `tools/signieren/authenticode.ps1` (unten). Bis dahin gilt:
 >
 > - **Echtheit prüfen** über die signierten Prüfsummen: `SHA256SUMS` ist mit dem Update-Schlüssel signiert
 >   (`SHA256SUMS.sig`, Kennungen in Kapitel 12); das Offline-Paket prüft das selbst (`installieren.sh -pruefen
@@ -57,7 +58,29 @@ Nach der Ausstellung:
 Signierte Dateien bleiben nach Ablauf gültig, wenn beim Signieren ein **Zeitstempel** gesetzt wurde (immer mit
 Zeitstempel signieren, siehe unten).
 
-## Ablauf je Release
+## Ablauf je Release unter Windows mit SimplySign (ab 1.0.6)
+
+Certum SimplySign hält den Schlüssel in der Cloud. **SimplySign Desktop** bindet ihn nach der Anmeldung (Code aus der
+SimplySign-App auf dem Handy) als virtuelle Karte ein; das Zertifikat steht dann unter „Eigene Zertifikate“, und
+`signtool` signiert über den Fingerabdruck. Einmal einrichten: SimplySign Desktop, Windows SDK
+(`winget install Microsoft.WindowsSDK.10.0.26100`, enthält `signtool.exe`), Go und Git, das Repository klonen.
+
+Je Release auf dem Windows-PC des Herausgebers, im Wurzelverzeichnis des Repositorys, Stand des Release-Tags:
+
+1. Ausgabeordner `dist` bereitlegen: CI-Artefakt entpacken oder selbst bauen (`go run ./tools/build -ziele alle`;
+   der Bau ist reproduzierbar, die Prüfsummen müssen gleich sein).
+2. SimplySign Desktop anmelden.
+3. `.\tools\signieren\authenticode.ps1 -Fingerabdruck <SHA-1 des Zertifikats>`. Das Skript signiert Agent und
+   Desktop-App (amd64, arm64) mit Zeitstempel von Certum, baut die MSI aus den signierten Agents neu
+   (`-msi-neu`), signiert die MSI, berechnet `SHA256SUMS` neu (`-summen-neu`) und prüft jede Datei mit
+   `Get-AuthenticodeSignature` (gültig, dieses Zertifikat, mit Zeitstempel). Es warnt, wenn der Fingerabdruck nicht in
+   `internal/update/authenticode.txt` steht oder das Zertifikat in weniger als 30 Tagen abläuft.
+4. Offline `SHA256SUMS` mit dem Update-Schlüssel signieren (Schritt 6 unten).
+
+Ein Certum-Open-Source-Zertifikat erlaubt laut Certum bis zu 5000 Signaturen im Monat; ein Release braucht sechs
+(4 Programme, 2 MSI).
+
+## Ablauf je Release (allgemein, z. B. unter Linux mit osslsigncode)
 
 Reihenfolge ist wichtig: Das MSI enthält das Programm, also erst das Programm signieren, dann das MSI daraus bauen
 und signieren, zuletzt die Prüfsummen bilden und offline signieren.
@@ -92,7 +115,7 @@ Prüfen: `osslsigncode verify -in dist/openwacht-agent_<version>_amd64.msi` bzw.
 `Get-AuthenticodeSignature .\openwacht-agent_<version>_amd64.msi` (Status `Valid`). `-msi-neu` baut das MSI
 reproduzierbar: Wer das signierte Programm hat, bekommt dasselbe unsignierte MSI.
 
-Getestet (22.11.2026, Sandbox): `osslsigncode` 2.8 signiert und prüft MSI und Programm mit einem Testzertifikat,
+`authenticode.ps1` ist noch nicht mit dem echten Zertifikat gelaufen (Stand 1.0.6). Getestet (22.11.2026, Sandbox): `osslsigncode` 2.8 signiert und prüft MSI und Programm mit einem Testzertifikat,
 der Inhalt des MSI bleibt dabei gleich. **Nicht getestet:** Installation auf echtem Windows (keine Umgebung),
 Signieren mit SimplySign, Verhalten von SAC mit dem gekauften Zertifikat. Vor dem ersten Einsatz auf echtem Windows prüfen: Installation
 des MSI, Start des Dienstes, Rechte des Programmverzeichnisses und die Meldung des Agents in der Oberfläche.
