@@ -143,12 +143,11 @@ func msiDialoge() []msiDlg {
 			y += 20
 		}
 	}
-	sensoren = append(sensoren, text("Hinweis", y+6, 24, "Mehrere Ordner bzw. Objekte trennst du mit Komma. Später änderst du "+
-		"das mit „openwacht-agent sensoren“ oder bei einem Update mit diesem Assistenten."))
+	sensoren = append(sensoren, text("Hinweis", y+4, 12, "Mehrere Ordner bzw. Objekte trennst du mit Komma."))
 	return []msiDlg{
 		{name: "WillkommenDlg", titel: titel, attr: modal, vor: "Weiter", abbruch: "Abbrechen", ctrls: rahmen(
 			"Willkommen",
-			"Dieser Assistent richtet den OpenWacht-Agent auf diesem Rechner ein.",
+			"Richtet den OpenWacht-Agent auf diesem Rechner ein.",
 			kZurueckAus, kWeiter, kAbbrechen,
 			text("Text", 72, 64, "Der Agent läuft als Dienst „openwacht-agent“ und meldet Messwerte dieses Rechners "+
 				"verschlüsselt an deine OpenWacht-Zentrale. Er nimmt keine Verbindungen an und führt keine Befehle aus, "+
@@ -158,35 +157,34 @@ func msiDialoge() []msiDlg {
 		)},
 		{name: "ZentraleDlg", titel: titel, attr: modal, vor: "Weiter", abbruch: "Abbrechen", ctrls: rahmen(
 			"Verbindung zur Zentrale",
-			"Bei einem Update eines registrierten Agents bleiben Adresse und Token leer.",
+			"Bei einem Update bleiben Adresse und Token leer.",
 			kZurueck, kWeiter, kAbbrechen,
-			text("LZentrale", 72, 12, "&Adresse des Agent-Ports, z. B. https://openwacht.firma.de:8444"),
+			text("LZentrale", 72, 12, "Adresse der Zentrale mit Port für Agents, z. B. https://openwacht.firma.de:8444"),
 			feld("Zentrale", "ZENTRALE", 85, ctlFeld, 250),
-			text("LToken", 112, 12, "Registrierungs-&Token (Agent-Token)"),
+			text("LToken", 112, 12, "Registrierungs-Token (Agent-Token)"),
 			feld("Token", "TOKEN", 125, ctlFeld|ctlPasswort, 250),
-			text("LHost", 152, 12, "Name des Rechners in OpenWacht (&leer = Computername)"),
+			text("LHost", 152, 12, "Name des Rechners in OpenWacht (leer = Computername)"),
 			feld("Host", "HOSTNAME", 165, ctlFeld, 63),
 			text("Hinweis", 194, 30, "Der Agent meldet sich damit einmal an und bekommt ein eigenes Zertifikat. Das Token "+
 				"wird nicht gespeichert und erscheint nicht im Installationsprotokoll."),
 		)},
 		{name: "SensorenDlg", titel: titel, attr: modal, vor: "Weiter", abbruch: "Abbrechen", ctrls: append(rahmen(
 			"Sensoren freigeben",
-			"Nur was du hier freigibst, darf die Zentrale auf diesem Rechner messen lassen. Ohne Häkchen meldet der "+
-				"Agent nur CPU, Speicher, Platten und Netz.",
+			"Ohne Häkchen meldet der Agent nur CPU, Speicher, Platten und Netz.",
 			kZurueck, kWeiter, kAbbrechen,
 		), sensoren...)},
 		{name: "SammlerDlg", titel: titel, attr: modal, vor: "Weiter", abbruch: "Abbrechen", ctrls: rahmen(
 			"Sammler für SNMP-Geräte",
-			"Freiwillig: Der Agent fragt SNMP-Geräte in seinem Netz ab, die die Zentrale selbst nicht erreicht.",
+			"Freiwillig: SNMP-Geräte abfragen, die die Zentrale nicht erreicht.",
 			kZurueck, kWeiter, kAbbrechen,
-			text("LNetze", 72, 12, "&Netze, in denen der Agent SNMP-Geräte abfragen darf (leer = kein Sammler):"),
+			text("LNetze", 72, 12, "Netze, in denen der Agent SNMP-Geräte abfragen darf (leer = kein Sammler):"),
 			msiCtrl{name: "Netze", typ: "Edit", x: 20, y: 85, w: 330, h: 18, attr: ctlFeld, prop: "NETZE", text: "{250}", fokus: true},
 			text("Hinweis", 112, 40, "Zum Beispiel 10.20.0.0/16, mehrere mit Komma getrennt. Welche Geräte der Sammler "+
 				"abfragt, legst du danach in OpenWacht beim Gerät unter SNMP fest („Abgefragt von“)."),
 		)},
 		{name: "BereitDlg", titel: titel, attr: modal, vor: "Installieren", abbruch: "Abbrechen", ctrls: rahmen(
 			"Bereit zur Installation",
-			"Der Agent wird nach C:\\Program Files\\OpenWacht installiert.",
+			"Ziel: C:\\Program Files\\OpenWacht",
 			kZurueck,
 			msiCtrl{name: "Installieren", typ: "PushButton", x: 236, y: 243, w: 56, h: 17, attr: ctlKnopf | ctlSchild, text: "&Installieren", fokus: true},
 			kAbbrechen,
@@ -202,7 +200,7 @@ func msiDialoge() []msiDlg {
 		)},
 		{name: "WartungDlg", titel: titel, attr: modal, vor: "Abbrechen", abbruch: "Abbrechen", ctrls: rahmen(
 			"OpenWacht-Agent ist installiert",
-			"Diese Version ist auf dem Rechner schon eingerichtet.",
+			"Diese Version ist schon eingerichtet.",
 			msiCtrl{name: "Entfernen", typ: "PushButton", x: 236, y: 243, w: 56, h: 17, attr: ctlKnopf | ctlSchild, text: "&Entfernen", fokus: true},
 			kAbbrechen,
 			text("Text", 72, 60, "„Entfernen“ hält den Dienst an und entfernt Agent und Dienst. Die Registrierung im "+
@@ -217,7 +215,7 @@ func msiDialoge() []msiDlg {
 		)},
 		{name: "FatalErrorDlg", titel: titel, attr: modal, vor: "Fertig", abbruch: "Fertig", ctrls: rahmen(
 			"Einrichtung fehlgeschlagen",
-			"Der Agent wurde nicht installiert; der Rechner ist unverändert.",
+			"Der Rechner ist unverändert.",
 			msiCtrl{name: "Fertig", typ: "PushButton", x: 304, y: 243, w: 56, h: 17, attr: ctlKnopf, text: "&Fertig", fokus: true},
 			text("Text", 72, 80, "Häufige Ursachen: Adresse oder Token falsch, Token abgelaufen oder schon benutzt, oder die "+
 				"Zentrale ist von hier nicht erreichbar (Port 8444). Einzelheiten stehen im Protokoll, wenn du das Paket mit "+
@@ -225,7 +223,7 @@ func msiDialoge() []msiDlg {
 		)},
 		{name: "UserExitDlg", titel: titel, attr: modal, vor: "Fertig", abbruch: "Fertig", ctrls: rahmen(
 			"Abgebrochen",
-			"Der Agent wurde nicht installiert; der Rechner ist unverändert.",
+			"Der Rechner ist unverändert.",
 			msiCtrl{name: "Fertig", typ: "PushButton", x: 304, y: 243, w: 56, h: 17, attr: ctlKnopf, text: "&Fertig", fokus: true},
 		)},
 		{name: "CancelDlg", titel: titel, attr: modal, vor: "Nein", abbruch: "Nein", ctrls: []msiCtrl{
@@ -370,7 +368,7 @@ func msiUITabellen() []msiTable {
 		{"Color", cI4N()}, {"StyleBits", cI2N()}}, rows: [][]any{
 		{"OwText", "Segoe UI", 9, nil, nil},
 		{"OwTitel", "Segoe UI", 12, 0xffffff, 1}, // fett, weiß auf dem Banner
-		{"OwHell", "Segoe UI", 9, 0xf6ede4, nil}, // --nacht-tinte #e4edf6 (BGR)
+		{"OwHell", "Segoe UI", 9, 0xf6ede4, 0},   // --nacht-tinte #e4edf6 (BGR)
 	}}
 	bild := msiTable{name: "Binary", cols: []msiCol{{"Name", cK(72)}, {"Data", cV()}}, rows: [][]any{
 		{"OwBanner", msiStrom(msiBanner())},
