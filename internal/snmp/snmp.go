@@ -67,6 +67,9 @@ type Config struct {
 	// ExtraText (1.0.8): aus dem Text dieser eigenen OIDs je eine Zahl lesen,
 	// geprüft mit CheckExtraText
 	ExtraText []TextZahl
+	// ExtraShow (1.0.10): von diesen eigenen OIDs den Text selbst melden,
+	// geprüft mit CheckExtraShow
+	ExtraShow []string
 	// Columns: eigene Tabellenspalten (0.47.0), geprüft mit CheckColumns
 	Columns []string
 }

@@ -458,3 +458,59 @@ func TestEinheitenUeberall(t *testing.T) {
 		}
 	}
 }
+
+// TestEvalOIDTextAnzeigen (1.0.10): Der Text des Geräts ist der Messwert, wenn
+// der Sensor es verlangt; ohne den Schalter bleibt es beim Hash.
+func TestEvalOIDTextAnzeigen(t *testing.T) {
+	now := time.Now()
+	const o = "1.3.6.1.4.1.2356.14.1.1.1.10.0"
+	const ver = "4.30.0503SU11"
+	mit := snapAt(now, snmp.ExtraValue{OID: o, TextHash: snmp.TextHash(ver), Text: ver})
+	ohne := snapAt(now, snmp.ExtraValue{OID: o, TextHash: snmp.TextHash(ver)})
+	for _, tc := range []struct {
+		name, spec string
+		cur        *snmp.Snapshot
+		status     string
+		in, metric string
+	}{
+		{"Text als Messwert", `{"oid":"` + o + `","text_zeigen":true}`, mit, checks.OK, "vorhanden", ver},
+		{"mit erwartetem Text", `{"oid":"` + o + `","text_zeigen":true,"gleich":"` + ver + `"}`, mit, checks.OK, "wie erwartet", ver},
+		{"weicht ab", `{"oid":"` + o + `","text_zeigen":true,"gleich":"4.20"}`, mit, checks.Crit, "weicht", ver},
+		{"noch nicht gelesen", `{"oid":"` + o + `","text_zeigen":true}`, ohne, checks.Unknown, "noch nicht gelesen", ""},
+		{"ohne Schalter kein Text", `{"oid":"` + o + `"}`, mit, checks.OK, "vorhanden", ""},
+	} {
+		sp, err := checks.Parse("snmp_oid", []byte(tc.spec))
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		res, record := evalOID(sp, tc.cur, nil, false)
+		if !record || res.Status != tc.status || !strings.Contains(res.Message, tc.in) || res.Metric != tc.metric {
+			t.Errorf("%s: record=%v %+v", tc.name, record, res)
+		}
+	}
+	// nicht mit Schwellen, Spalte, Rate, Zahl aus Text, Faktor oder Einheit
+	for _, raw := range []string{
+		`{"oid":"` + o + `","text_zeigen":true,"warnung_ueber":5}`, `{"oid":"` + o + `","text_zeigen":true,"rate":true}`,
+		`{"oid":"1.3.6.1.2.1.105.1.1.1.6","text_zeigen":true,"zusammenfassung":"anzahl"}`,
+		`{"oid":"` + o + `","text_zeigen":true,"zahl_aus_text":"erste"}`, `{"oid":"` + o + `","text_zeigen":true,"einheit":"V"}`,
+	} {
+		if _, err := checks.Parse("snmp_oid", []byte(raw)); err == nil {
+			t.Errorf("angenommen: %s", raw)
+		}
+	}
+	if _, err := checks.Parse("tcp", []byte(`{"host":"10.20.0.1","port":80,"text_zeigen":true}`)); err == nil {
+		t.Error("text_zeigen bei TCP angenommen")
+	}
+	// Aufträge aus den Sensoren: ohne Doppel, nur mit Schalter
+	var list []oidCheck
+	for _, raw := range []string{`{"oid":"` + o + `","text_zeigen":true}`, `{"oid":"` + o + `","text_zeigen":true,"gleich":"x"}`, `{"oid":"1.3.6.1.2.1.1.5.0"}`} {
+		sp, err := checks.Parse("snmp_oid", []byte(raw))
+		if err != nil {
+			t.Fatal(err)
+		}
+		list = append(list, oidCheck{spec: sp})
+	}
+	if got := extraShow(list); len(got) != 1 || got[0] != o {
+		t.Errorf("extraShow: %v", got)
+	}
+}

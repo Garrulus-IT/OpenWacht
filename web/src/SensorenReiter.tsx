@@ -6,7 +6,7 @@
 // auf einmal entfernen; Pausieren unter „Übersicht“.
 
 import { useEffect, useState, type CSSProperties } from "react";
-import { api, type Agent, type Check, type Geraet, type KennfarbeEintrag, type Sensor, type Vorlage, type VorlagenSatz } from "./api";
+import { api, meldungMitWert, type Agent, type Check, type Geraet, type KennfarbeEintrag, type Sensor, type Vorlage, type VorlagenSatz } from "./api";
 import { KennMarke, kennStil, type Kennfarbe } from "./kennfarbe";
 import { anzeige, anzeigeText, CheckFormular, istAgentArt, typText, zielText } from "./Checks";
 
@@ -99,6 +99,9 @@ function KennfarbeWahl(props: {
   );
 }
 
+// Entfernt: ausgenommener Wert einer Quelle, der in keiner Liste mehr steht.
+type Entfernt = { schluessel: string; gegenstand: string; name: string; begruendung: string; seit: string };
+
 export function SensorenReiter(props: {
   g: Geraet;
   agent: Agent | null;
@@ -126,6 +129,29 @@ export function SensorenReiter(props: {
   // Ausnehmen einzelner Werte einer Quelle (SNMP, NetApp …) mit Begründung (0.99.2)
   const [ausnehmen, setAusnehmen] = useState<Sensor | null>(null);
   const [grund, setGrund] = useState("");
+  // Entfernen: Ausnahme, die zusätzlich aus allen Listen verschwindet
+  const [entfernen, setEntfernen] = useState(false);
+  const [entfernt, setEntfernt] = useState<Entfernt[]>([]);
+  const quelle = props.sensoren.find((s) => s.art === "snmp")?.quelle_id ?? null;
+  const sensorZahl = props.sensoren.length;
+  // Die entfernten Werte der Quelle; neu lesen, wenn sich die Zahl der Sensoren ändert.
+  useEffect(() => {
+    let aktiv = true;
+    if (!quelle) {
+      setEntfernt([]);
+      return;
+    }
+    api<{ entfernt: Entfernt[] }>("GET", `/api/v1/snmp/${quelle}/entfernt`)
+      .then((r) => {
+        if (aktiv) setEntfernt(r.entfernt);
+      })
+      .catch(() => {
+        if (aktiv) setEntfernt([]);
+      });
+    return () => {
+      aktiv = false;
+    };
+  }, [quelle, sensorZahl]);
   const freigabe = agent?.messwerte?.sensoren ?? null;
   const alle = liste ? [...liste.eingebaut, ...liste.eigene] : [];
   const vorlage = alle.find((v) => v.id === wahl) ?? null;
@@ -170,13 +196,16 @@ export function SensorenReiter(props: {
       setArbeitet(false);
     }
   };
-  const ausnahme = async (s: Sensor, an: boolean) => {
+  const ausnahme = async (s: { schluessel: string }, an: boolean, weg = false, begruendung = grund) => {
     setArbeitet(true);
     try {
-      if (an) await api("POST", "/api/v1/sensoren/ausnehmen", { schluessel: s.schluessel, begruendung: grund.trim() });
+      if (an) await api("POST", "/api/v1/sensoren/ausnehmen", { schluessel: s.schluessel, begruendung: begruendung.trim(), entfernen: weg });
       else await api("POST", "/api/v1/sensoren/einbeziehen", { schluessel: s.schluessel });
+      // sofort aus der Liste der entfernten Werte nehmen; der Rest kommt mit dem nächsten Laden
+      if (!an) setEntfernt((l) => l.filter((e) => e.schluessel !== s.schluessel));
       setAusnehmen(null);
       setGrund("");
+      setEntfernen(false);
       props.onGeaendert();
     } catch (e) {
       props.melden(e);
@@ -303,7 +332,7 @@ export function SensorenReiter(props: {
             className="formular formular-flach"
             onSubmit={(e) => {
               e.preventDefault();
-              void ausnahme(ausnehmen, true);
+              void ausnahme(ausnehmen, true, entfernen);
             }}
           >
             <h3 className="einschub-titel">„{ausnehmen.name}“ ausnehmen</h3>
@@ -322,9 +351,18 @@ export function SensorenReiter(props: {
                 onChange={(e) => setGrund(e.target.value)}
               />
             </label>
+            <label className="formular-voll">
+              <input type="checkbox" checked={entfernen} onChange={(e) => setEntfernen(e.target.checked)} /> Auch aus allen Listen
+              entfernen
+              <span className="klein">
+                {" "}
+                Der Wert steht dann nicht mehr bei den Sensoren, im Dashboard und auf Wandanzeigen. Unten unter „Entfernte
+                Werte“ kommt er zurück.
+              </span>
+            </label>
             <div className="aktionen">
               <button className="knopf knopf-haupt" disabled={arbeitet || grund.trim().length < 3}>
-                Ausnehmen
+                {entfernen ? "Entfernen" : "Ausnehmen"}
               </button>
               <button type="button" className="knopf" onClick={() => setAusnehmen(null)}>
                 Abbrechen
@@ -422,6 +460,7 @@ export function SensorenReiter(props: {
                         setSchritt("");
                         setBearbeite(null);
                         setGrund("");
+                        setEntfernen(false);
                         setAusnehmen(s);
                       }}
                     >
@@ -431,6 +470,16 @@ export function SensorenReiter(props: {
                   {props.darf && s.ausgenommen !== undefined && (
                     <button className="knopf-text klein" aria-label={`${s.name} wieder überwachen`} disabled={arbeitet} onClick={() => void ausnahme(s, false)}>
                       Wieder überwachen
+                    </button>
+                  )}
+                  {props.darf && s.art === "snmp" && s.ausgenommen !== undefined && (
+                    <button
+                      className="knopf-text klein"
+                      aria-label={`${s.name} aus der Liste entfernen`}
+                      disabled={arbeitet}
+                      onClick={() => void ausnahme(s, true, true, s.ausgenommen)}
+                    >
+                      Entfernen
                     </button>
                   )}
                 </td>
@@ -511,7 +560,7 @@ export function SensorenReiter(props: {
                   </td>
                   <td>
                     <span className={`signal signal-${a}${kennStil(sn?.kennfarbe, a).className}`} style={kennStil(sn?.kennfarbe, a).style} aria-hidden="true" />{" "}
-                    {c.veraltet ? "kein Ergebnis vom Agent" : a === "neu" || a === "pause" ? anzeigeText[a] : c.meldung}
+                    {c.veraltet ? "kein Ergebnis vom Agent" : a === "neu" || a === "pause" ? anzeigeText[a] : meldungMitWert(c)}
                   </td>
                   <td>
                     <KennfarbeWahl
@@ -537,6 +586,28 @@ export function SensorenReiter(props: {
           </tbody>
         </table>
       </div>
+      {entfernt.length > 0 && (
+        <details className="erweitert">
+          <summary>
+            Entfernte Werte ({entfernt.length})
+          </summary>
+          <p className="klein">
+            Diese Werte meldet das Gerät weiter, sie werden aber nicht mehr überwacht und nirgends angezeigt.
+          </p>
+          <ul>
+            {entfernt.map((e) => (
+              <li key={e.schluessel}>
+                {e.name} <span className="klein">({e.begruendung}, seit {new Date(e.seit).toLocaleDateString("de-DE")})</span>
+                {props.darf && (
+                  <button className="knopf-text klein" aria-label={`${e.name} wieder überwachen`} disabled={arbeitet} onClick={() => void ausnahme(e, false)}>
+                    Wieder überwachen
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       <p className="klein">
         Sensoren aus einer Vorlage sind Kopien: Ändert sich die Vorlage, bleiben sie, wie sie sind. Sensoren auf dem Agent sind feste
         Messarten mit Parametern, keine Skripte (Leitprinzip 1).

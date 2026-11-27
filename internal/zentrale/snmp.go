@@ -817,6 +817,7 @@ func (s *Server) pollSNMP(ctx context.Context, c claimedSNMP) {
 		} else {
 			oids = byID[c.id]
 			cfg.Extra, cfg.ExtraText, cfg.Columns = extraOIDs(oids), extraText(oids), extraColumns(oids)
+			cfg.ExtraShow = extraShow(oids)
 		}
 		snap, pollErr = s.snmpFor(c.tenant).Poll(ctx, cfg, prev)
 		if pollErr == nil && prev != nil && prev.Counters != nil && snap.Counters != nil {

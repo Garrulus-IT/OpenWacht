@@ -296,6 +296,10 @@ func deviceConfig(d agentproto.CollectorDevice) (snmp.Config, error) {
 	if err := snmp.CheckExtraText(cfg.ExtraText, d.Extra); err != nil {
 		return snmp.Config{}, err
 	}
+	if err := snmp.CheckExtraShow(d.ExtraShow, d.Extra); err != nil {
+		return snmp.Config{}, err
+	}
+	cfg.ExtraShow = d.ExtraShow
 	if err := snmp.CheckColumns(d.Columns); err != nil {
 		return snmp.Config{}, err
 	}

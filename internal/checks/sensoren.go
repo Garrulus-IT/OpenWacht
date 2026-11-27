@@ -172,6 +172,10 @@ func (s *Spec) normalizeOID() error {
 	if err := s.normalizeTextNumber(); err != nil {
 		return err
 	}
+	if s.TextShow && (s.Aggregate != "" || s.Rate || s.TextNumber != "" || s.Factor != 0 || s.Unit != "" ||
+		s.WarnAbove != nil || s.CritAbove != nil || s.WarnBelow != nil || s.CritBelow != nil) {
+		return errors.New("Text anzeigen: nur allein oder mit erwartetem Text, nicht mit Schwellen, Spalte, Rate, Zahl aus Text, Faktor oder Einheit")
+	}
 	if f := math.Abs(s.Factor); s.Factor != 0 && (math.IsNaN(f) || f < 1e-9 || f > 1e9) {
 		return errors.New("Faktor: nicht 0, Betrag zwischen 0,000000001 und 1000000000")
 	}

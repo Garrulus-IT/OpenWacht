@@ -4,7 +4,7 @@
 // Ein Klick auf den Sensor öffnet darunter den ausführlichen Verlauf.
 
 import { useCallback, useEffect, useState } from "react";
-import { api, type Sensor } from "./api";
+import { api, meldungMitWert, type Sensor } from "./api";
 import { bitrate } from "./Pegel";
 import { CheckVerlauf, ReihenVerlauf } from "./Verlauf";
 
@@ -189,7 +189,7 @@ export function GeraetSensoren(props: { sensoren: Sensor[]; d: SparkDaten | null
               <span className={`signal signal-${s.status}`} aria-hidden="true" />
               <span className="sparkzeile-text">
                 <span className="name">{s.name}</span>
-                <span className="klein">{s.meldung}</span>
+                <span className="klein">{meldungMitWert(s)}</span>
               </span>
               {r ? (
                 <SparkReihen

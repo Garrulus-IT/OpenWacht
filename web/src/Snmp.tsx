@@ -23,6 +23,7 @@ import { SnmpVerlauf } from "./Verlauf";
 import { prognoseSchluessel, PrognoseZeile, type PlattenPrognose } from "./Prognose";
 import { SparkReihen, type SparkDaten } from "./Sparkline";
 import { ReihenVerlauf } from "./Verlauf";
+import { PortBild, poeNachIndex, poeText, portNummer } from "./PortBild";
 import { bitrate, laufzeit, Pegel, prozent } from "./Pegel";
 import { bytes, vor } from "./zeit";
 import { TrapTeil } from "./Traps";
@@ -147,6 +148,10 @@ export function SnmpTeil(props: {
   const [alle, setAlle] = useState(false);
   // Schnittstelle, deren Verlauf aufgeklappt ist
   const [ifOffen, setIfOffen] = useState("");
+  // im Bild der Ports gewählter Port (ifIndex)
+  const [portWahl, setPortWahl] = useState<number | null>(null);
+  const [poeArbeitet, setPoeArbeitet] = useState(false);
+  const [poeHinweis, setPoeHinweis] = useState("");
   const aktuell = ueberwacht ?? q.ueberwacht;
   const geaendert = ueberwacht !== null && ueberwacht.join("\n") !== q.ueberwacht.join("\n");
 
@@ -377,6 +382,111 @@ export function SnmpTeil(props: {
           </tbody>
         </table>
       )}
+
+      {m && (
+        <PortBild
+          ifs={m.schnittstellen}
+          poe={m.poe}
+          ueberwacht={aktuell}
+          gewaehlt={portWahl}
+          name={m.system.name || props.g.name}
+          onWahl={(i) => {
+            setPortWahl(i);
+            setPoeHinweis("");
+          }}
+        />
+      )}
+      {m &&
+        portWahl !== null &&
+        (() => {
+          const i = m.schnittstellen.find((x) => x.index === portWahl);
+          if (!i) return null;
+          const nr = portNummer(m.schnittstellen, i.index);
+          const p = poeNachIndex(m.poe).get(i.index);
+          const poeSensor = async () => {
+            if (!p) return;
+            setPoeArbeitet(true);
+            try {
+              await api("POST", `/api/v1/geraete/${props.g.id}/checks`, {
+                name: `${props.g.name}: PoE Port ${nr} liefert Strom`.slice(0, 100),
+                typ: "snmp_oid",
+                ziel: { oid: `1.3.6.1.2.1.105.1.1.1.6.${p.gruppe}.${p.port}`, gleich: "3" },
+                intervall_sekunden: 300,
+              });
+              setPoeHinweis(`Sensor „PoE Port ${nr} liefert Strom“ angelegt. Er steht im Reiter „Sensoren“.`);
+              props.onGeaendert();
+            } catch (e) {
+              props.melden(e);
+            } finally {
+              setPoeArbeitet(false);
+            }
+          };
+          return (
+            <div className="einschub port-einzel" role="region" aria-label={`Port ${nr}`}>
+              <h4 className="einschub-titel">
+                Port {nr}: {i.name}
+                {i.alias ? ` (${i.alias})` : ""}
+              </h4>
+              <dl className="eckdaten">
+                <dt>Status</dt>
+                <dd className={i.status !== "up" && aktuell.includes(i.name) ? "text-crit" : undefined}>
+                  {i.admin_an ? ifStatusText[i.status] : "abgeschaltet"}
+                </dd>
+                <dt>Geschwindigkeit</dt>
+                <dd>{geschwindigkeit(i.geschwindigkeit_bps)}</dd>
+                <dt>Verkehr</dt>
+                <dd>
+                  ein {i.ein_bps !== null ? bitrate(i.ein_bps) : "–"}, aus {i.aus_bps !== null ? bitrate(i.aus_bps) : "–"}
+                </dd>
+                <dt>Neue Fehler</dt>
+                <dd>{i.fehler_neu ?? "–"}</dd>
+                {p && (
+                  <>
+                    <dt>PoE</dt>
+                    <dd className={p.status === 4 || p.status === 6 ? "text-crit" : undefined}>{poeText[p.status] ?? "unbekannt"}</dd>
+                  </>
+                )}
+              </dl>
+              <div className="aktionen">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={aktuell.includes(i.name)}
+                    disabled={!props.darfAdmin}
+                    onChange={(e) => setUeberwacht(e.target.checked ? [...aktuell, i.name] : aktuell.filter((n) => n !== i.name))}
+                  />{" "}
+                  Überwachen (meldet, wenn der Port nicht verbunden ist)
+                </label>
+                {p && props.darfPflegen && (
+                  <button type="button" className="knopf" disabled={poeArbeitet} onClick={() => void poeSensor()}>
+                    PoE-Sensor für diesen Port anlegen
+                  </button>
+                )}
+                <button type="button" className="knopf" onClick={() => setPortWahl(null)}>
+                  Schließen
+                </button>
+              </div>
+              {poeHinweis && (
+                <p className="klein" role="status">
+                  {poeHinweis}
+                </p>
+              )}
+              {p && props.darfPflegen && (
+                <p className="klein">Der PoE-Sensor wird kritisch, sobald der Port keinen Strom mehr liefert.</p>
+              )}
+              <ReihenVerlauf
+                pfad={`/api/v1/snmp/${q.id}/verlauf`}
+                titel={`Verkehr ${i.name}`}
+                reihen={[
+                  { name: "if_ein:" + i.name, text: "ein" },
+                  { name: "if_aus:" + i.name, text: "aus" },
+                ]}
+                einheit=""
+                format={bitrate}
+              />
+            </div>
+          );
+        })()}
 
       {ifs.length > 0 && (
         <div className="tabelle-rahmen">

@@ -183,6 +183,14 @@ das auf. Das geht für jeden Wert von SNMP, Proxmox, NetApp, XenServer und ander
 Schnittstellen …), nicht für die Erreichbarkeit; dafür gibt es „Abfrage ausschalten“. Ausnehmen und Aufheben dürfen
 Operatoren und Admins, beides steht im Audit-Log. Bestätigen reicht dafür nicht: Ein bestätigter Alarm bleibt offen.
 
+**Ganz entfernen (ab 1.0.10):** Ein ausgenommener Wert steht weiter grau in der Liste. Soll er verschwinden, beim
+Ausnehmen den Haken „Auch aus allen Listen entfernen“ setzen oder bei einem schon ausgenommenen Wert „Entfernen“
+wählen. Er steht dann nicht mehr bei den Sensoren, im Dashboard und auf Wandanzeigen. Löschen lässt sich ein solcher
+Wert nicht: Das Gerät meldet ihn bei jeder Abfrage wieder. Unter der Tabelle der Sensoren erscheint deshalb
+„Entfernte Werte“ mit Begründung und Datum; „Wieder überwachen“ holt einen Wert von dort zurück. Verschwindet der
+Wert am Gerät selbst (die Beziehung wird auf der NetApp gelöscht), bleibt der Eintrag stehen, bis ihn jemand über
+„Wieder überwachen“ aufhebt.
+
 ![Wert ausnehmen](bilder/sensor-ausnehmen.webp)
 
 **Datensparsam:** Seriennummern, Konten, Freigaben, Clients, Dateien und Inhalte von Volumes liest die Zentrale nicht.

@@ -372,6 +372,44 @@ func TestNetAppPlanerUndAlarme(t *testing.T) {
 		t.Error("Fertigung sieht fremde NetApp-Sensoren")
 	}
 
+	// Entfernen (0063): Die Beziehung verschwindet aus der Sensorliste, der
+	// Alarm endet; über „einbeziehen“ kommt sie zurück.
+	mirrorKey := "s:" + id + "/snapmirror:svm2:spiegel"
+	names := func() string {
+		var out []string
+		for _, x := range as(t, "v_it").do("GET", "/api/v1/sensoren", nil).body["sensoren"].([]any) {
+			if sn := x.(map[string]any); sn["quelle_id"] == id {
+				out = append(out, sn["name"].(string))
+			}
+		}
+		return strings.Join(out, ",")
+	}
+	if !strings.Contains(names(), "SnapMirror svm2:spiegel") {
+		t.Fatalf("SnapMirror fehlt vor dem Entfernen: %s", names())
+	}
+	expectStatus(t, "SnapMirror entfernen", as(t, "v_it").do("POST", "/api/v1/sensoren/ausnehmen",
+		map[string]any{"schluessel": mirrorKey, "begruendung": "alte Beziehung", "entfernen": true}), 204)
+	if got := names(); strings.Contains(got, "SnapMirror") || !strings.Contains(got, "Shelf 1.0") {
+		t.Errorf("nach dem Entfernen: %s", got)
+	}
+	if _, err := s.alertRoundN(ctx); err != nil {
+		t.Fatal(err)
+	}
+	nt.take()
+	var mirrorOpen int
+	owner.QueryRow(ctx, `SELECT count(*) FROM openwacht.alarms WHERE snmp_id = $1 AND subject = 'snapmirror:svm2:spiegel' AND ended_at IS NULL`, id).Scan(&mirrorOpen)
+	if mirrorOpen != 0 {
+		t.Error("Alarm der entfernten Beziehung noch offen")
+	}
+	expectStatus(t, "SnapMirror zurück", as(t, "v_it").do("POST", "/api/v1/sensoren/einbeziehen", map[string]any{"schluessel": mirrorKey}), 204)
+	if !strings.Contains(names(), "SnapMirror svm2:spiegel") {
+		t.Errorf("SnapMirror fehlt nach dem Einbeziehen: %s", names())
+	}
+	if _, err := s.alertRoundN(ctx); err != nil {
+		t.Fatal(err)
+	}
+	nt.take()
+
 	// Konto bekommt Schreibrecht: Abfrage scheitert mit klarer Meldung, nichts wird gelesen.
 	f.Writable("/api", "all")
 	f.ResetCalls()

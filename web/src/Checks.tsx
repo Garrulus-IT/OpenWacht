@@ -532,6 +532,8 @@ export function CheckFormular(props: {
   const [zahlNach, setZahlNach] = useState(z.zahl_nach ?? "");
   const [faktor, setFaktor] = useState(z.faktor ? String(z.faktor).replace(".", ",") : "");
   const [einheit, setEinheit] = useState(z.einheit ?? "");
+  // 1.0.10: Text des Geräts anzeigen
+  const [textZeigen, setTextZeigen] = useState(z.text_zeigen ?? false);
   const [objekt, setObjekt] = useState(z.objekt ?? "");
   const [indikator, setIndikator] = useState(z.indikator ?? "");
   const [instanz, setInstanz] = useState(z.instanz ?? "");
@@ -618,22 +620,24 @@ export function CheckFormular(props: {
           abweichung_kritisch_ms: zahl(abwK),
           ...t,
         });
-      case "snmp_oid":
+      case "snmp_oid": {
+        // Text anzeigen gilt nur für einen einzelnen Wert ohne Rate und ohne Zahl aus Text
+        const text = textZeigen && !spalte && !rate && !ausText;
         return nurGesetzt({
           oid: oid.trim(),
           ...(rate && !spalte ? { rate: true } : {}),
           ...(spalte ? { zusammenfassung: spalte } : {}),
           ...(spalte.startsWith("anzahl_") ? { vergleichswert: zahl(vergleichswert) } : {}),
-          ...(vergleich === "zahl"
+          ...(vergleich === "zahl" && !text
             ? { warnung_ueber: zahl(wUeber), kritisch_ueber: zahl(kUeber), warnung_unter: zahl(wUnter), kritisch_unter: zahl(kUnter) }
             : {}),
           ...(vergleich === "gleich" && !rate && !spalte && !ausText ? { gleich } : {}),
           ...(ausText && !spalte && !rate
             ? { zahl_aus_text: ausText, ...(ausText === "nte" ? { zahl_nr: zahlNr } : {}), ...(ausText === "nach" ? { zahl_nach: zahlNach } : {}) }
             : {}),
-          faktor: zahl(faktor),
-          ...(einheit ? { einheit } : {}),
+          ...(text ? { text_zeigen: true } : { faktor: zahl(faktor), ...(einheit ? { einheit } : {}) }),
         });
+      }
       case "dienst":
       case "docker":
       case "hyperv":
@@ -968,6 +972,19 @@ export function CheckFormular(props: {
                   <option value="nach">Zahl nach einem Text, z. B. nach „10s:“</option>
                 </select>
               </label>
+            )}
+            {!spalte && !rate && !ausText && (
+              <label className="haken">
+                <input type="checkbox" checked={textZeigen} onChange={(e) => setTextZeigen(e.target.checked)} />
+                <span>Text des Geräts anzeigen, z. B. die Firmware-Version</span>
+              </label>
+            )}
+            {!spalte && !rate && !ausText && textZeigen && (
+              <p className="klein formular-voll">
+                Sonst speichert die Zentrale von einem Text nur einen Prüfwert. Mit diesem Haken speichert sie den zuletzt gelesenen Text
+                dieser OID (höchstens 50 Zeichen) und zeigt ihn als Messwert. Nur für Werte ohne Personenbezug einschalten. Schwellen,
+                Faktor und Einheit gelten dann nicht; „Wert gleich Text“ geht weiter. Über einen Sammler braucht das den Agent ab 1.0.10.
+              </p>
             )}
             {!spalte && !rate && ausText === "nte" && (
               <label className="feld">

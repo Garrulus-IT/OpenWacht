@@ -1,5 +1,44 @@
 # Release-Notizen OpenWacht
 
+## 1.0.10
+
+Korrekturen und eine Ergänzung bei den Ausnahmen. Das Update bringt die Migration 0063 mit.
+
+- **Seite „Hosts“ lädt schneller.** Die Seite wartete bei jedem Laden und danach alle 15 Sekunden auf die Prognose der
+  Platten. Diese Abfrage rechnet über 30 Tage Stundenwerte und wird mit dem Bestand langsamer. Die Liste erscheint
+  jetzt, ohne auf sie zu warten; die Prognose kommt daneben und wird alle 5 Minuten erneuert.
+- **Prognose liest weniger Rohwerte.** Für die laufende Stunde las die Abfrage die Rohwerte des ganzen Tages und
+  verwarf fast alle. Sie liest jetzt nur noch die Werte seit dem letzten verdichteten Stand.
+- **Ausgenommene Werte ganz entfernen.** Eine alte SnapMirror-Beziehung oder ein anderer Wert einer Quelle (SNMP,
+  Proxmox, NetApp, XenServer …) stand nach „Ausnehmen“ weiter grau in jeder Liste. Am Gerät im Reiter „Sensoren“ gibt
+  es dafür jetzt „Entfernen“: beim Ausnehmen als Haken „Auch aus allen Listen entfernen“, bei schon ausgenommenen
+  Werten als eigener Knopf. Der Wert steht dann nicht mehr bei den Sensoren, im Dashboard und auf Wandanzeigen. Löschen
+  lässt er sich nicht, weil das Gerät ihn weiter meldet; unter der Tabelle steht deshalb „Entfernte Werte“ mit
+  Begründung und „Wieder überwachen“. Rechte wie beim Ausnehmen, im Audit-Log als `sensor.entfernt`
+  ([Kapitel 19](handbuch/19-anbindungen.md)).
+- **Sensoren zeigen den gelesenen Wert.** Ein Sensor mit Schwellen meldete in den Listen nur „Wert im Rahmen“, der Wert
+  selbst stand allein in den Einzelheiten. Jetzt steht er vor der Meldung, etwa „1500 RPM · Wert im Rahmen“ oder
+  „12 ms · erreichbar“: am Gerät unter „Sensoren, letzte 24 Stunden“, im Reiter „Sensoren“, auf der Seite „Alarme“ und
+  in den Widgets des Dashboards. Die API nennt ihn unter `/api/v1/sensoren` als `messwert`. Die Desktop-App zeigt ihn
+  noch nicht.
+- **Bild der Ports am Switch.** Ein Gerät mit SNMP und mindestens acht physischen Ports zeigt über der Tabelle der
+  Schnittstellen seine Ports in zwei Reihen wie auf der Frontplatte, ungerade oben, gerade unten, Uplinks rechts
+  abgesetzt. Jeder Port trägt seinen Zustand als Form und Farbe: verbunden, nicht verbunden, nicht verbunden und
+  überwacht, abgeschaltet. Ein Klick zeigt darunter Name, Status, Geschwindigkeit, Verkehr mit Verlauf und neue Fehler
+  und den Schalter „Überwachen“ ([Kapitel 6](handbuch/06-snmp.md)).
+- **PoE je Port.** Meldet das Gerät die PoE-Tabelle (POWER-ETHERNET-MIB), zeigt das Bild, welche Ports Strom liefern
+  oder einen PoE-Fehler haben. In den Einzelheiten eines Ports legt „PoE-Sensor für diesen Port anlegen“ einen Sensor
+  an, der kritisch wird, sobald der Port keinen Strom mehr liefert. Die Zuordnung gilt für Geräte mit einer
+  PoE-Gruppe, bei denen die Nummer des PoE-Ports dem Index der Schnittstelle entspricht; über einen Sammler braucht
+  das den Agent 1.0.10.
+- **Text des Geräts anzeigen.** Ein SNMP-OID-Sensor kann den Text einer OID selbst als Messwert zeigen, etwa die
+  Firmware-Version. Das ist eine Ausnahme von der Regel, dass von Texten nur ein Prüfwert gespeichert wird: Sie gilt
+  nur für Sensoren, an denen jemand den Haken setzt, für den zuletzt gelesenen Text und höchstens 50 Zeichen
+  ([Kapitel 7](handbuch/07-sensoren-und-vorlagen.md)). Über einen Sammler braucht das den Agent 1.0.10.
+- **Vorlagensatz „LANCOM 3000“** zählt zusätzlich die LLDP-Nachbarn und zeigt die Firmware-Version. Wer den Satz schon
+  angewendet hat, wendet ihn erneut an; vorhandene Sensoren bleiben.
+- **Handbuch** nennt wieder die aktuelle Version, auch in den Beispielnamen der Pakete.
+
 ## 1.0.9
 
 Nur Korrekturen, keine neuen Funktionen.

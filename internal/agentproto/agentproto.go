@@ -369,6 +369,9 @@ type CollectorDevice struct {
 	// Zahl aus Text (1.0.8): Aufträge zu eigenen OIDs. Ein älterer Sammler
 	// kennt das Feld nicht und meldet dann nur den Hash des Texts.
 	ExtraText []CollectorTextNumber `json:"zahl_aus_text,omitempty"`
+	// Text anzeigen (1.0.10): eigene OIDs, deren Text der Sammler selbst
+	// meldet. Ein älterer Sammler kennt das Feld nicht und meldet nur den Hash.
+	ExtraShow []string `json:"text_zeigen,omitempty"`
 	// Eigene Tabellenspalten (0.47.0): nur lesend, gemeldet werden Kennzahlen
 	Columns []string `json:"eigene_spalten,omitempty"`
 }

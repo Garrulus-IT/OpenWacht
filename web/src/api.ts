@@ -222,6 +222,8 @@ export interface CheckZiel {
   zahl_nach?: string;
   faktor?: number;
   einheit?: string;
+  // 1.0.10, snmp_oid: den Text des Geräts selbst als Messwert anzeigen
+  text_zeigen?: boolean;
   // 1.0.5: automatische Windows-Dienste, die nicht zählen
   ausnahmen?: string[];
 }
@@ -413,6 +415,8 @@ export interface Sensor {
   gegenstand: string;
   status: SensorStatus;
   meldung: string;
+  // zuletzt gelesener Wert eines Checks („1500 RPM“, „12 ms“), falls es einen gibt
+  messwert?: string;
   seit: string | null;
   alarm: Alarm | null;
   wartung: Wartung | null;
@@ -438,6 +442,13 @@ export interface SnmpSchnittstelle {
   fehler_neu: number | null;
 }
 
+// PoE-Port (1.0.10): Zeile aus pethPsePortTable; status 1 aus, 2 sucht, 3 liefert Strom, 4/6 Fehler, 5 Test
+export interface SnmpPoePort {
+  gruppe: number;
+  port: number;
+  status: number;
+}
+
 export interface SnmpMesswerte {
   erfasst: string;
   system: { beschreibung: string; name: string; standort: string; objekt_id: string; laufzeit_s: number };
@@ -445,6 +456,7 @@ export interface SnmpMesswerte {
   speicher?: { gesamt: number; verfuegbar: number };
   platten: { einhaengepunkt: string; gesamt: number; frei: number }[];
   schnittstellen: SnmpSchnittstelle[];
+  poe?: SnmpPoePort[];
   synology?: {
     modell: string;
     version: string;
@@ -821,4 +833,11 @@ export interface TrapZustand {
   anzahl: number;
   bis: string | null;
   kennfarbe?: Kennfarbe | null;
+}
+
+// meldungMitWert: Meldung eines Sensors, davor der gelesene Wert, wenn es
+// einen gibt („1500 RPM · Wert im Rahmen“).
+export function meldungMitWert(s: { meldung?: string | null; messwert?: string | null }): string {
+  const m = s.meldung ?? "";
+  return s.messwert ? (m ? `${s.messwert} · ${m}` : s.messwert) : m;
 }

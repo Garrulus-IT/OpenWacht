@@ -12,6 +12,19 @@ Gelesen werden feste Werte (keine MIB-Dateien): Name, Laufzeit (Neustart), CPU, 
 Schnittstellen mit Verkehr, Temperaturen, Toner, USV und RAID bei Synology. „Schnittstelle down“ alarmiert nur
 für Ports, die man als überwacht markiert. Antwortet ein Gerät drei Intervalle nicht, gibt es „antwortet nicht“.
 
+**Bild der Ports (ab 1.0.10):** Hat ein Gerät mindestens acht physische Ports, steht über der Tabelle der
+Schnittstellen ein Bild wie die Frontplatte: zwei Reihen, ungerade Ports oben, gerade unten, Uplinks rechts abgesetzt.
+Die Nummer zählt die physischen Ports in der Reihenfolge des Geräts; der Name des Geräts für den Port steht in den
+Einzelheiten. Jeder Port zeigt seinen Zustand als Form und Farbe: verbunden, nicht verbunden, nicht verbunden und
+überwacht (rot), abgeschaltet (gestrichelt). Ein Klick auf einen Port zeigt darunter Status, Geschwindigkeit, Verkehr
+mit Verlauf und neue Fehler, und dort lässt sich der Port als überwacht markieren.
+
+**PoE je Port:** Meldet das Gerät die POWER-ETHERNET-MIB, steht am Port „PoE“, wenn er Strom liefert, und „PoE!“ bei
+einem PoE-Fehler. In den Einzelheiten legt „PoE-Sensor für diesen Port anlegen“ einen Sensor an, der kritisch wird,
+sobald der Port keinen Strom mehr liefert, etwa für Access Points oder Kameras. OpenWacht ordnet den PoE-Port n der
+Schnittstelle mit dem Index n zu; das stimmt bei üblichen Switchen mit einer PoE-Gruppe. Bei mehreren Gruppen (Stack)
+bleibt PoE im Bild weg. Fragt ein Agent als Sammler das Gerät ab, braucht er dafür die Version 1.0.10.
+
 **Neustart:** Die Laufzeit kommt aus `hrSystemUptime` (Laufzeit des Rechners); nur wenn ein Gerät sie nicht liefert,
 aus `sysUpTime`. Diese zählt nur den SNMP-Dienst und springt auch zurück, wenn nur er neu startet. Gemeldet wird ein
 Neustart (15 Minuten Warnung) nur, wenn das Gerät **davor mindestens 27 Stunden** lief. Geplante nächtliche Neustarts,

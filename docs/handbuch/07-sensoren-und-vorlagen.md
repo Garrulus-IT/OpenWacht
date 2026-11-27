@@ -89,6 +89,17 @@ als „100ms:52%, 1s:57%, 10s:50%“. Ab 1.0.8 liest ein SNMP-OID-Sensor daraus 
   „unbekannt“ („Zahl aus Text noch nicht gelesen“).
 - Geht nicht zusammen mit einer Tabellenspalte, einer Rate oder „Wert gleich Text“.
 
+**Text des Geräts anzeigen (ab 1.0.10):** Manche Werte sind Text und sollen als Text sichtbar sein, etwa die
+Firmware-Version. Mit dem Haken „Text des Geräts anzeigen“ am Sensor speichert die Zentrale den zuletzt gelesenen Text
+dieser einen OID (höchstens 50 Zeichen, ohne Steuerzeichen) und zeigt ihn als Messwert.
+
+- Das ist eine bewusste Ausnahme: Ohne den Haken bleibt es dabei, dass von einem Text nur ein Prüfwert gespeichert
+  wird. Den Haken nur für Werte ohne Personenbezug setzen, nicht für Felder wie Kontakt oder angemeldete Benutzer.
+- Gespeichert wird nur der letzte Text, kein Verlauf.
+- Schwellen, Faktor, Einheit, Rate, Tabellenspalte und „Zahl aus Text“ gehen damit nicht zusammen; „Wert gleich Text“
+  geht weiter und meldet, wenn der Text abweicht (zum Beispiel nach einem Firmware-Update).
+- Fragt ein Agent als **Sammler** das Gerät ab, braucht er dafür die Version 1.0.10.
+
 **Faktor und Einheit** gelten für alle Zahlen eines SNMP-OID-Sensors, auch für Summe, Minimum und Maximum einer
 Spalte: Der Wert wird mit dem Faktor malgenommen und mit der Einheit gezeigt (°C, %, W, V, A, RPM, MB, GB, s, ms, bit/s,
 dBm). Beispiel: Ein Switch meldet die PoE-Leistung in Zehntel-Watt, mit Faktor 0,1 und Einheit W steht dort „81 W“.
@@ -138,7 +149,7 @@ Satz als Herkunft.
 | **Citrix Cloud Connector** | Dienste Agent System, WatchDog, Agent Discovery, AD Provider, Credential Provider, WebRelay, Message Broker, Remote Broker Provider (`XaXdCloudProxy`), STA, Config Synchronizer, High Availability (Local Host Cache), Remote HCL, Cloud Gateway, Monitor; VDA-Anmeldung auf Port 80 | `-arten dienst` |
 | **Citrix Provisioning** | Dienste Stream Service, SOAP Server, API, TFTP, PXE, Two-Stage Boot; SOAP-Port 54321 | `-arten dienst` |
 | **NetScaler** | über SNMP: CPU (80 %/95 %), Speicher (80 %/90 %), HA-Zustand, virtuelle Server down (ab 1 kritisch), Dienste down (Warnung ab 1), **kürzeste Restlaufzeit aller Zertifikate** (Warnung 30, kritisch 14 Tage), Zahl der Zertifikate; Zertifikat der Verwaltung | keine; SNMPv3 am Gerät ([Kapitel 6](06-snmp.md)) |
-| **LANCOM 3000** (ab 1.0.8) | über SNMP, für Switche der Serie GS-3000 mit LCOS SX 4.x: Temperatur 1 (80/90 °C), Temperatur 2 und 3 (60/70 °C), Lüfter (kritisch unter 300 RPM), CPU über 10 s (85 %/95 %), PoE-Leistung in W, PoE-Budget, PoE-Versorgung an, PoE-Ports im Fehler (Warnung ab 1), PoE-Ports mit Strom. Die Schwellen der Temperaturen sind eine Vorbelegung: erst die eigenen Werte ansehen, dann anpassen | keine; SNMPv3 am Gerät ([Kapitel 6](06-snmp.md)) |
+| **LANCOM 3000** (ab 1.0.8) | über SNMP, für Switche der Serie GS-3000 mit LCOS SX 4.x: Temperatur 1 (80/90 °C), Temperatur 2 und 3 (60/70 °C), Lüfter (kritisch unter 300 RPM), CPU über 10 s (85 %/95 %), PoE-Leistung in W, PoE-Budget, PoE-Versorgung an, PoE-Ports im Fehler (Warnung ab 1), PoE-Ports mit Strom, ab 1.0.10 LLDP-Nachbarn (Warnung, wenn keiner mehr da ist; Schwelle auf die übliche Zahl setzen) und die Firmware-Version als Text. Die Schwellen der Temperaturen sind eine Vorbelegung: erst die eigenen Werte ansehen, dann anpassen | keine; SNMPv3 am Gerät ([Kapitel 6](06-snmp.md)) |
 
 ![Swyx-Sensoren an einem Gerät](bilder/host-sensoren-swyx.webp)
 

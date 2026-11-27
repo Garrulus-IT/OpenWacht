@@ -6,6 +6,7 @@
 // Alle Texte von Agents und Geräten erscheinen nur als Text (React escapt).
 
 import { useEffect, useState, type ReactNode } from "react";
+import { meldungMitWert } from "./api";
 import type { Agent, Alarm, AnzeigeKnoten, AnzeigeStatus, Check, Geraet, Gruppe as GeraeteGruppe, Mandant, Sensor, Snmp } from "./api";
 import { kinderVon, mandantName, type Bereich } from "./bereich";
 import { AlarmeJeTag, mitFilter, Verfuegbarkeit, VollstePlatten, type FlottenVerlauf, type Kennzahlen } from "./Dashboard";
@@ -241,7 +242,7 @@ function AlarmeWidget({ bereich, gehe }: WidgetProps) {
               {bereich.mehrere && <span className="mandant-marke">{mandantName(bereich, x.mandant_id)}</span>}
             </td>
             <td>{x.name}</td>
-            <td className="nur-breit klein">{x.meldung}</td>
+            <td className="nur-breit klein">{meldungMitWert(x)}</td>
             <td className="klein nowrap">{vor(x.alarm!.beginn, jetzt)}</td>
           </tr>
         ))}
@@ -272,8 +273,8 @@ function SensorenWidget({ bereich, gehe }: WidgetProps) {
           <button className="knopf-text kurzliste-name" onClick={() => zumGeraet(gehe, x.mandant_id, x.geraet_id)}>
             {x.host ?? x.name}
           </button>
-          <span className="klein kurzliste-text" title={x.meldung}>
-            {x.host ? x.name : x.meldung}
+          <span className="klein kurzliste-text" title={meldungMitWert(x)}>
+            {x.host ? x.name : meldungMitWert(x)}
           </span>
         </li>
       ))}
@@ -679,7 +680,7 @@ function SensorWidget({ w, gehe }: WidgetProps) {
         </button>
         <b>{s.name}</b>
       </div>
-      <p className="sensor-widget-meldung">{s.meldung || statusText[status] || ""}</p>
+      <p className="sensor-widget-meldung">{meldungMitWert(s) || statusText[status] || ""}</p>
       {s.seit && (
         <p className="klein">
           seit <time dateTime={s.seit}>{vor(s.seit, Date.now())}</time>

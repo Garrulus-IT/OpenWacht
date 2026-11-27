@@ -106,6 +106,11 @@ type Spec struct {
 	TextNumber string `json:"zahl_aus_text,omitempty"`
 	TextIndex  int    `json:"zahl_nr,omitempty"`
 	TextAfter  string `json:"zahl_nach,omitempty"`
+	// 1.0.10, SNMP-OID: den Text des Geräts selbst anzeigen (z. B. die
+	// Firmware-Version). Ausnahme von der Regel, dass von eigenen OIDs nie
+	// Text gespeichert wird; gilt nur für Sensoren, an denen es jemand
+	// ausdrücklich einschaltet. Gespeichert wird der letzte Text, gekürzt.
+	TextShow bool `json:"text_zeigen,omitempty"`
 	// 1.0.8, SNMP-OID: Faktor (0 = 1) und Einheit für die Anzeige. Schwellen
 	// gelten auf den umgerechneten Wert.
 	Factor float64 `json:"faktor,omitempty"`
@@ -180,7 +185,7 @@ var allowedFields = map[string][]string{
 	"tcp_banner": {"host", "port", "tls", "enthaelt", "timeout_s", "ca_pem"},
 	"ntp":        {"host", "port", "abweichung_warnung_ms", "abweichung_kritisch_ms", "timeout_s"},
 	"snmp_oid": {"oid", "rate", "warnung_ueber", "kritisch_ueber", "warnung_unter", "kritisch_unter", "gleich",
-		"zusammenfassung", "vergleichswert", "zahl_aus_text", "zahl_nr", "zahl_nach", "faktor", "einheit"},
+		"zusammenfassung", "vergleichswert", "zahl_aus_text", "zahl_nr", "zahl_nach", "faktor", "einheit", "text_zeigen"},
 	"dienst":  {"name"},
 	"prozess": {"name", "mindestens", "hoechstens"},
 	"datei":   {"pfad", "ordner", "warnung_stunden", "kritisch_stunden", "mindestgroesse"},
@@ -244,6 +249,7 @@ func (s *Spec) setFields() []string {
 	add(s.TextNumber != "", "zahl_aus_text")
 	add(s.TextIndex != 0, "zahl_nr")
 	add(s.TextAfter != "", "zahl_nach")
+	add(s.TextShow, "text_zeigen")
 	add(s.Factor != 0, "faktor")
 	add(s.Unit != "", "einheit")
 	add(len(s.Exceptions) > 0, "ausnahmen")
