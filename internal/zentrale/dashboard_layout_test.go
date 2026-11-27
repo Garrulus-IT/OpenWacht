@@ -216,7 +216,7 @@ func TestDashboardLayoutPruefung(t *testing.T) {
 	fw := as(t, "v_fw")
 	dev := layoutDevice(t, "Fertigung", "layout-pruefung")
 	viele := []map[string]any{}
-	for i := range 31 {
+	for i := range 61 {
 		viele = append(viele, w(fmt.Sprintf("g%03d", i), "graph", "klein"))
 	}
 	bad := map[string]any{
@@ -224,7 +224,6 @@ func TestDashboardLayoutPruefung(t *testing.T) {
 		"unbekannte Art":         layout(w("aaaa", "skript", "klein")),
 		"unbekannte Größe":       layout(w("aaaa", "zustand", "riesig")),
 		"Größe fehlt":            layout(map[string]any{"id": "aaaa", "typ": "zustand"}),
-		"doppelte Art":           layout(w("aaaa", "zustand", "klein"), w("bbbb", "zustand", "breit")),
 		"doppelte Kennung":       layout(w("aaaa", "zustand", "klein"), w("aaaa", "alarme", "breit")),
 		"Kennung zu kurz":        layout(w("aa", "zustand", "klein")),
 		"Kennung mit Zeichen":    layout(w("AA-<b>", "zustand", "klein")),
@@ -240,6 +239,25 @@ func TestDashboardLayoutPruefung(t *testing.T) {
 		"unbekanntes Feld":       layout(w("aaaa", "zustand", "klein", "skript", "x")),
 		"unbekanntes Feld außen": map[string]any{"widgets": []any{}, "benutzer_id": ids["v_it"]},
 		"Widget kein Objekt":     map[string]any{"widgets": []any{"zustand"}},
+		// 1.0.7: freie Größe, Titel, Seiten, neue Arten
+		"Breite ohne Höhe":     layout(map[string]any{"id": "aaaa", "typ": "zustand", "breite": 6}),
+		"Breite zu klein":      layout(map[string]any{"id": "aaaa", "typ": "zustand", "breite": 1, "hoehe": 1}),
+		"Breite zu groß":       layout(map[string]any{"id": "aaaa", "typ": "zustand", "breite": 13, "hoehe": 1}),
+		"Höhe zu groß":         layout(map[string]any{"id": "aaaa", "typ": "zustand", "breite": 4, "hoehe": 7}),
+		"Höhe null":            layout(map[string]any{"id": "aaaa", "typ": "zustand", "breite": 4, "hoehe": 0}),
+		"Breite als Text":      layout(map[string]any{"id": "aaaa", "typ": "zustand", "breite": "4", "hoehe": 1}),
+		"Titel zu lang":        layout(w("aaaa", "zustand", "klein", "titel", strings.Repeat("x", 61))),
+		"Titel Steuerzeichen":  layout(w("aaaa", "zustand", "klein", "titel", "a\x1bb")),
+		"Seite gibt es nicht":  layout(map[string]any{"id": "aaaa", "typ": "zustand", "groesse": "klein", "seite": 1}),
+		"Seite negativ":        layout(map[string]any{"id": "aaaa", "typ": "zustand", "groesse": "klein", "seite": -1}),
+		"zu viele Seiten":      map[string]any{"widgets": []any{}, "seiten": []string{"1", "2", "3", "4", "5", "6", "7", "8", "9"}},
+		"Seite ohne Namen":     map[string]any{"widgets": []any{}, "seiten": []string{"Übersicht", ""}},
+		"Seitenname zu lang":   map[string]any{"widgets": []any{}, "seiten": []string{strings.Repeat("x", 41)}},
+		"Text ohne Notiz":      layout(w("aaaa", "zustand", "klein", "text", "hallo")),
+		"Text zu lang":         layout(w("aaaa", "notiz", "klein", "text", strings.Repeat("x", 501))),
+		"Text Steuerzeichen":   layout(w("aaaa", "notiz", "klein", "text", "a\x07b")),
+		"Sensor ohne Art":      layout(w("aaaa", "zustand", "klein", "sensor", "c:abc")),
+		"Sensor ohne Vorsilbe": layout(w("aaaa", "sensor", "klein", "sensor", "x:abc")),
 	}
 	for name, body := range bad {
 		r := fw.do("PUT", "/api/v1/dashboard/layout", body)
@@ -252,20 +270,22 @@ func TestDashboardLayoutPruefung(t *testing.T) {
 	}
 	// Die Anwendung prüft selbst (verständliche Meldung), nicht erst die Datenbank („Ungültige Eingabe.“).
 	for name, want := range map[string]string{
-		"doppelte Art":       "nur einmal",
-		"zu viele":           "Höchstens 30",
-		"Gerät und Mandant":  "entweder ein Gerät",
-		"Gerät ohne Graph":   "nur beim Graphen",
-		"unbekannte Größe":   "klein, breit oder hoch",
-		"Zeitraum unbekannt": "Zeitraum",
+		"zu viele":            "Höchstens 60",
+		"Breite zu groß":      "Breite 2 bis 12",
+		"Seite gibt es nicht": "Seite gibt es nicht",
+		"Text ohne Notiz":     "nur an der Notiz",
+		"Gerät und Mandant":   "entweder ein Gerät",
+		"Gerät ohne Graph":    "nur beim Graphen",
+		"unbekannte Größe":    "klein, breit oder hoch",
+		"Zeitraum unbekannt":  "Zeitraum",
 	} {
 		r := fw.do("PUT", "/api/v1/dashboard/layout", bad[name])
 		if !strings.Contains(r.raw, want) {
 			t.Errorf("%s: Meldung %q enthält nicht %q", name, strings.TrimSpace(r.raw), want)
 		}
 	}
-	// Grenzfälle, die gehen müssen: 30 Widgets, mehrere Graphen, leere Einstellungen.
-	expectStatus(t, "30 Graphen", fw.do("PUT", "/api/v1/dashboard/layout", map[string]any{"widgets": viele[:30]}), 200)
+	// Grenzfälle, die gehen müssen: 60 Widgets, mehrere Graphen, leere Einstellungen.
+	expectStatus(t, "60 Graphen", fw.do("PUT", "/api/v1/dashboard/layout", map[string]any{"widgets": viele[:60]}), 200)
 	expectStatus(t, "leere Einstellungen", fw.do("PUT", "/api/v1/dashboard/layout",
 		layout(w("aaaa", "graph", "hoch", "geraet_id", "", "mandant_id", "", "zeitraum", "", "wert", ""))), 200)
 	expectStatus(t, "alle Arten", fw.do("PUT", "/api/v1/dashboard/layout", layout(
@@ -273,6 +293,44 @@ func TestDashboardLayoutPruefung(t *testing.T) {
 		w("a005", "platten", "klein"), w("a006", "prognose", "klein"), w("a007", "alarme_je_tag", "klein"),
 		w("a008", "verfuegbarkeit", "klein"), w("a009", "graph", "breit", "geraet_id", dev, "zeitraum", "30t", "wert", "cpu"),
 		w("a010", "sonne", "klein"), w("a011", "ereignisse", "hoch"))), 200)
+
+	// 1.0.7: freie Größe, eigene Titel, dieselbe Art mehrfach, Seiten, neue Arten.
+	frei := func(id, typ string, b, h int, extra ...any) map[string]any {
+		m := map[string]any{"id": id, "typ": typ, "breite": b, "hoehe": h}
+		for i := 0; i+1 < len(extra); i += 2 {
+			m[extra[i].(string)] = extra[i+1]
+		}
+		return m
+	}
+	body := map[string]any{"seiten": []string{"Übersicht", "Netzwerk"}, "widgets": []map[string]any{
+		frei("b001", "zustand", 12, 1, "titel", "Zustand Werk Nord"),
+		frei("b002", "zustand", 2, 6, "seite", 1),
+		frei("b003", "zertifikate", 4, 2), frei("b004", "wartung", 4, 1), frei("b005", "uhr", 2, 1),
+		frei("b006", "notiz", 3, 1, "text", "Bereitschaft: 0221 …\nzweite Zeile"),
+		frei("b007", "sensor", 3, 1, "sensor", "c:"+dev),
+		frei("b008", "sensor", 3, 1, "sensor", "h:"+dev+"/Platte C:"),
+		w("b009", "alarme", "breit"),
+	}}
+	expectStatus(t, "freies Layout", fw.do("PUT", "/api/v1/dashboard/layout", body), 200)
+	r := fw.do("GET", "/api/v1/dashboard/layout", nil)
+	ws, _ := r.body["widgets"].([]any)
+	seiten, _ := r.body["seiten"].([]any)
+	if len(ws) != 9 || len(seiten) != 2 || seiten[1] != "Netzwerk" {
+		t.Fatalf("freies Layout gelesen: %d Widgets, Seiten %v", len(ws), seiten)
+	}
+	a, b := ws[0].(map[string]any), ws[1].(map[string]any)
+	if a["breite"] != float64(12) || a["hoehe"] != float64(1) || a["titel"] != "Zustand Werk Nord" || b["seite"] != float64(1) {
+		t.Errorf("freies Layout: %v %v", a, b)
+	}
+	if _, alt := a["groesse"]; alt {
+		t.Errorf("neues Widget trägt die alte Größe: %v", a)
+	}
+	if ws[8].(map[string]any)["groesse"] != "breit" {
+		t.Errorf("altes Widget verlor seine Größe: %v", ws[8])
+	}
+	// Eine Seite weniger: Widgets auf der gestrichenen Seite werden abgelehnt.
+	body["seiten"] = []string{"Übersicht"}
+	expectStatus(t, "Seite gestrichen", fw.do("PUT", "/api/v1/dashboard/layout", body), 400)
 }
 
 // TestDashboardLayoutDatenbank prüft RLS und CHECK direkt mit der App-Rolle,
@@ -380,7 +438,22 @@ func TestDashboardLayoutDatenbank(t *testing.T) {
 		`[{"typ":"zustand","groesse":"klein"}]`,
 		`[{"id":"AAAA","typ":"zustand","groesse":"klein"}]`,
 		`[{"id":"aaaa","typ":"zustand","groesse":"klein"},{"id":"aaaa","typ":"alarme","groesse":"klein"}]`,
-		`[{"id":"aaaa","typ":"zustand","groesse":"klein"},{"id":"bbbb","typ":"zustand","groesse":"klein"}]`,
+		// 1.0.7
+		`[{"id":"aaaa","typ":"zustand"}]`,
+		`[{"id":"aaaa","typ":"zustand","breite":6}]`,
+		`[{"id":"aaaa","typ":"zustand","breite":1,"hoehe":1}]`,
+		`[{"id":"aaaa","typ":"zustand","breite":13,"hoehe":1}]`,
+		`[{"id":"aaaa","typ":"zustand","breite":4,"hoehe":7}]`,
+		`[{"id":"aaaa","typ":"zustand","breite":4.5,"hoehe":1}]`,
+		`[{"id":"aaaa","typ":"zustand","breite":"4","hoehe":1}]`,
+		`[{"id":"aaaa","typ":"zustand","groesse":"klein","titel":""}]`,
+		`[{"id":"aaaa","typ":"zustand","groesse":"klein","titel":"a\u001bb"}]`,
+		`[{"id":"aaaa","typ":"zustand","groesse":"klein","seite":8}]`,
+		`[{"id":"aaaa","typ":"zustand","groesse":"klein","seite":"1"}]`,
+		`[{"id":"aaaa","typ":"zustand","groesse":"klein","text":"x"}]`,
+		`[{"id":"aaaa","typ":"notiz","groesse":"klein","text":"a\u0007b"}]`,
+		`[{"id":"aaaa","typ":"zustand","groesse":"klein","sensor":"c:abc"}]`,
+		`[{"id":"aaaa","typ":"sensor","groesse":"klein","sensor":"x:abc"}]`,
 		`[{"id":"aaaa","typ":"zustand","groesse":"klein","x":1}]`,
 		`[{"id":"aaaa","typ":"zustand","groesse":"klein","geraet_id":"` + uuid + `"}]`,
 		`[{"id":"aaaa","typ":"zustand","groesse":"klein","zeitraum":"24h"}]`,
@@ -393,7 +466,7 @@ func TestDashboardLayoutDatenbank(t *testing.T) {
 		`[{"id":"aaaa","typ":["zustand"],"groesse":"klein"}]`,
 	}
 	many := "["
-	for i := range 31 {
+	for i := range 61 {
 		if i > 0 {
 			many += ","
 		}
@@ -411,13 +484,25 @@ func TestDashboardLayoutDatenbank(t *testing.T) {
 		}
 	}
 	good := `[{"id":"g001","typ":"graph","groesse":"hoch","geraet_id":"` + uuid + `","zeitraum":"7t","wert":"speicher","mandant_id":null},` +
-		`{"id":"g002","typ":"graph","groesse":"klein","mandant_id":"` + uuid + `","geraet_id":null},{"id":"z001","typ":"zustand","groesse":"breit"}]`
+		`{"id":"g002","typ":"graph","groesse":"klein","mandant_id":"` + uuid + `","geraet_id":null},{"id":"z001","typ":"zustand","groesse":"breit"},` +
+		`{"id":"z002","typ":"zustand","breite":12,"hoehe":6,"titel":"Zweiter","seite":7},{"id":"n001","typ":"notiz","breite":2,"hoehe":1,"text":"a\nb"},` +
+		`{"id":"s001","typ":"sensor","breite":3,"hoehe":1,"sensor":"h:abc/Platte C:"},{"id":"u001","typ":"uhr","breite":2,"hoehe":1}]`
 	if err := inTx("v_lz", func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `INSERT INTO openwacht.dashboard_layouts (user_id, tenant_id, widgets) VALUES ($1, $2, $3::jsonb)`,
 			ids["v_lz"], ids["Lager Nord"], good)
 		return err
 	}); err != nil {
 		t.Errorf("gültiges Layout abgelehnt: %v", err)
+	}
+	// Seiten: nur Namen mit 1 bis 40 Zeichen, höchstens 8.
+	for _, p := range []string{`{}`, `[""]`, `[5]`, `["a\u0001"]`, `["1","2","3","4","5","6","7","8","9"]`, `["` + strings.Repeat("x", 41) + `"]`} {
+		_, err := owner.Exec(ctx, `UPDATE openwacht.dashboard_layouts SET pages = $1::jsonb`, p)
+		if code(err) != "23514" {
+			t.Errorf("Seiten-CHECK ließ durch oder anderer Fehler: %s → %v", p, err)
+		}
+	}
+	if _, err := owner.Exec(ctx, `UPDATE openwacht.dashboard_layouts SET pages = '["Übersicht","Netzwerk"]'`); err != nil {
+		t.Errorf("gültige Seiten abgelehnt: %v", err)
 	}
 	// Mit dem Benutzer verschwindet das Layout.
 	var n int

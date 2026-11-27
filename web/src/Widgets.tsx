@@ -5,8 +5,8 @@
 // darauf ein; die Zentrale liefert ohnehin nur, was der Benutzer sehen darf.
 // Alle Texte von Agents und Geräten erscheinen nur als Text (React escapt).
 
-import { type ReactNode } from "react";
-import type { Agent, Alarm, AnzeigeKnoten, AnzeigeStatus, Geraet, Gruppe as GeraeteGruppe, Mandant, Sensor, Snmp } from "./api";
+import { useEffect, useState, type ReactNode } from "react";
+import type { Agent, Alarm, AnzeigeKnoten, AnzeigeStatus, Check, Geraet, Gruppe as GeraeteGruppe, Mandant, Sensor, Snmp } from "./api";
 import { kinderVon, mandantName, type Bereich } from "./bereich";
 import { AlarmeJeTag, mitFilter, Verfuegbarkeit, VollstePlatten, type FlottenVerlauf, type Kennzahlen } from "./Dashboard";
 import { BaldVoll, bereichFilter, type PrognoseAntwort } from "./Prognose";
@@ -17,6 +17,7 @@ import { kennStil, kennTitel, type Kennfarbe } from "./kennfarbe";
 import { gruppe, gruppen, rang, sensorTitel, statusText, type Gruppe } from "./AlarmeSeite";
 import { useQuelle } from "./quelle";
 import { vor } from "./zeit";
+import { lesen, restText } from "./Zertifikate";
 import type { Ort } from "./navigation";
 import type { Widget } from "./widgets";
 
@@ -566,6 +567,155 @@ function EreignisseWidget({ bereich }: WidgetProps) {
   );
 }
 
+// --- Zertifikate (1.0.7) ------------------------------------------------------------------------
+
+function ZertifikateWidget({ bereich, gehe }: WidgetProps) {
+  const q = useQuelle<{ checks: Check[] }>("/api/v1/checks", 60_000);
+  const g = useQuelle<{ geraete: Geraet[] }>(Q.geraete, 60_000);
+  if (!q.daten) return <Laedt fehler={q.fehler} />;
+  const heute = new Date();
+  const namen = new Map((g.daten?.geraete ?? []).map((x) => [x.id, x.name]));
+  const zeilen = q.daten.checks
+    .filter((c) => c.typ === "tls" && bereich.ids.has(c.mandant_id))
+    .map((c) => lesen(c, heute))
+    .sort((a, b) => (a.rest ?? 1e9) - (b.rest ?? 1e9));
+  if (zeilen.length === 0) return <p className="leer">Keine Sensoren „TLS-Zertifikat“ im Bereich.</p>;
+  return (
+    <table className="tabelle tabelle-kompakt widget-tabelle">
+      <tbody>
+        {zeilen.slice(0, 50).map((z) => (
+          <tr key={z.c.id}>
+            <td>
+              <Zustandszelle status={z.stand} />
+            </td>
+            <td>
+              <button className="knopf-text" onClick={() => zumGeraet(gehe, z.c.mandant_id, z.c.geraet_id)}>
+                {z.c.name}
+              </button>{" "}
+              <span className="klein">{namen.get(z.c.geraet_id) ?? ""}</span>
+              {bereich.mehrere && <span className="mandant-marke">{mandantName(bereich, z.c.mandant_id)}</span>}
+            </td>
+            <td className={z.rest !== null && z.rest < 0 ? "text-crit" : z.rest !== null && z.rest <= 14 ? "text-warn" : undefined}>
+              {z.problem && z.rest === null ? z.problem : restText(z)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// --- Wartung (1.0.7) ----------------------------------------------------------------------------
+
+interface WartungAntwort {
+  laufend: { id: string; mandant_id: string; geraet: string; sensor: string | null; bis: string; grund: string }[];
+  fenster: { id: string; mandant_id: string; name: string; ziel_name: string; aktiv: boolean; naechstes: [string, string] | null }[];
+}
+
+const zeitpunkt = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+function WartungWidget({ bereich, gehe }: WidgetProps) {
+  const q = useQuelle<WartungAntwort>("/api/v1/wartung", 60_000);
+  if (!q.daten) return <Laedt fehler={q.fehler} />;
+  const drin = (x: { mandant_id: string }) => bereich.ids.has(x.mandant_id);
+  const laufend = q.daten.laufend.filter(drin);
+  const kommend = q.daten.fenster
+    .filter((f) => drin(f) && f.aktiv && f.naechstes)
+    .sort((a, b) => a.naechstes![0].localeCompare(b.naechstes![0]))
+    .slice(0, 20);
+  if (laufend.length === 0 && kommend.length === 0) return <p className="leer">Keine laufende und keine geplante Wartung.</p>;
+  return (
+    <>
+      <table className="tabelle tabelle-kompakt widget-tabelle">
+        <tbody>
+          {laufend.map((l) => (
+            <tr key={l.id}>
+              <td>
+                <Zustandszelle status="wartung" />
+              </td>
+              <td>
+                {l.geraet}
+                {l.sensor ? ` · ${l.sensor}` : ""} {l.grund && <span className="klein">{l.grund}</span>}
+                {bereich.mehrere && <span className="mandant-marke">{mandantName(bereich, l.mandant_id)}</span>}
+              </td>
+              <td className="klein">bis {zeitpunkt.format(new Date(l.bis))}</td>
+            </tr>
+          ))}
+          {kommend.map((f) => (
+            <tr key={f.id}>
+              <td className="klein">ab {zeitpunkt.format(new Date(f.naechstes![0]))}</td>
+              <td>
+                {f.name} <span className="klein">{f.ziel_name}</span>
+                {bereich.mehrere && <span className="mandant-marke">{mandantName(bereich, f.mandant_id)}</span>}
+              </td>
+              <td className="klein">bis {zeitpunkt.format(new Date(f.naechstes![1]))}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button className="knopf-text" onClick={() => gehe({ reiter: "wartung" })}>
+        Zur Wartung
+      </button>
+    </>
+  );
+}
+
+// --- Einzelner Sensor (1.0.7) -------------------------------------------------------------------
+
+function SensorWidget({ w, gehe }: WidgetProps) {
+  // Ohne Eingrenzung auf den Bereich: Der Sensor ist fest gewählt; die Zentrale liefert ihn nur, wenn der Benutzer ihn sehen darf.
+  const q = useQuelle<{ sensoren: Sensor[] }>(Q.sensoren, 15_000);
+  if (!w.sensor) return <p className="leer">Noch kein Sensor gewählt: „✎ Anpassen“ → ⚙.</p>;
+  if (!q.daten) return <Laedt fehler={q.fehler} />;
+  const s = q.daten.sensoren.find((x) => x.schluessel === w.sensor);
+  if (!s) return <p className="leer">Diesen Sensor gibt es nicht mehr, oder er ist für dich nicht sichtbar.</p>;
+  const status = s.wartung ? "wartung" : s.status;
+  return (
+    <div className="sensor-widget">
+      <Zustandszelle status={status} bestaetigt={!!s.alarm?.bestaetigt_am} kennfarbe={s.kennfarbe} />
+      <div className="sensor-widget-name">
+        <button className="knopf-text" onClick={() => zumGeraet(gehe, s.mandant_id, s.geraet_id)}>
+          {s.host ?? "Gerät"}
+        </button>
+        <b>{s.name}</b>
+      </div>
+      <p className="sensor-widget-meldung">{s.meldung || statusText[status] || ""}</p>
+      {s.seit && (
+        <p className="klein">
+          seit <time dateTime={s.seit}>{vor(s.seit, Date.now())}</time>
+        </p>
+      )}
+    </div>
+  );
+}
+
+// --- Uhr und Notiz (1.0.7) ----------------------------------------------------------------------
+
+const uhrzeit = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+const datum = new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+
+function UhrWidget() {
+  const [jetzt, setJetzt] = useState(() => new Date());
+  useEffect(() => {
+    const t = window.setInterval(() => setJetzt(new Date()), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+  return (
+    <div className="uhr-widget">
+      <time className="uhr-widget-zeit mono" dateTime={jetzt.toISOString()}>
+        {uhrzeit.format(jetzt)}
+      </time>
+      <span className="klein">{datum.format(jetzt)}</span>
+    </div>
+  );
+}
+
+// Der Text stammt vom Benutzer selbst und erscheint nur als Text (React escapt), Zeilenumbrüche bleiben.
+function NotizWidget({ w }: WidgetProps) {
+  if (!w.text) return <p className="leer">Leere Notiz: „✎ Anpassen“ → ⚙.</p>;
+  return <p className="notiz-widget">{w.text}</p>;
+}
+
 // --- Verteiler ---------------------------------------------------------------------------------------
 
 export function WidgetInhalt(props: WidgetProps): ReactNode {
@@ -592,5 +742,15 @@ export function WidgetInhalt(props: WidgetProps): ReactNode {
       return <SonneWidget {...props} />;
     case "ereignisse":
       return <EreignisseWidget {...props} />;
+    case "zertifikate":
+      return <ZertifikateWidget {...props} />;
+    case "wartung":
+      return <WartungWidget {...props} />;
+    case "sensor":
+      return <SensorWidget {...props} />;
+    case "uhr":
+      return <UhrWidget />;
+    case "notiz":
+      return <NotizWidget {...props} />;
   }
 }

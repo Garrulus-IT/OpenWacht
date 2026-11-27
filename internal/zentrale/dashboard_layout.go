@@ -16,6 +16,11 @@ package zentrale
 //
 // Dieselben Regeln prüft die Datenbank (openwacht.dashboard_widgets_valid);
 // die Anwendung prüft vorher, um verständliche Meldungen zu geben.
+//
+// 1.0.7 (Migration 0062): freie Breite und Höhe je Widget, eigener Titel,
+// jede Art beliebig oft, bis zu acht benannte Seiten und die Arten
+// Zertifikate, Wartung, Uhr, Notiz und einzelner Sensor. Layouts mit der
+// alten „groesse“ gelten weiter.
 
 import (
 	"context"
@@ -23,18 +28,28 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 )
 
-const maxWidgets = 30
+const (
+	maxWidgets     = 60
+	maxPages       = 8
+	maxWidgetTitle = 60
+	maxWidgetText  = 500
+	maxPageName    = 40
+)
 
 var widgetIDPattern = regexp.MustCompile(`^[a-z0-9]{4,16}$`)
 
 var widgetTypes = map[string]bool{
 	"zustand": true, "alarme": true, "sensoren": true, "auslastung": true, "platten": true, "prognose": true,
 	"alarme_je_tag": true, "verfuegbarkeit": true, "graph": true, "sonne": true, "ereignisse": true,
+	"zertifikate": true, "wartung": true, "uhr": true, "notiz": true, "sensor": true,
 }
 
 var widgetSizes = map[string]bool{"klein": true, "breit": true, "hoch": true}
@@ -44,17 +59,54 @@ var widgetRanges = map[string]bool{"1h": true, "24h": true, "7t": true, "30t": t
 var widgetValues = map[string]bool{"cpu": true, "speicher": true}
 
 type widget struct {
-	ID        string  `json:"id"`
-	Typ       string  `json:"typ"`
-	Groesse   string  `json:"groesse"`
+	ID  string `json:"id"`
+	Typ string `json:"typ"`
+	// Groesse: alte Form (klein, breit, hoch); neu Breite (2–12 Spalten) und
+	// Hoehe (1–6 Reihen). Eines von beiden muss da sein.
+	Groesse   string  `json:"groesse,omitempty"`
+	Breite    *int    `json:"breite,omitempty"`
+	Hoehe     *int    `json:"hoehe,omitempty"`
+	Titel     *string `json:"titel,omitempty"`
+	Seite     *int    `json:"seite,omitempty"`
 	MandantID *string `json:"mandant_id"`
 	GeraetID  *string `json:"geraet_id"`
 	Zeitraum  *string `json:"zeitraum"`
 	Wert      *string `json:"wert"`
+	// Text nur an der Notiz, Sensor (Schlüssel aus /api/v1/sensoren) nur am
+	// Widget „sensor“.
+	Text   *string `json:"text,omitempty"`
+	Sensor *string `json:"sensor,omitempty"`
 }
 
 type layoutIn struct {
 	Widgets []widget `json:"widgets"`
+	Seiten  []string `json:"seiten"`
+}
+
+// sauber: keine Steuerzeichen (Zeilenumbruch nur, wenn erlaubt), gültiges UTF-8.
+func sauber(s string, zeilen bool) bool {
+	if !utf8.ValidString(s) {
+		return false
+	}
+	for _, r := range s {
+		if unicode.IsControl(r) && !(zeilen && r == '\n') {
+			return false
+		}
+	}
+	return true
+}
+
+// validatePages prüft die Namen der Seiten.
+func validatePages(ps []string) error {
+	if len(ps) > maxPages {
+		return badRequest("Höchstens 8 Seiten.")
+	}
+	for _, p := range ps {
+		if n := utf8.RuneCountInString(p); n < 1 || n > maxPageName || !sauber(p, false) || strings.TrimSpace(p) != p {
+			return badRequest("Name der Seite: 1 bis 40 Zeichen.")
+		}
+	}
+	return nil
 }
 
 // leer setzt leere Zeichenketten auf „nicht gesetzt“.
@@ -66,18 +118,18 @@ func leer(p *string) *string {
 }
 
 // validateWidgets prüft Aufbau, Typen, Größen und Einstellungen.
-func validateWidgets(ws []widget) error {
+func validateWidgets(ws []widget, pages int) error {
 	if ws == nil {
 		return badRequest("Widgets fehlen.")
 	}
 	if len(ws) > maxWidgets {
-		return badRequest("Höchstens 30 Widgets.")
+		return badRequest("Höchstens 60 Widgets.")
 	}
 	ids := map[string]bool{}
-	types := map[string]bool{}
 	for i := range ws {
 		w := &ws[i]
 		w.MandantID, w.GeraetID, w.Zeitraum, w.Wert = leer(w.MandantID), leer(w.GeraetID), leer(w.Zeitraum), leer(w.Wert)
+		w.Titel, w.Text, w.Sensor = leer(w.Titel), leer(w.Text), leer(w.Sensor)
 		if !widgetIDPattern.MatchString(w.ID) || ids[w.ID] {
 			return badRequest("Widget: ungültige oder doppelte Kennung.")
 		}
@@ -85,12 +137,31 @@ func validateWidgets(ws []widget) error {
 		if !widgetTypes[w.Typ] {
 			return badRequest("Unbekannte Widget-Art.")
 		}
-		if w.Typ != "graph" && types[w.Typ] {
-			return badRequest("Jedes Widget außer dem Graphen gibt es nur einmal.")
-		}
-		types[w.Typ] = true
-		if !widgetSizes[w.Groesse] {
+		if w.Groesse != "" && !widgetSizes[w.Groesse] {
 			return badRequest("Größe: klein, breit oder hoch.")
+		}
+		if w.Breite != nil || w.Hoehe != nil {
+			if w.Breite == nil || w.Hoehe == nil || *w.Breite < 2 || *w.Breite > 12 || *w.Hoehe < 1 || *w.Hoehe > 6 {
+				return badRequest("Widget: Breite 2 bis 12 Spalten, Höhe 1 bis 6 Reihen.")
+			}
+		} else if w.Groesse == "" {
+			return badRequest("Widget: Breite und Höhe fehlen.")
+		}
+		if w.Titel != nil && (utf8.RuneCountInString(*w.Titel) > maxWidgetTitle || !sauber(*w.Titel, false)) {
+			return badRequest("Titel: höchstens 60 Zeichen.")
+		}
+		if w.Seite != nil && (*w.Seite < 0 || *w.Seite >= max(pages, 1)) {
+			return badRequest("Widget: Seite gibt es nicht.")
+		}
+		if w.Text != nil && (w.Typ != "notiz" || utf8.RuneCountInString(*w.Text) > maxWidgetText || !sauber(*w.Text, true)) {
+			return badRequest("Text: nur an der Notiz, höchstens 500 Zeichen.")
+		}
+		if w.Sensor != nil {
+			n := utf8.RuneCountInString(*w.Sensor)
+			if w.Typ != "sensor" || n < 3 || n > 200 || !sauber(*w.Sensor, false) ||
+				!(strings.HasPrefix(*w.Sensor, "c:") || strings.HasPrefix(*w.Sensor, "h:") || strings.HasPrefix(*w.Sensor, "s:")) {
+				return badRequest("Widget: ungültiger Sensor.")
+			}
 		}
 		if w.MandantID != nil && !uuidPattern.MatchString(*w.MandantID) {
 			return badRequest("Widget: ungültiger Mandant.")
@@ -151,18 +222,23 @@ func refs(ws []widget) (tenants, devices []string) {
 
 func (s *Server) handleLayoutGet(w http.ResponseWriter, r *http.Request) {
 	s.handle(w, r, "dashboard-layout", func(ctx context.Context, tx pgx.Tx) (int, any, error) {
-		var raw []byte
+		var raw, rawPages []byte
 		var at time.Time
-		err := tx.QueryRow(ctx, `SELECT widgets, updated_at FROM openwacht.dashboard_layouts WHERE user_id = openwacht.current_user_id()`).Scan(&raw, &at)
+		err := tx.QueryRow(ctx, `SELECT widgets, pages, updated_at FROM openwacht.dashboard_layouts WHERE user_id = openwacht.current_user_id()`).
+			Scan(&raw, &rawPages, &at)
 		if errors.Is(err, pgx.ErrNoRows) {
 			// Noch nichts gespeichert: Die Oberfläche zeigt ihr Standard-Layout.
-			return http.StatusOK, map[string]any{"widgets": nil, "gespeichert": nil}, nil
+			return http.StatusOK, map[string]any{"widgets": nil, "seiten": []string{}, "gespeichert": nil}, nil
 		}
 		if err != nil {
 			return 0, nil, err
 		}
 		var ws []widget
 		if err := json.Unmarshal(raw, &ws); err != nil {
+			return 0, nil, err
+		}
+		pages := []string{}
+		if err := json.Unmarshal(rawPages, &pages); err != nil {
 			return 0, nil, err
 		}
 		tids, dids := refs(ws)
@@ -182,7 +258,7 @@ func (s *Server) handleLayoutGet(w http.ResponseWriter, r *http.Request) {
 				ws[i].GeraetID = nil
 			}
 		}
-		return http.StatusOK, map[string]any{"widgets": ws, "gespeichert": at}, nil
+		return http.StatusOK, map[string]any{"widgets": ws, "seiten": pages, "gespeichert": at}, nil
 	})
 }
 
@@ -192,7 +268,10 @@ func (s *Server) handleLayoutPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.handle(w, r, "dashboard-layout speichern", func(ctx context.Context, tx pgx.Tx) (int, any, error) {
-		if err := validateWidgets(in.Widgets); err != nil {
+		if err := validatePages(in.Seiten); err != nil {
+			return 0, nil, err
+		}
+		if err := validateWidgets(in.Widgets, len(in.Seiten)); err != nil {
 			return 0, nil, err
 		}
 		tids, dids := refs(in.Widgets)
@@ -218,11 +297,22 @@ func (s *Server) handleLayoutPut(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return 0, nil, err
 		}
+		if len(raw) > 32768 {
+			return 0, nil, badRequest("Das Dashboard ist zu groß.")
+		}
+		pages := in.Seiten
+		if pages == nil {
+			pages = []string{}
+		}
+		rawPages, err := json.Marshal(pages)
+		if err != nil {
+			return 0, nil, err
+		}
 		var at time.Time
-		err = tx.QueryRow(ctx, `INSERT INTO openwacht.dashboard_layouts (user_id, tenant_id, widgets)
-			SELECT u.id, u.tenant_id, $1::jsonb FROM openwacht.users u WHERE u.id = openwacht.current_user_id()
-			ON CONFLICT (user_id) DO UPDATE SET widgets = EXCLUDED.widgets, updated_at = now()
-			RETURNING updated_at`, raw).Scan(&at)
+		err = tx.QueryRow(ctx, `INSERT INTO openwacht.dashboard_layouts (user_id, tenant_id, widgets, pages)
+			SELECT u.id, u.tenant_id, $1::jsonb, $2::jsonb FROM openwacht.users u WHERE u.id = openwacht.current_user_id()
+			ON CONFLICT (user_id) DO UPDATE SET widgets = EXCLUDED.widgets, pages = EXCLUDED.pages, updated_at = now()
+			RETURNING updated_at`, raw, rawPages).Scan(&at)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, nil, &apiError{http.StatusForbidden, "Keine Berechtigung."}
 		}

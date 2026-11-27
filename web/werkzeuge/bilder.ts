@@ -446,6 +446,7 @@ async function main() {
 
   schritt("Seiten fotografieren");
   await seiten(page, api, demo, geheimnis);
+  await dashboardFrei(page, api);
   await wandanzeige(page, api, demo);
   await ctx.close();
   await abgemeldet();
@@ -1112,6 +1113,44 @@ async function zertifikate(page: Page, api: Api, demo: Demo) {
 }
 
 // Panel der Seite Einstellungen über seine Überschrift (innerste section).
+// Frei angepasstes Dashboard (1.0.7): zwei Seiten, freie Größen, neue Widgets.
+// Danach steht wieder der Standard, damit die übrigen Bilder gleich bleiben.
+async function dashboardFrei(page: Page, api: Api) {
+  if (!gewollt("dashboard-anpassen") && !gewollt("dashboard-fenster")) return;
+  await gehe(page, "/");
+  const { sensoren } = await api.rufe<{ sensoren: { schluessel: string; name: string; status: string }[] }>("GET", "/api/v1/sensoren");
+  const einer = sensoren.find((s) => s.status === "crit") ?? sensoren[0];
+  const w = (id: string, typ: string, breite: number, hoehe: number, mehr: Record<string, unknown> = {}) => ({ id, typ, breite, hoehe, ...mehr });
+  await api.rufe("PUT", "/api/v1/dashboard/layout", {
+    seiten: ["Leitstand", "Auslastung"],
+    widgets: [
+      w("lst1", "zustand", 7, 1),
+      w("lst2", "uhr", 2, 1),
+      w("lst3", "notiz", 3, 1, { titel: "Bereitschaft", text: "Diese Woche: Team Nord\nTelefon 0000 555 01 23" }),
+      w("lst4", "sonne", 4, 2),
+      w("lst5", "alarme", 8, 1),
+      ...(einer ? [w("lst6", "sensor", 3, 1, { sensor: einer.schluessel })] : []),
+      w("lst7", "zertifikate", 5, 1),
+      w("lst8", "wartung", 4, 1),
+      w("lst9", "ereignisse", 4, 1),
+      w("aus1", "auslastung", 4, 2, { seite: 1 }),
+      w("aus2", "graph", 8, 1, { seite: 1, wert: "cpu", zeitraum: "24h" }),
+      w("aus3", "graph", 8, 1, { seite: 1, wert: "speicher", zeitraum: "24h", titel: "Arbeitsspeicher, 24 Std." }),
+    ],
+  });
+  await page.evaluate(() => {
+    window.localStorage.removeItem("openwacht.dashboard.seite");
+    window.localStorage.setItem("openwacht.dashboard.fenster", "1");
+  });
+  await gehe(page, "/");
+  await foto(page, "dashboard-fenster");
+  await page.getByRole("button", { name: "✎ Anpassen" }).click();
+  await foto(page, "dashboard-anpassen", { ganz: true });
+  await page.getByRole("button", { name: "Fertig" }).click();
+  await page.evaluate(() => window.localStorage.removeItem("openwacht.dashboard.fenster"));
+  await api.rufe("DELETE", "/api/v1/dashboard/layout");
+}
+
 function panel(page: Page, titel: string): Locator {
   return page.getByRole("heading", { name: titel, exact: true }).first().locator("xpath=ancestor::section[1]");
 }

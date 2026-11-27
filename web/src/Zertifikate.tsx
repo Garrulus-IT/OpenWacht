@@ -44,7 +44,7 @@ export function lesen(c: Check, heute: Date): ZertZeile {
   return { c, stand: anzeige(c), bis, rest, aussteller: a?.[1] ?? "", problem };
 }
 
-function restText(z: ZertZeile) {
+export function restText(z: ZertZeile) {
   if (z.rest === null) return "–";
   if (z.rest < 0) return z.rest === -1 ? "seit 1 Tag abgelaufen" : `seit ${-z.rest} Tagen abgelaufen`;
   if (z.rest === 0) return "läuft heute ab";

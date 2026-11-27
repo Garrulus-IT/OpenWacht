@@ -101,7 +101,41 @@ Auf dem Handy klappt die Seitenleiste ein:
 ## Dashboard und Wandanzeige
 
 Das **Dashboard** besteht aus Widgets (Zustand, Sensoren nicht OK, aktive Alarme, CPU und RAM, vollste Platten,
-Alarme je Tag, Platten-Prognose, Verfügbarkeit). „Anpassen“ ordnet sie je Benutzer.
+Alarme je Tag, Platten-Prognose, Verfügbarkeit, Graph, Sonnendiagramm, Ereignisse). Jeder Benutzer stellt es sich
+selbst zusammen; das Layout liegt bei seinem Konto und folgt ihm auf jedes Gerät.
+
+Ab 1.0.7 ist es frei anpassbar. „✎ Anpassen“ schaltet in den Bearbeiten-Modus:
+
+- **Größe:** Jedes Widget ist 2 bis 12 Spalten breit und 1 bis 6 Reihen hoch. Die Ecke ◢ unten rechts ziehen, oder
+  über ⚙ Breite und Höhe wählen (so geht es auch mit der Tastatur).
+- **Reihenfolge:** am ⠿ ziehen oder ▲▼. Lücken füllt das Raster von selbst mit den nächsten passenden Widgets.
+- **⚙ Einstellungen:** eigener Titel, Größe, Seite, fester Mandant und der Inhalt (Graph: Wert, Zeitraum, Gerät).
+- **⧉ verdoppeln, ✕ entfernen, „+ Widget hinzufügen“:** Jede Art gibt es beliebig oft, zum Beispiel „Zustand“ einmal
+  je Standort mit festem Mandanten. Höchstens 60 Widgets.
+- **Seiten:** bis zu acht benannte Seiten (z. B. „Leitstand“, „Auslastung“) als Reiter über dem Raster; „+ Seite“,
+  „Umbenennen“ und „Seite löschen“ stehen im Bearbeiten-Modus rechts neben den Reitern.
+- **Standard wiederherstellen** verwirft alle Seiten und Widgets.
+
+Neue Widgets ab 1.0.7:
+
+| Widget | zeigt |
+| --- | --- |
+| Zertifikate | die TLS-Zertifikate im Bereich, das zuerst ablaufende oben |
+| Wartung | laufende Wartungen und die nächsten Wartungsfenster |
+| Einzelner Sensor | einen gewählten Sensor groß mit Zustand, Meldung und „seit“ |
+| Uhr | Uhrzeit und Datum, für den Leitstand |
+| Notiz | eigenen Text, höchstens 500 Zeichen, etwa die Nummer der Bereitschaft |
+
+![Dashboard anpassen](bilder/dashboard-anpassen.webp)
+
+**Fenstergröße:** Das Raster richtet sich nach dem Platz, den es hat. Ab etwa 780 px Breite stehen 12 Spalten
+nebeneinander, darunter sechs (Widgets halb oder ganz breit), am Handy eine. Der Knopf **„⤢ An Fenster anpassen“**
+teilt zusätzlich die Höhe des Fensters unter den Reihen auf, sodass das ganze Dashboard ohne Rollen auf den Bildschirm
+passt, auch im Vollbild auf einem großen Leitstand-Bildschirm. Werden die Reihen dabei zu niedrig (unter etwa
+110 px), bleibt es beim Rollen. Die Wahl merkt sich der Browser, nicht das Konto, weil ein Wandbildschirm etwas anderes
+braucht als ein Notebook.
+
+![Dashboard an die Fensterhöhe angepasst](bilder/dashboard-fenster.webp)
 
 „Zustand“ zeigt ab 1.0.6 je Zeile Geräte und Sensoren die Zahlen je Zustand, Kritisch, Warnung und Unbekannt groß vorn.
 Der Balken darunter gibt die Verteilung wieder; jedes Problem ist darin mindestens so breit, dass es zu sehen bleibt, auch

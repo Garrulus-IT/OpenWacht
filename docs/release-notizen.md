@@ -1,5 +1,16 @@
 # Release-Notizen OpenWacht
 
+## 1.0.7
+
+- **Dashboard frei anpassbar:** Jedes Widget hat eine freie Breite (2 bis 12 Spalten) und Höhe (1 bis 6 Reihen), zum
+  Ziehen an der Ecke oder über ⚙; dazu eigene Titel, jede Art beliebig oft (bis 60 Widgets), „verdoppeln“ und bis zu
+  acht benannte Seiten als Reiter. Neue Widgets: Zertifikate, Wartung, Einzelner Sensor, Uhr und Notiz. Alte Layouts
+  bleiben, wie sie sind ([Kapitel 4](handbuch/04-hosts.md#dashboard-und-wandanzeige)).
+- **Dashboard passt sich dem Fenster an:** Das Raster richtet sich nach seinem eigenen Platz (12, 6 oder 1 Spalte) statt
+  nach festen Bildschirmbreiten. „⤢ An Fenster anpassen“ verteilt die Höhe des Fensters auf die Reihen, das Dashboard
+  passt dann ohne Rollen auf den Bildschirm; die Wahl gilt je Browser.
+- Migration 0062 (läuft beim Update von selbst).
+
 ## 1.0.6
 
 - **Kalte Zweitinstanz als geführter Ablauf:** `openwacht-zentrale zweitinstanz -einrichten -quelle <Ordner>` auf einem

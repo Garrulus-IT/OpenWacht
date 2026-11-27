@@ -218,6 +218,13 @@ textarea:focus-visible {
   cursor: not-allowed;
 }
 
+/* gedrückter Umschalter im Kopf (z. B. „An Fenster anpassen“) */
+.knopf[aria-pressed="true"] {
+  border-color: var(--marke);
+  box-shadow: inset 0 0 0 1px var(--marke);
+  font-weight: 700;
+}
+
 .knopf-haupt {
   background: var(--marke);
   border-color: var(--marke);
@@ -2901,7 +2908,10 @@ a.nav-punkt:hover {
   text-align: center;
 }
 
-/* --- Raster der Startseite: 12 Spalten, drei Größen ---------------------------- */
+/* --- Raster der Startseite: 12 Spalten, freie Breite und Höhe (1.0.7) -----------
+   Das Raster richtet sich nach seiner eigenen Breite (Startseite.tsx misst sie
+   und setzt raster-12, raster-6 oder raster-1); Spanne und Höhe je Widget
+   stehen als Stil am Element. */
 
 .raster {
   display: grid;
@@ -2911,54 +2921,94 @@ a.nav-punkt:hover {
   gap: var(--a2);
 }
 
+.raster-6 {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.raster-1 {
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: auto;
+}
+
 .widget {
-  grid-column: span 4;
+  position: relative;
   overflow: hidden;
 }
 
-.widget-breit {
-  grid-column: span 8;
+.raster-1 .widget .panel-inhalt {
+  max-height: 22rem;
 }
 
-.widget-hoch {
-  grid-row: span 2;
+.raster-1 .widget:not([data-hoehe="1"]) .panel-inhalt {
+  max-height: 30rem;
 }
 
-@media (max-width: 1100px) {
-  .widget,
-  .widget-hoch {
-    grid-column: span 6;
-  }
-
-  .widget-breit {
-    grid-column: span 12;
-  }
+.raster-1 .griff {
+  display: none;
 }
 
-@media (max-width: 820px) {
-  .raster {
-    grid-template-columns: minmax(0, 1fr);
-    grid-auto-rows: auto;
-  }
+/* Seiten des Dashboards */
+.dash-seiten {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--a1);
+  border-bottom: 1px solid var(--linie);
+}
 
-  .widget,
-  .widget-breit,
-  .widget-hoch {
-    grid-column: auto;
-    grid-row: auto;
-  }
+.dash-seite {
+  padding: var(--a2) var(--a3);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--leise);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
 
-  .widget .panel-inhalt {
-    max-height: 22rem;
-  }
+.dash-seite:hover {
+  color: var(--text);
+}
 
-  .widget-hoch .panel-inhalt {
-    max-height: 30rem;
-  }
+.dash-seite[aria-selected="true"] {
+  border-bottom-color: var(--marke);
+  color: var(--text);
+}
 
-  .griff {
-    display: none;
-  }
+.dash-seiten-werkzeug {
+  display: flex;
+  gap: var(--a3);
+  margin-left: auto;
+  padding-right: var(--a2);
+}
+
+.raster-bearbeiten .werkzeug {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Ecke zum Ziehen der Größe (nur beim Anpassen, nur im 12er-Raster) */
+.widget-ecke {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  min-width: 1.7rem;
+  height: 1.7rem;
+  padding: 0 var(--a1);
+  border: 0;
+  border-top-left-radius: var(--r);
+  background: var(--marke);
+  color: var(--auf-marke);
+  font-size: var(--s-1);
+  font-weight: 700;
+  line-height: 1.7rem;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.widget-misst {
+  box-shadow: 0 0 0 3px var(--marke);
 }
 
 .raster-bearbeiten .widget {
@@ -3029,11 +3079,15 @@ a.nav-punkt:hover {
   min-height: 6rem;
 }
 
-@media (max-width: 820px) {
-  .widget-neu {
-    grid-column: auto;
-  }
+.raster-6 .widget-neu {
+  grid-column: span 3;
+}
 
+.raster-1 .widget-neu {
+  grid-column: auto;
+}
+
+@media (max-width: 820px) {
   .werkzeug-knopf {
     min-width: 2rem;
     height: 2rem;
@@ -3245,10 +3299,8 @@ a.nav-punkt:hover {
   white-space: nowrap;
 }
 
-@media (max-width: 1100px) {
-  .widget:not(.widget-breit) .nur-breit {
-    display: none;
-  }
+.widget:not(.widget-breit) .nur-breit {
+  display: none;
 }
 
 @media (max-width: 600px) {
@@ -3353,6 +3405,58 @@ a.nav-punkt:hover {
   }
 }
 
+/* Uhr, Notiz und einzelner Sensor (1.0.7): groß und mittig, für den Leitstand */
+.uhr-widget,
+.sensor-widget {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: safe center;
+  gap: var(--a1);
+  min-height: 100%;
+  text-align: center;
+}
+
+.uhr-widget {
+  width: 100%;
+  container-type: inline-size;
+}
+
+/* acht Zeichen fester Breite: passt in jede Widget-Breite */
+.uhr-widget-zeit {
+  font-size: clamp(1rem, 18cqw, 4rem);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.sensor-widget .zst {
+  min-width: 6rem;
+  padding: var(--a2) var(--a3);
+  font-size: var(--s0);
+}
+
+.sensor-widget-name {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--a1) var(--a2);
+}
+
+.sensor-widget-meldung {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.sensor-widget .klein {
+  margin: 0;
+}
+
+.notiz-widget {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* --- Dialoge -------------------------------------------------------------------- */
 
 .dialog {
@@ -3412,6 +3516,12 @@ a.nav-punkt:hover {
 .katalog-karte:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.feld-reihe {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--a3);
 }
 
 .einstellungen {
