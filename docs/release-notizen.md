@@ -1,5 +1,23 @@
 # Release-Notizen OpenWacht
 
+## 1.0.10
+
+Korrekturen und eine Ergänzung bei den Ausnahmen. Das Update bringt die Migration 0063 mit.
+
+- **Seite „Hosts“ lädt schneller.** Die Seite wartete bei jedem Laden und danach alle 15 Sekunden auf die Prognose der
+  Platten. Diese Abfrage rechnet über 30 Tage Stundenwerte und wird mit dem Bestand langsamer. Die Liste erscheint
+  jetzt, ohne auf sie zu warten; die Prognose kommt daneben und wird alle 5 Minuten erneuert.
+- **Prognose liest weniger Rohwerte.** Für die laufende Stunde las die Abfrage die Rohwerte des ganzen Tages und
+  verwarf fast alle. Sie liest jetzt nur noch die Werte seit dem letzten verdichteten Stand.
+- **Ausgenommene Werte ganz entfernen.** Eine alte SnapMirror-Beziehung oder ein anderer Wert einer Quelle (SNMP,
+  Proxmox, NetApp, XenServer …) stand nach „Ausnehmen“ weiter grau in jeder Liste. Am Gerät im Reiter „Sensoren“ gibt
+  es dafür jetzt „Entfernen“: beim Ausnehmen als Haken „Auch aus allen Listen entfernen“, bei schon ausgenommenen
+  Werten als eigener Knopf. Der Wert steht dann nicht mehr bei den Sensoren, im Dashboard und auf Wandanzeigen. Löschen
+  lässt er sich nicht, weil das Gerät ihn weiter meldet; unter der Tabelle steht deshalb „Entfernte Werte“ mit
+  Begründung und „Wieder überwachen“. Rechte wie beim Ausnehmen, im Audit-Log als `sensor.entfernt`
+  ([Kapitel 19](handbuch/19-anbindungen.md)).
+- **Handbuch** nennt wieder die aktuelle Version, auch in den Beispielnamen der Pakete.
+
 ## 1.0.9
 
 Nur Korrekturen, keine neuen Funktionen.
