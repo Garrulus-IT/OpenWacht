@@ -11,7 +11,7 @@ import { GRUND_DUNKEL, GRUND_HELL, kennfarbePruefen, schriftAuf, zahl } from "./
 import { useKennfarben } from "./SensorenReiter";
 
 // Vorschläge mit genug Kontrast; frei wählbar bleibt jede andere Farbe.
-const VORSCHLAEGE = ["#c0307a", "#e05a00", "#00838a", "#7b5cd6", "#8a5a2b", "#2a78d6"];
+const VORSCHLAEGE = ["#c0307a", "#e05a00", "#00838a", "#7b5cd6", "#9a6530", "#2a78d6"];
 
 function Vorschau({ farbe }: { farbe: string }) {
   const stil = { "--kenn": farbe, "--auf-kenn": schriftAuf(farbe) } as CSSProperties;

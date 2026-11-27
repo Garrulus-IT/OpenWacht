@@ -64,6 +64,8 @@ func snmpSourceAAD(f []string) []byte {
 		return ontapAAD(id, tenant, host, port)
 	case "xapi":
 		return xapiAAD(id, tenant, host, port)
+	case "citrix":
+		return citrixAAD(id, tenant, host, port)
 	}
 	return snmpAAD(id, tenant, host, port)
 }

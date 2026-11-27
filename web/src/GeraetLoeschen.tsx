@@ -26,6 +26,7 @@ const quelleText: Record<string, string> = {
   vcenter: "vCenter-Abfrage",
   ontap: "NetApp-Abfrage",
   xapi: "XenServer-Abfrage",
+  citrix: "Citrix-Abfrage",
 };
 
 function anzahl(n: number, eins: string, viele: string) {

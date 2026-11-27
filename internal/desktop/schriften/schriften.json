@@ -1,0 +1,25 @@
+{
+  "schriften": [
+    {
+      "name": "D-DIN",
+      "version": "1.00",
+      "lizenz": "OFL-1.1",
+      "quelle": "https://github.com/amcchord/datto-d-din",
+      "urheber": "Datto Inc.",
+      "dateien": [
+        "D-DIN.ttf",
+        "D-DIN-Bold.ttf"
+      ]
+    },
+    {
+      "name": "JetBrains Mono",
+      "version": "2.304",
+      "lizenz": "OFL-1.1",
+      "quelle": "https://github.com/JetBrains/JetBrainsMono",
+      "urheber": "The JetBrains Mono Project Authors",
+      "dateien": [
+        "JetBrainsMono-Regular.ttf"
+      ]
+    }
+  ]
+}

@@ -5,6 +5,14 @@
 Die Seite **Hosts** zeigt alle Geräte des gewählten Mandanten im Gruppenbaum, mit Zustand (Punkt), CPU, RAM und Platte.
 Ein Klick öffnet das Gerät mit den Reitern „Übersicht“ (Werte, Verlauf, Graphen) und „Sensoren“.
 
+**Schnellsuche** (ab 1.0.6): **Strg+K** (am Mac ⌘K) oder „Suchen“ oben rechts öffnet ein Suchfeld über alle Geräte,
+Sensoren, Mandanten und Seiten, die du sehen darfst, unabhängig vom gewählten Mandanten. Mehrere Wörter grenzen ein
+(„db platte“). Treffer am Anfang des Namens stehen vorn, bei gleicher Güte die schlimmsten Zustände. Pfeiltasten wählen,
+Enter öffnet: ein Gerät mit seiner Übersicht, ein Sensor das Gerät mit dem Reiter „Sensoren“, ein Mandant wechselt den
+Mandanten.
+
+![Schnellsuche](bilder/schnellsuche.webp)
+
 ![Gerät mit SNMP](bilder/host-snmp.webp)
 
 ## Host hinzufügen
@@ -29,7 +37,9 @@ ein Agent, sind das zwei Geräte (z. B. `pve-01` mit Agent und `pve-01 (Proxmox)
 
 **Gruppen ordnen:** Gruppen je Mandant als Baum (bis 4 Ebenen), Reihenfolge von Hand, Geräte per Auswahl oder Ziehen
 zuordnen. Wird eine Gruppe mit Inhalt gelöscht, rutschen Geräte und Untergruppen eine Ebene höher. Gruppen ordnen die
-Übersicht und die Wandanzeige und sind Ziel für Wartungsfenster und Vorlagen.
+Übersicht und die Wandanzeige und sind Ziel für Wartungsfenster und Vorlagen. Unter Hosts sind Gruppen ab Werk **zugeklappt** (ab 1.0.6) und
+zeigen trotzdem den schlimmsten Zustand und die Zahl der Geräte mit Problemen; „Alle aufklappen“ öffnet alle. Welche offen
+sind, merkt sich der Browser.
 
 ## Abhängigkeiten
 
@@ -37,6 +47,25 @@ Unter „Gerät bearbeiten“ kann ein Gerät **von einem Elterngerät abhängen
 Mandant, keine Kreise). Ist das Elterngerät nicht erreichbar (Ping kritisch, Agent stumm oder Abfragequelle stumm),
 gibt es für die Geräte darunter keine eigenen Alarme; Hosts zeigt „nicht erreichbar wegen …“. Entwarnungen gehen
 weiter raus.
+
+## In einen anderen Mandanten verschieben
+
+Ab 1.0.6, im Menü des Geräts: **In anderen Mandanten verschieben …**, neuen Mandanten wählen, „Verschieben“. Das dürfen
+nur Admins, die **beide** Mandanten verwalten (z. B. ein Admin des gemeinsamen übergeordneten Mandanten).
+
+![Gerät verschieben](bilder/geraet-verschieben.webp)
+
+- **Zieht mit um:** Agent (ohne neue Registrierung: Das Zertifikat enthält nur die ID des Agents, den Mandanten kennt
+  die Zentrale), Abfrage (SNMP, Proxmox, vCenter, FRITZ!Box, NetApp, XenServer; die Zugangsdaten werden für den neuen
+  Mandanten neu verschlüsselt), Sensoren, Schwellen, Trap-Regeln des Geräts, Ausnahmen, offene und beendete Alarme,
+  Verlauf und Messwerte.
+- **Fällt weg:** Gruppe, Abhängigkeiten in beide Richtungen, Wartungen und Wartungsfenster des Geräts, Kennfarben, die im
+  neuen Mandanten nicht gelten, Freigaben für Agent-Updates und unbenutzte Registrierungs-Tokens.
+- **Abgelehnt** mit Hinweis, wenn die Abfrage über den Sammler eines anderen Geräts läuft oder der Agent des Geräts für
+  andere Geräte sammelt, wenn ein SNMP-Profil im neuen Mandanten nicht gilt oder wenn eine Trap-Regel über „beendet“ mit
+  einer Regel ohne dieses Gerät verbunden ist. Erst lösen, dann verschieben.
+- Danach gelten die **Netze des neuen Mandanten**: Liegt ein Ziel dort nicht in den freigegebenen Netzen, schlagen die
+  betroffenen Sensoren fehl. Im Audit-Log beider Mandanten steht `geraet.verschoben`.
 
 ## Topologie
 
@@ -72,7 +101,46 @@ Auf dem Handy klappt die Seitenleiste ein:
 ## Dashboard und Wandanzeige
 
 Das **Dashboard** besteht aus Widgets (Zustand, Sensoren nicht OK, aktive Alarme, CPU und RAM, vollste Platten,
-Alarme je Tag, Platten-Prognose, Verfügbarkeit). „Anpassen“ ordnet sie je Benutzer.
+Alarme je Tag, Platten-Prognose, Verfügbarkeit, Graph, Sonnendiagramm, Ereignisse). Jeder Benutzer stellt es sich
+selbst zusammen; das Layout liegt bei seinem Konto und folgt ihm auf jedes Gerät.
+
+Ab 1.0.7 ist es frei anpassbar. „✎ Anpassen“ schaltet in den Bearbeiten-Modus:
+
+- **Größe:** Jedes Widget ist 2 bis 12 Spalten breit und 1 bis 6 Reihen hoch. Die Ecke ◢ unten rechts ziehen, oder
+  über ⚙ Breite und Höhe wählen (so geht es auch mit der Tastatur).
+- **Reihenfolge:** am ⠿ ziehen oder ▲▼. Lücken füllt das Raster von selbst mit den nächsten passenden Widgets.
+- **⚙ Einstellungen:** eigener Titel, Größe, Seite, fester Mandant und der Inhalt (Graph: Wert, Zeitraum, Gerät).
+- **⧉ verdoppeln, ✕ entfernen, „+ Widget hinzufügen“:** Jede Art gibt es beliebig oft, zum Beispiel „Zustand“ einmal
+  je Standort mit festem Mandanten. Höchstens 60 Widgets.
+- **Seiten:** bis zu acht benannte Seiten (z. B. „Leitstand“, „Auslastung“) als Reiter über dem Raster; „+ Seite“,
+  „Umbenennen“ und „Seite löschen“ stehen im Bearbeiten-Modus rechts neben den Reitern.
+- **Standard wiederherstellen** verwirft alle Seiten und Widgets.
+
+Neue Widgets ab 1.0.7:
+
+| Widget | zeigt |
+| --- | --- |
+| Zertifikate | die TLS-Zertifikate im Bereich, das zuerst ablaufende oben |
+| Wartung | laufende Wartungen und die nächsten Wartungsfenster |
+| Einzelner Sensor | einen gewählten Sensor groß mit Zustand, Meldung und „seit“ |
+| Uhr | Uhrzeit und Datum, für den Leitstand |
+| Notiz | eigenen Text, höchstens 500 Zeichen, etwa die Nummer der Bereitschaft |
+
+![Dashboard anpassen](bilder/dashboard-anpassen.webp)
+
+**Fenstergröße:** Das Raster richtet sich nach dem Platz, den es hat. Ab etwa 780 px Breite stehen 12 Spalten
+nebeneinander, darunter sechs (Widgets halb oder ganz breit), am Handy eine. Der Knopf **„⤢ An Fenster anpassen“**
+teilt zusätzlich die Höhe des Fensters unter den Reihen auf, sodass das ganze Dashboard ohne Rollen auf den Bildschirm
+passt, auch im Vollbild auf einem großen Leitstand-Bildschirm. Werden die Reihen dabei zu niedrig (unter etwa
+110 px), bleibt es beim Rollen. Die Wahl merkt sich der Browser, nicht das Konto, weil ein Wandbildschirm etwas anderes
+braucht als ein Notebook.
+
+![Dashboard an die Fensterhöhe angepasst](bilder/dashboard-fenster.webp)
+
+„Zustand“ zeigt ab 1.0.6 je Zeile Geräte und Sensoren die Zahlen je Zustand, Kritisch, Warnung und Unbekannt groß vorn.
+Der Balken darunter gibt die Verteilung wieder; jedes Problem ist darin mindestens so breit, dass es zu sehen bleibt, auch
+unter Tausenden OK-Sensoren (dann nicht maßstabsgetreu). Ein Klick auf „Geräte“ öffnet die Hosts, auf „Sensoren“ die
+Alarme.
 
 Die **Wandanzeige** (Einrichten → Wandanzeigen) zeigt ein Sonnendiagramm Mandant → Gruppen → Geräte ohne Anmeldung
 über einen geheimen Link (nur einmal angezeigt, mit QR-Code). Löschen sperrt die Anzeige sofort.
@@ -103,3 +171,15 @@ Rechts daneben (bei hochkant gestelltem Bildschirm darunter):
   Kennfarbe; höchstens zwölf, der Rest als Zahl.
 - **Kennfarben:** alle Kennfarben, die die Anzeige kennt, mit der Zahl der Geräte, die gerade in dieser Farbe stehen.
   Die Anzeige zeigt weiter nur Namen und Farben, keine Sensoren und keine Meldungen.
+
+**Vollbild und Ansicht „Namen“** (ab 1.0.6), am Bildschirm und in der Vorschau:
+
+- **Vollbild** (Knopf unten links oder Taste **F**) blendet die Leisten des Browsers aus; Esc beendet es.
+- **Alle Namen** (Taste **N**) zeigt nur das Sonnendiagramm, so groß es geht, mit dem Namen der Anzeige und der Uhr
+  darüber. Jedes Gerät ist beschriftet, die Schrift wird dafür bei vielen Geräten kleiner statt wegzufallen. Zahlen,
+  „Aktuell“ und Kennfarben stehen nur in der Übersicht; „Übersicht“ bzw. N schaltet zurück.
+- Die Ansicht steht in der Adresse (`/anzeige?ansicht=namen`): Ein Bildschirm, der mit dieser Adresse startet, zeigt
+  gleich die Namen. Gespeichert wird im Browser nichts.
+- Nach drei Sekunden ohne Maus verschwinden Mauszeiger und Knöpfe.
+
+![Wandanzeige, Ansicht „Namen“](bilder/wandanzeige-namen.webp)

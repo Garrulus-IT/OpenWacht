@@ -18,7 +18,7 @@ import { HostVerlauf } from "./Verlauf";
 import { GeraetSensoren, useSparklines } from "./Sparkline";
 import { SensorenReiter } from "./SensorenReiter";
 import { bereichFilter, prognoseNach, prognoseSchluessel, PrognoseZeile, type PlattenPrognose, type PrognoseAntwort } from "./Prognose";
-import { darfPflegen, mandantName, rolleIn, type Bereich } from "./bereich";
+import { baumReihe, darfPflegen, mandantName, rolleIn, type Bereich } from "./bereich";
 import { GeraeteImport } from "./GeraeteImport";
 import { SnmpFelder, SnmpFormular, SnmpTeil, snmpDaten, snmpKurz, snmpStart } from "./Snmp";
 import { ProxmoxFormular, ProxmoxTeil, proxmoxKurz } from "./Proxmox";
@@ -26,6 +26,7 @@ import { VCenterFormular } from "./VCenter";
 import { FritzBoxFormular, FritzBoxTeil, fritzKurz } from "./FritzBox";
 import { NetAppFormular, NetAppTeil, netappKurz } from "./NetApp";
 import { XenServerFormular, XenServerTeil, xenKurz } from "./XenServer";
+import { CitrixFormular, CitrixTeil, citrixKurz } from "./Citrix";
 import { TrapRegeln } from "./Traps";
 import { WartungHinweis, WartungMarke, WartungSteuerung } from "./Wartung";
 import { Aktionsmenue } from "./Aktionsmenue";
@@ -156,11 +157,11 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
   const [hinzufuegen, setHinzufuegen] = useState<"" | "host" | "mehrere" | "import">("");
   const [ordnen, setOrdnen] = useState(false);
   const [regeln, setRegeln] = useState(false);
-  // zugeklappte Gruppen, im Browser gemerkt (nur Gruppen-IDs, kein Geheimnis)
-  const [zu, setZuState] = useState<Set<string>>(gemerktZu);
-  const setZu = useCallback((n: Set<string>) => {
-    setZuState(n);
-    merkeZu(n);
+  // aufgeklappte Gruppen (ab Werk alle zu, 1.0.6), im Browser gemerkt (nur Gruppen-IDs, kein Geheimnis)
+  const [auf, setAufState] = useState<Set<string>>(gemerktAuf);
+  const setAuf = useCallback((n: Set<string>) => {
+    setAufState(n);
+    merkeAuf(n);
   }, []);
 
   const laden = useCallback(async () => {
@@ -259,7 +260,7 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
         )}
         {!hinzufuegen && !ordnen && !regeln && (darf || daten?.snmp.some((q) => q.traps)) && (
           <span className="kopf-knoepfe">
-            {(daten?.snmp.some((q) => q.version !== "pve" && q.version !== "tr064" && q.version !== "vcenter" && q.version !== "ontap" && q.version !== "xapi") ||
+            {(daten?.snmp.some((q) => q.version !== "pve" && q.version !== "tr064" && q.version !== "vcenter" && q.version !== "ontap" && q.version !== "xapi" && q.version !== "citrix") ||
               rolleIn(bereich, mandant.id) === "admin") && (
               <button className="knopf" onClick={() => setRegeln(true)}>
                 Trap-Regeln
@@ -369,8 +370,8 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
               sichten={sichten}
               gruppen={daten.gruppen}
               bereich={bereich}
-              zu={zu}
-              setZu={setZu}
+              auf={auf}
+              setAuf={setAuf}
               zeile={(s) => (
                 <GeraetZeile
                   key={s.g.id}
@@ -383,6 +384,7 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
                   zentrale={zentrale}
                   darf={darfPflegen(bereich, s.g.mandant_id)}
                   darfAdmin={rolleIn(bereich, s.g.mandant_id) === "admin"}
+                  mandanten={[...bereich.nachId.values()]}
                   mandant={bereich.mehrere ? mandantName(bereich, s.g.mandant_id) : ""}
                   prognose={daten.prognose}
                   onGeaendert={laden}
@@ -408,6 +410,7 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
               zentrale={zentrale}
               darf={darfPflegen(bereich, gewaehlt.g.mandant_id)}
               darfAdmin={rolleIn(bereich, gewaehlt.g.mandant_id) === "admin"}
+              mandanten={[...bereich.nachId.values()]}
               mandant={bereich.mehrere ? mandantName(bereich, gewaehlt.g.mandant_id) : ""}
               prognose={daten.prognose}
               onGeaendert={laden}
@@ -425,28 +428,30 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
   );
 }
 
-// Zugeklappte Gruppen überstehen Neuladen und Seitenwechsel. Liegt nur im
-// Browser (localStorage); ist der Speicher gesperrt, gilt der Zustand bis
-// zum Neuladen. Unbekannte IDs (gelöschte Gruppen) stören nicht.
-const ZU_SCHLUESSEL = "openwacht.hosts.zugeklappt";
+// Aufgeklappte Gruppen überstehen Neuladen und Seitenwechsel; ab Werk sind
+// alle zu (1.0.6, vorher alle offen). Liegt nur im Browser (localStorage); ist
+// der Speicher gesperrt, gilt der Zustand bis zum Neuladen. Unbekannte IDs
+// (gelöschte Gruppen) stören nicht.
+const AUF_SCHLUESSEL = "openwacht.hosts.aufgeklappt";
 
-function gemerktZu(): Set<string> {
+function gemerktAuf(): Set<string> {
   try {
-    const roh = window.localStorage.getItem(ZU_SCHLUESSEL);
+    window.localStorage.removeItem("openwacht.hosts.zugeklappt"); // alter Schlüssel bis 1.0.5
+    const roh = window.localStorage.getItem(AUF_SCHLUESSEL);
     const liste: unknown = roh ? JSON.parse(roh) : [];
     if (Array.isArray(liste)) {
       return new Set(liste.filter((x): x is string => typeof x === "string" && x.length <= 64).slice(0, 1000));
     }
   } catch {
-    /* gesperrt oder beschädigt: alles offen */
+    /* gesperrt oder beschädigt: alles zu */
   }
   return new Set();
 }
 
-function merkeZu(n: Set<string>) {
+function merkeAuf(n: Set<string>) {
   try {
-    if (n.size === 0) window.localStorage.removeItem(ZU_SCHLUESSEL);
-    else window.localStorage.setItem(ZU_SCHLUESSEL, JSON.stringify([...n].slice(0, 1000)));
+    if (n.size === 0) window.localStorage.removeItem(AUF_SCHLUESSEL);
+    else window.localStorage.setItem(AUF_SCHLUESSEL, JSON.stringify([...n].slice(0, 1000)));
   } catch {
     /* nicht speicherbar */
   }
@@ -455,15 +460,16 @@ function merkeZu(n: Set<string>) {
 // Hosts als Baum: Gruppen in ihrer Reihenfolge (aufklappbar), danach die
 // Geräte ohne Gruppe. Eine Gruppe zeigt den schlimmsten Zustand ihrer Geräte,
 // auch zugeklappt. Ohne Gruppen bleibt die Liste flach wie bisher.
+// Oben „Alle aufklappen“ bzw. „Alle zuklappen“.
 function HostBaum(props: {
   sichten: Sicht[];
   gruppen: Gruppe[];
   bereich: Bereich;
-  zu: Set<string>;
-  setZu: (s: Set<string>) => void;
+  auf: Set<string>;
+  setAuf: (s: Set<string>) => void;
   zeile: (s: Sicht) => ReactNode;
 }) {
-  const { sichten, gruppen, bereich, zu } = props;
+  const { sichten, gruppen, bereich, auf } = props;
   const idx = nachId(gruppen);
   const ohne = sichten.filter((s) => !s.g.gruppe_id || !idx.has(s.g.gruppe_id));
   if (gruppen.length === 0) return <ul className="host-liste">{sichten.map(props.zeile)}</ul>;
@@ -477,7 +483,7 @@ function HostBaum(props: {
 
   const knoten = (g: Gruppe, oben: boolean): ReactNode => {
     const alle = unter(g.id);
-    const offen = !zu.has(g.id);
+    const offen = auf.has(g.id);
     const stand = alle.reduce<Anzeige | "leer">((a, s) => (standRang(s.stand) < standRang(a) ? s.stand : a), "leer");
     const kenn = kennStil(kennfarbeVon(alle, stand, (s) => s.stand, (s) => s.kenn), stand);
     const probleme = alle.filter((s) => (s.stand === "crit" || s.stand === "unknown" || s.stand === "warn") && !s.g.wartung).length;
@@ -490,10 +496,10 @@ function HostBaum(props: {
           aria-controls={id}
           title={pfad(idx, g.id)}
           onClick={() => {
-            const n = new Set(zu);
-            if (offen) n.add(g.id);
-            else n.delete(g.id);
-            props.setZu(n);
+            const n = new Set(auf);
+            if (offen) n.delete(g.id);
+            else n.add(g.id);
+            props.setAuf(n);
           }}
         >
           <span className="gruppe-pfeil" aria-hidden="true">
@@ -519,6 +525,11 @@ function HostBaum(props: {
 
   return (
     <ul className="host-liste host-baum">
+      <li className="gruppe-alle">
+        <button className="knopf-text" onClick={() => props.setAuf(auf.size > 0 ? new Set() : new Set(gruppen.map((g) => g.id)))}>
+          {auf.size > 0 ? "Alle zuklappen" : "Alle aufklappen"}
+        </button>
+      </li>
       {mandanten.flatMap((m) => kinder(gruppen, m, null).map((g) => knoten(g, true)))}
       {ohne.length > 0 && (
         <li className="gruppe-ohne" aria-hidden="true">
@@ -548,6 +559,8 @@ function GeraetZeile(props: {
   onAnsicht?: (r: GeraetReiter) => void;
   darf: boolean;
   darfAdmin: boolean;
+  // alle sichtbaren Mandanten (Ziele zum Verschieben: die mit Rolle Admin)
+  mandanten: Mandant[];
   // Name des Mandanten, wenn der Bereich mehrere umfasst
   mandant: string;
   prognose: Map<string, PlattenPrognose>;
@@ -561,7 +574,7 @@ function GeraetZeile(props: {
   const platte = m ? vollstePlatte(m) : null;
   const detailId = `geraet-${g.id}`;
   const [modus, setModus] = useState<
-    "" | "bearbeiten" | "check" | "agent" | "snmp" | "proxmox" | "vcenter" | "fritzbox" | "netapp" | "xenserver" | "loeschen" | "wartung" | "schwellen" | "entfernen"
+    "" | "bearbeiten" | "check" | "agent" | "snmp" | "proxmox" | "vcenter" | "fritzbox" | "netapp" | "xenserver" | "citrix" | "loeschen" | "wartung" | "schwellen" | "entfernen" | "verschieben"
   >("");
   const q = s.snmp;
   const istVc = q?.version === "vcenter";
@@ -569,8 +582,9 @@ function GeraetZeile(props: {
   const istFritz = q?.version === "tr064";
   const istNetApp = q?.version === "ontap";
   const istXen = q?.version === "xapi";
-  const quelleName = istVc ? "vCenter" : istPve ? "Proxmox" : istFritz ? "FRITZ!Box" : istNetApp ? "NetApp" : istXen ? "XenServer" : "SNMP";
-  const quelleModus = istVc ? "vcenter" : istPve ? "proxmox" : istFritz ? "fritzbox" : istNetApp ? "netapp" : istXen ? "xenserver" : "snmp";
+  const istCitrix = q?.version === "citrix";
+  const quelleName = istVc ? "vCenter" : istPve ? "Proxmox" : istFritz ? "FRITZ!Box" : istNetApp ? "NetApp" : istXen ? "XenServer" : istCitrix ? "Citrix" : "SNMP";
+  const quelleModus = istVc ? "vcenter" : istPve ? "proxmox" : istFritz ? "fritzbox" : istNetApp ? "netapp" : istXen ? "xenserver" : istCitrix ? "citrix" : "snmp";
   // Werte für die Kopfzeile: Agent, sonst SNMP (wenn das Gerät CPU/RAM/Platten meldet)
   const sm = !m && q?.messwerte ? q.messwerte : null;
   // Meldet sich das Gerät nicht mehr, keine alten Werte im Kopf zeigen.
@@ -594,7 +608,7 @@ function GeraetZeile(props: {
     a && z ? `Agent ${zustandText[z]}${a.zuletzt_gesehen && z !== "online" && !mAlt ? `, zuletzt ${vor(a.zuletzt_gesehen, jetzt)}` : ""}` : "",
     !a && s.gesperrt.length > 0 ? "Agent gesperrt" : "",
     !a && g.adresse ? g.adresse : "",
-    q ? (istPve ? proxmoxKurz(q) : istFritz ? fritzKurz(q) : istNetApp ? netappKurz(q) : istXen ? xenKurz(q) : snmpKurz(q)) : "",
+    q ? (istPve ? proxmoxKurz(q) : istFritz ? fritzKurz(q) : istNetApp ? netappKurz(q) : istXen ? xenKurz(q) : istCitrix ? citrixKurz(q) : snmpKurz(q)) : "",
     checkZusammenfassung(s.checks),
     !a && !q && s.checks.length === 0 && s.gesperrt.length === 0 ? "noch nicht überwacht" : "",
   ].filter(Boolean);
@@ -769,6 +783,30 @@ function GeraetZeile(props: {
           entfernen={modus === "entfernen"}
           onEntfernenEnde={() => setModus("")}
         />
+      ) : modus === "citrix" ? (
+        <CitrixFormular
+          g={g}
+          q={istCitrix ? q : null}
+          onFertig={() => {
+            setModus("");
+            props.onGeaendert();
+          }}
+          melden={props.melden}
+        />
+      ) : q && istCitrix ? (
+        <CitrixTeil
+          q={q}
+          g={g}
+          darfAdmin={props.darfAdmin}
+          darfPflegen={props.darf}
+          jetzt={jetzt}
+          onBearbeiten={() => setModus("citrix")}
+          onGeaendert={props.onGeaendert}
+          melden={props.melden}
+          ohneAktionen
+          entfernen={modus === "entfernen"}
+          onEntfernenEnde={() => setModus("")}
+        />
       ) : modus === "xenserver" ? (
         <XenServerFormular
           g={g}
@@ -856,7 +894,7 @@ function GeraetZeile(props: {
               check={bearbeite}
               netze={props.netze}
               hatAgent={!!a}
-              hatSnmp={!!q && !istPve && !istFritz && !istNetApp && !istXen}
+              hatSnmp={!!q && !istPve && !istFritz && !istNetApp && !istXen && !istCitrix}
               freigabe={a?.messwerte?.sensoren ?? null}
               onFertig={(neu) => {
                 setModus("");
@@ -924,6 +962,17 @@ function GeraetZeile(props: {
           melden={props.melden}
         />
       )}
+      {modus === "verschieben" && (
+        <GeraetVerschieben
+          g={g}
+          mandanten={props.mandanten}
+          onFertig={(verschoben) => {
+            setModus("");
+            if (verschoben) props.onGeaendert();
+          }}
+          melden={props.melden}
+        />
+      )}
       {modus === "schwellen" && <GeraetSchwellen geraetId={g.id} name={g.name} onFertig={() => setModus("")} melden={props.melden} />}
       <WartungSteuerung
         pfad={`/api/v1/geraete/${g.id}`}
@@ -966,6 +1015,7 @@ function GeraetZeile(props: {
                       { text: "FRITZ!Box einrichten", onWahl: () => setModus("fritzbox") },
                       { text: "NetApp einrichten", onWahl: () => setModus("netapp") },
                       { text: "XenServer einrichten", onWahl: () => setModus("xenserver") },
+                      { text: "Citrix einrichten", onWahl: () => setModus("citrix") },
                     ]
                   : []),
               ],
@@ -973,6 +1023,9 @@ function GeraetZeile(props: {
                 { text: "Gerät bearbeiten", onWahl: () => setModus("bearbeiten") },
                 { text: "Schwellen …", onWahl: () => setModus("schwellen"), titel: "Schwellen für Platte, RAM, CPU und „stumm nach“" },
                 ...(q && props.darfAdmin ? [{ text: `${quelleName} bearbeiten`, onWahl: () => setModus(quelleModus) }] : []),
+                ...(props.darfAdmin && props.mandanten.some((m) => m.rolle === "admin" && m.id !== g.mandant_id)
+                  ? [{ text: "In anderen Mandanten verschieben …", onWahl: () => setModus("verschieben") }]
+                  : []),
               ],
               g.wartung
                 ? [
@@ -1040,7 +1093,7 @@ function GeraetZeile(props: {
               sensoren={s.sensoren}
               geschwister={geschwister}
               netze={props.netze}
-              hatSnmp={!!q && !istPve && !istFritz && !istNetApp && !istXen}
+              hatSnmp={!!q && !istPve && !istFritz && !istNetApp && !istXen && !istCitrix}
               darf={props.darf}
               onGeaendert={props.onGeaendert}
               melden={props.melden}
@@ -1065,6 +1118,80 @@ function GeraetZeile(props: {
         </div>
       )}
     </li>
+  );
+}
+
+// Gerät in einen anderen Mandanten verschieben (1.0.6): nur in Mandanten, die
+// der Benutzer verwaltet; die Zentrale prüft das ebenso (Admin beider Mandanten).
+function GeraetVerschieben(props: { g: Geraet; mandanten: Mandant[]; onFertig: (verschoben: boolean) => void; melden: (e: unknown) => void }) {
+  const { g } = props;
+  const ziele = baumReihe(props.mandanten).filter((x) => x.m.rolle === "admin" && x.m.id !== g.mandant_id);
+  const [ziel, setZiel] = useState(ziele[0]?.m.id ?? "");
+  const [laeuft, setLaeuft] = useState(false);
+  const [ergebnis, setErgebnis] = useState<Record<string, number | boolean> | null>(null);
+  if (ergebnis) {
+    const n = (k: string) => Number(ergebnis[k] ?? 0);
+    const weg = [
+      n("wartungen_entfernt") ? `${n("wartungen_entfernt")} Wartung(en)` : "",
+      n("abhaengigkeiten_geloest") ? `${n("abhaengigkeiten_geloest")} Abhängigkeit(en)` : "",
+      n("kennfarben_entfernt") ? `${n("kennfarben_entfernt")} Kennfarbe(n)` : "",
+    ].filter(Boolean);
+    return (
+      <div className="einschub" role="status">
+        <p>
+          „{g.name}“ ist verschoben: {n("sensoren")} Sensor(en), {n("abfragen")} Abfrage(n){ergebnis.agent ? ", Agent" : ""} und {n("alarme")} Alarm(e) sind mitgezogen.
+          {weg.length > 0 && ` Entfernt: ${weg.join(", ")}.`}
+        </p>
+        <div className="aktionen">
+          <button className="knopf knopf-haupt" onClick={() => props.onFertig(true)}>
+            Fertig
+          </button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="einschub">
+      <form
+        className="formular formular-flach"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!ziel) return;
+          setLaeuft(true);
+          try {
+            setErgebnis(await api<Record<string, number | boolean>>("POST", `/api/v1/geraete/${g.id}/verschieben`, { mandant_id: ziel }));
+          } catch (err) {
+            props.melden(err);
+          }
+          setLaeuft(false);
+        }}
+      >
+        <h3 className="einschub-titel">„{g.name}“ in einen anderen Mandanten verschieben</h3>
+        <label className="feld">
+          <span>Neuer Mandant</span>
+          <select value={ziel} onChange={(e) => setZiel(e.target.value)} required>
+            {ziele.map((x) => (
+              <option key={x.m.id} value={x.m.id}>
+                {"\u00a0\u00a0".repeat(x.tiefe)}
+                {x.m.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="hinweis klein formular-voll">
+          Mit dem Gerät ziehen Agent, Abfragen, Sensoren, Schwellen, Trap-Regeln, Alarme und Verlauf um; der Agent braucht keine neue Registrierung. Weg fallen Gruppe,
+          Abhängigkeiten, Wartungsfenster und Kennfarben, die im neuen Mandanten nicht gelten. Wer nur den alten Mandanten sieht, sieht das Gerät danach nicht mehr.
+        </p>
+        <div className="aktionen">
+          <button className="knopf knopf-haupt" disabled={!ziel || laeuft}>
+            Verschieben
+          </button>
+          <button type="button" className="knopf" onClick={() => props.onFertig(false)}>
+            Abbrechen
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 

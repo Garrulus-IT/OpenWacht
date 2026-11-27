@@ -30,6 +30,7 @@ Offline-Installationspaket (`deploy/offline/`, Handbuch Kapitel 14).
 | `tools/signieren` | Agent-Updates offline signieren (nur auf dem Rechner mit dem Update-Schlüssel) |
 | `internal/ontap` | NetApp ONTAP über die REST-API, nur lesend; Attrappe `internal/ontap/ontaptest` und `tools/ontapattrappe` für Tests und Bilder |
 | `internal/xapi` | XenServer und XCP-ng über XAPI (JSON-RPC, `/rrd_updates`), nur lesend; Attrappe `internal/xapi/xapitest` und `tools/xapiattrappe` für Tests und Bilder |
+| `internal/citrix` | Citrix Monitor Service (OData v4) per NTLM, nur lesend; Attrappe `internal/citrix/citrixtest` für Tests |
 | `deploy/offline` | Offline-Installationspaket bauen (`paket-bauen.sh`) und beim Kunden installieren (`installieren.sh`) |
 | `docs/handbuch` | Handbuch mit Bildschirmfotos |
 | `deploy/linux` | systemd-Units (auch im Binary und im Debian-Paket), Hinweise zu PostgreSQL, Caddy (nur noch für ntfy) und ntfy |
@@ -161,7 +162,7 @@ openwacht-zentrale starten ... -alarm-ziele http://127.0.0.1:2586,https://ntfy.e
 ```
 
 - Ohne `-alarm-ziele` werden keine Alarme verschickt. `https` ist Pflicht, `http` nur für Loopback.
-- Gemeldet wird so: ein Fehler nach 2 Fehlschlägen in Folge und nur bei Zustandswechsel, eine Erinnerung
+- Gemeldet wird so: ein Fehler nach 3 Fehlschlägen in Folge (je Sensor änderbar) und nur bei Zustandswechsel, eine Erinnerung
   nach 12 Stunden, Warnungen sofort und einmalig, eine Entwarnung bei Erholung. Alle 15 Sekunden gehen die
   Ereignisse gesammelt je Kanal raus. Scheitert der Versand, versucht es der nächste Durchlauf erneut.
 - Hosts: Ein Agent, der sich `-stumm-nach` lang (Standard `3m`, mindestens zwei Meldeintervalle) nicht meldet, löst

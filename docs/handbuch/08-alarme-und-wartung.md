@@ -63,20 +63,124 @@ Infobereich neben der Uhr, **auch ohne offenes Browserfenster**:
   nennt die Zahlen.
 - **Benachrichtigungen von Windows** bei neuen Alarmen, Verschlechterungen und Entwarnungen (ab vier auf einmal eine
   zusammengefasste); ein Klick öffnet die Alarme im Browser.
-- **Menü** (Rechtsklick): OpenWacht öffnen, Alarme öffnen, jetzt prüfen, mit Windows starten, einrichten, beenden.
-  Linksklick öffnet OpenWacht.
+- **Menü** (Rechtsklick aufs Symbol): OpenWacht öffnen (Fenster), im Browser öffnen, Alarme im Browser, jetzt prüfen,
+  mit Windows starten (mit Rückmeldung), einrichten, beenden.
 
-**Einrichten:** In OpenWacht unter **Verwaltung → API-Tokens** ein Token mit der Rolle **Leser** für den Mandanten
-anlegen ([Kapitel 11](11-api-tokens.md)). Die Datei z. B. nach `%LOCALAPPDATA%\Programs\OpenWacht\` kopieren und
-starten. Beim ersten Start fragt ein Konsolenfenster nach der Adresse der Zentrale und dem Token (Eingabe unsichtbar),
-prüft beides mit einer Abfrage und speichert das Token in der **Windows-Anmeldeinformationsverwaltung** (Eintrag
-„OpenWacht Desktop“), nie in einer Datei. Die Adresse steht in `%APPDATA%\OpenWacht\desktop.json`.
-`openwacht-desktop entfernen` löscht Token, Einstellungen und Autostart wieder.
+#### Fenster wie die Weboberfläche (ab 1.0.6)
 
-Die App fragt alle 30 Sekunden `GET /api/v1/alarme` ab, nur über HTTPS und ohne Weiterleitungen zu folgen; sie ändert
-nichts. Das Zertifikat der Zentrale muss Windows vertrauen (z. B. Firmen-CA). Sie ist wie der Windows-Agent nicht
-Authenticode-signiert: SmartScreen warnt beim ersten Start, und ein Virenschutz braucht ggf. eine Ausnahme. Unter Windows
-ist sie bisher nur gebaut, nicht von uns ausgeführt worden.
+Ein Start der Datei (oder Linksklick aufs Symbol) öffnet das Fenster, **ohne Browser**; startet die App mit Windows,
+bleibt sie nur im Infobereich. Startet man sie ein zweites Mal, kommt das offene Fenster nach vorn. Das Fenster ist
+aufgebaut wie die Weboberfläche, damit niemand zwei Oberflächen lernen muss: gleiche Seitenleiste, gleiche Piktogramme,
+Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
+
+- **Seitenleiste links** wie im Browser: Wortmarke, **Mandant** mit „mit Untermandanten“, darunter Überwachen,
+  Einrichten und Verwaltung. **alle Punkte** (Dashboard, Hosts, Topologie, Zertifikate, Alarme, Berichte,
+  Sensor-Vorlagen, SNMP-Profile, Wandanzeigen, Wartung, Benutzer und Mandanten) sind Seiten der App wie im Web; „Im
+  Browser öffnen“ oben rechts zeigt dieselbe Seite für denselben Mandanten im Browser. Unten: Konto bzw. Token und Rolle, Zentrale, Verbindung mit Stand, **Darstellung**
+  (wie System, Hell, Dunkel) und **Abmelden**. Mandant, Schalter und Darstellung merkt sich die App.
+- **Kopf** mit Brotkrumen („Dashboard › web01“), Knöpfen der Seite („Host hinzufügen“, „Im Browser öffnen“) und der
+  **Suche** (Strg+K oder Strg+F; filtert die Sensoren nach Gerät, Sensor und Meldung).
+- **Dashboard** (ab 1.0.7 wie im Web): dasselbe Layout deines Kontos im selben Raster, mit allen Widgets, deinen
+  **Seiten** als Reiter und **„An Fenster anpassen“** (verteilt die Höhe des Fensters auf die Reihen; gilt je Rechner).
+  Was du im Browser anpasst, steht auch in der App, und umgekehrt. **„Anpassen“** schaltet ins Bearbeiten: „+ Widget“,
+  „+ Seite“, „Seite umbenennen“, „Seite löschen“, „Standard wiederherstellen“; an jedem Widget öffnet **„Ändern“** ein
+  Menü mit Einstellungen (Titel, Breite, Höhe, Seite, Mandant, Inhalt), Nach vorn/hinten, Breiter/Schmaler,
+  Höher/Niedriger, Verdoppeln und Entfernen. Drei Unterschiede zum Web: Die Größe stellst du über das Menü ein, nicht
+  durch Ziehen an der Ecke; Listen in einem Widget rollen nicht, sondern nennen den Rest („… und 3 weitere“), ein
+  höheres Widget zeigt mehr; und mit einem **API-Token** gibt es kein Layout des Kontos, die App zeigt dann das
+  Standard-Layout ohne „Anpassen“. Ein Klick auf ein **Gerät** (im Sonnendiagramm oder in einer Liste) öffnet es wie
+  bisher: links die große **Sonne**, daneben seine **Sensoren**; × oder Esc schließt wieder. In dieser Ansicht zeigt ein
+  Klick auf eine Gruppe sie als Sonne, ein Klick in die Mitte geht eine Ebene zurück. **Kennfarben** gelten wie in der
+  Wandanzeige: Ein Gerät mit Warnung, Kritisch oder Bestätigt steht in der Kennfarbe seines Sensors, bestätigt
+  abgedunkelt; bei gleicher Schwere gewinnt der Zustand ohne Kennfarbe („Rot gewinnt immer“). In Listen trägt die Zustandsform die Kennfarbe; die Form
+  selbst bleibt.
+- **Hosts:** links der Baum (Mandant, Untermandanten, Gruppen, Geräte) mit der Form des schlimmsten Zustands und den
+  Zahlen der kritischen, gewarnten und unbekannten Sensoren, rechts das Gewählte.
+- **Alarme:** alle Sensoren mit Warnung, Kritisch oder Unbekannt im gewählten Mandanten, schlimmste zuerst.
+- **Wartung:** wie die Seite im Browser „Laufende Wartungen“ (Ziel, bis, Grund, von) mit **Beenden** und darunter die
+  **Wartungsfenster** mit Ziel, Wiederholung, nächstem Termin bzw. „läuft bis …“ und den Knöpfen **Pausieren** bzw.
+  **Fortsetzen** und **Löschen** (mit Rückfrage; eine laufende Wartung aus dem Fenster endet sofort). „Fenster anlegen“
+  und „Bearbeiten“ öffnen das Formular im Browser. Die Suche filtert nach Ziel, Name und Grund; die Seite fragt alle
+  30 s neu ab.
+- **Zertifikate:** alle Sensoren „TLS-Zertifikat“ im Bereich, das zuerst ablaufende oben, mit Zustand, Adresse, Gerät,
+  Ablaufdatum, Rest und Aussteller bzw. Hinweis; umschalten zwischen Alle, Bald fällig (14, 30, 60 oder 90 Tage) und
+  Mit Problem. Ein Klick aufs Gerät öffnet es unter Hosts.
+- **Berichte:** Monat wählen, Kennzahlen, Verfügbarkeit je Mandant und je Gerät, Alarme mit den längsten, Kapazität.
+  **Als PDF** legt den Bericht in den Ordner Downloads und öffnet ihn. Admins setzen hier das SLA-Ziel des Mandanten.
+- **Topologie:** die Abhängigkeiten („hängt ab von“) als Bäume je Mandant wie im Web: Karte je Gerät mit Form und
+  Farbe, die Linie links an einem Kind in seinem Zustand, gestrichelt, wenn es ruht, unbekannt oder ungeprüft ist. Ein
+  Klick öffnet das Gerät unter Hosts.
+- **SNMP-Profile** (nur Admins): Liste mit Version, Geräten und letzter Änderung; anlegen, bearbeiten (v3 mit Benutzer,
+  Verfahren und beiden Passwörtern, v1/v2c mit Community) und löschen. Die Zugangsdaten zeigt die App wie das Web nie
+  wieder an; leer gelassen bleiben sie unverändert.
+- **Wandanzeigen:** Liste mit Umfang, Netz und letztem Abruf; Admins legen an (der Link erscheint nur einmal, „Link
+  kopieren“ legt ihn in die Zwischenablage), erzeugen einen neuen Link, stellen den Ton ein und löschen. Ein Klick auf den
+  Namen öffnet die Vorschau im Browser.
+- **Sensor-Vorlagen:** eigene Vorlagen, Vorlagensätze und (aufklappbar) die eingebauten, nach „misst“ gruppiert; die
+  Suche oben rechts filtert nach Name, Art und Notiz. Operatoren und Admins legen Vorlagen an (Typ und Felder wie beim
+  Sensor, {adresse} für die Adresse des Geräts), kopieren eingebaute, bearbeiten und löschen eigene, stellen Sätze aus
+  Vorlagen zusammen und wenden Vorlage oder Satz auf angekreuzte Geräte oder alle Geräte einer Gruppe an (mit Liste der
+  übersprungenen). Darunter die **Kennfarben** mit Anlegen, Ändern (Kontrast je 3:1 auf hell und dunkel wird geprüft)
+  und Löschen. Die Kennfarbe eines neuen Eintrags in einem Satz wählt man im Browser.
+- **Benutzer und Mandanten** (nur mit Anmeldung über ein Konto) mit den Reitern des Webs für den links gewählten
+  Mandanten: **Mandanten** (Untermandant anlegen bzw. beantragen, umbenennen, Rezertifizierung als PDF oder CSV in den
+  Ordner Downloads, löschen; Anträge freigeben oder ablehnen), **Benutzer** (anlegen mit Startpasswort, Rolle ändern,
+  Passwort neu setzen und kopieren, deaktivieren, aktivieren, löschen), **Agent-Tokens** (widerrufen), **Agent-Updates**
+  (Automatik, Freigabe für angekreuzte Agents, als Betreiber Pakete hochladen und löschen), **API-Tokens** (anlegen mit
+  Code aus der App, das Token erscheint einmal zum Kopieren; widerrufen) und **Anmeldung (AD, SSO)** (anbinden und
+  bearbeiten in zwei Schritten, testen, löschen; Speichern und Löschen mit Code). Den Mandanten wählt man links oben.
+- **Gerät bzw. Auswahl:** oben Name, Adresse, Gruppe, Agent und Wartung mit Marken je Zustand („nur ansehen (Rolle
+  Leser)“, wo die Rolle nur lesen darf), darunter die Befehle „+ Sensor“, „Jetzt abfragen“, „Alarm bestätigen …“,
+  „Wartung …“, „Pausieren“, rechts „Nur Probleme“ und „Mehr“ (was nicht in die Zeile passt, steht dort). Die
+  **Sensorliste** zeigt das Schlimmste zuerst, ein Klick auf die Überschrift sortiert; ist sie schmal, entfallen Typ,
+  „seit“ und Wert. **Darunter** die Einzelheiten des gewählten Sensors (Meldung, Typ, Ziel, Intervall, Wert, letzte
+  und nächste Abfrage, Wartung, Alarm) bzw. des Geräts; der Teiler darüber lässt sich ziehen.
+- **Pflegen** über die Befehle, Rechtsklick oder Tasten: Gerät hinzufügen, bearbeiten (Name, Adresse, Gruppe) und
+  löschen; Sensor hinzufügen (Strg+N), bearbeiten (Doppelklick, F2), jetzt abfragen, pausieren und fortsetzen, löschen
+  (Entf); Wartung für Gerät oder Sensor setzen und beenden; offenen Alarm mit Kommentar bestätigen; F5 fragt sofort ab.
+  Der Sensor-Dialog bietet je Typ genau die Felder der Weboberfläche, Adresse bzw. URL sind mit der des Geräts vorbelegt.
+  Löschen fragt immer nach („Sensor löschen?“); ein Gerät mit Inhalt löscht die App nur nach Eingabe seines Namens, wie im
+  Browser.
+- Werte des Agents und der SNMP-Abfrage (CPU, Platten, Schnittstellen …) zeigt die Liste mit. Im Browser bleiben, was
+  die Seitenleiste nicht führt (Alarmwege und Kanäle, Einstellungen, eigenes Konto mit 2FA und Passkeys), die
+  Grenzen der Agent- und SNMP-Werte sowie die Formulare für Wartungsfenster und „hängt ab von“.
+
+**Anmelden (ab 1.0.6 zwei Wege):** Beim ersten Start öffnet sich **„Bei OpenWacht anmelden“** mit der Adresse der
+Zentrale (wie im Browser, nicht Port 8444) und der Wahl **„Anmelden mit“**:
+
+- **Konto (wie im Browser, ab Werk):** E-Mail und Passwort, danach der Code aus der Authenticator-App (oder ein
+  Wiederherstellungscode). Die App führt dieselbe Sitzung wie der Browser und darf damit **genau, was das Konto im Web
+  darf**, auch als Admin; heikle Änderungen verlangen wie im Web einen frischen Code. Die Zentrale schreibt alles unter
+  dem Namen des Kontos ins Audit-Log. Passwort und Sitzung speichert die App nicht: Nach einem Neustart der App, nach
+  30 Minuten ohne Abfrage oder spätestens nach 12 Stunden (Einstellungen der Zentrale) meldet man sich neu an; die App
+  fragt dann von selbst („Die Sitzung ist abgelaufen.“). Gespeichert wird nur die E-Mail-Adresse. Passkey und SSO gehen
+  nur im Browser; ein Konto, das die Zwei-Faktor-Anmeldung erst einrichten muss, richtet sie zuerst im Browser ein.
+- **API-Token:** für einen Rechner, der nur im Infobereich wacht und auch nach Neustarts ohne Anmeldung melden soll. Das
+  Token legt man unter **Benutzer und Mandanten › API-Tokens** an, Rolle **Operator** zum Pflegen oder **Leser** nur zum
+  Ansehen ([Kapitel 11](11-api-tokens.md)); Admin-Rechte bekommt ein Token nie. Ein Operator-Token ist so mächtig wie
+  ein Operator-Konto ohne zweiten Faktor: nur auf dem eigenen Rechner und mit kurzer Laufzeit. Es liegt in der
+  **Windows-Anmeldeinformationsverwaltung** (Eintrag „OpenWacht Desktop“), nie in einer Datei.
+
+Die App prüft die Anmeldung sofort und nennt die Ursache, wenn es nicht klappt (Passwort, Code, Token unbekannt oder
+abgelaufen, Zertifikat, keine Verbindung). Adresse, Art der Anmeldung, E-Mail und Darstellung stehen in
+`%APPDATA%\OpenWacht\desktop.json`. **Abmelden** (Seitenleiste unten) beendet die Sitzung auch auf der Zentrale bzw.
+vergisst das Token und öffnet die Anmeldung wieder; Rechtsklick aufs Symbol → „Anmeldung ändern …“ wechselt ohne
+Abmelden. `openwacht-desktop entfernen` löscht Token, Einstellungen und Autostart. Die App ist eine einzelne Datei ohne
+Installation, z. B. nach `%LOCALAPPDATA%\Programs\OpenWacht\` kopieren und starten.
+
+**Was die App ändern darf, bestimmt die Rolle** des Kontos bzw. des Tokens je Mandant: Leser nur ansehen (die Knöpfe
+sind dann grau), Operator Geräte, Sensoren, Wartung und Alarme, Admin dazu die Verwaltung. Die Zentrale prüft jede
+Änderung selbst, schreibt sie ins Audit-Log und meldet Fehler im Dialog, z. B. „Intervall: 30 Sekunden bis 1 Tag.“
+Schließen versteckt das Fenster nur; die App läuft im Infobereich weiter.
+
+Die App fragt alle 30 Sekunden `GET /api/v1/alarme` ab, bei offenem Fenster zusätzlich Mandanten, Gruppen, Geräte,
+Sensoren und Checks, nur über HTTPS und ohne Weiterleitungen zu folgen. Das Zertifikat der Zentrale muss Windows vertrauen
+(z. B. Firmen-CA). Sie ist wie der Windows-Agent nicht Authenticode-signiert: SmartScreen warnt beim ersten Start, und ein
+Virenschutz braucht ggf. eine Ausnahme. Ab 1.0.6 trägt die Datei eine Programmbeschreibung (Eigenschaften → Details:
+„OpenWacht Desktop“, Version, Commit) und das Bildzeichen als Programmsymbol. Die Schriften D-DIN und JetBrains Mono
+(SIL Open Font License 1.1) sind unverändert eingebettet und werden nur für die App geladen, nicht installiert;
+`openwacht-desktop lizenzen` (oder Mehr → Über) legt die Lizenztexte unter `%APPDATA%\OpenWacht\lizenzen` ab. Das
+Fenster und Anmeldung sind unter Wine gegen eine nachgebaute Zentrale getestet, auf echtem Windows noch nicht.
 
 Die Oberfläche fragt dafür alle 15 Sekunden die Alarme ab, mit Windows-Benachrichtigung auch im Hintergrund. Den Ton einer
 **Wandanzeige** stellen Admins in der Liste der Wandanzeigen unter „Ton“ ein

@@ -470,7 +470,8 @@ func (s *session) taskResult(ctx context.Context, node string, t task) (map[int]
 	return res, nil
 }
 
-// Rebooted: Laufzeit des Knotens ist kleiner geworden.
+// Rebooted: Laufzeit des Knotens ist kleiner geworden, und er lief vorher
+// lange genug, dass der Neustart gemeldet wird (snmp.MinUptimeForReboot).
 func Rebooted(prevUptime, newUptime uint64) bool {
-	return prevUptime > 0 && newUptime+60 < prevUptime
+	return snmp.RebootCounts(prevUptime) && newUptime+60 < prevUptime
 }

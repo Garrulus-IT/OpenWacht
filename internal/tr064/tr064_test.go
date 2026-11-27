@@ -42,7 +42,7 @@ func TestPollVollstaendig(t *testing.T) {
 		t.Fatal(err)
 	}
 	fb := snap.FritzBox
-	if fb.Model != "FRITZ!Box 7590" || fb.Version != "154.07.57" || snap.System.UptimeS != 86400 || snap.System.UptimeTicks != 8640000 {
+	if fb.Model != "FRITZ!Box 7590" || fb.Version != "154.07.57" || snap.System.UptimeS != 100000 || snap.System.UptimeTicks != 10000000 {
 		t.Errorf("Gerät: %+v %+v", fb, snap.System)
 	}
 	if !fb.Connected || fb.Connection != "Connected" || fb.ConnUptimeS != 3600 || fb.ExternalIP != "203.0.113.7" || fb.AccessType != "DSL" {
@@ -99,7 +99,7 @@ func TestPollRaten(t *testing.T) {
 	f.Set("WANCommonInterfaceConfig#GetAddonInfos", "NewX_AVM_DE_TotalBytesReceived64", "90075000000") // 75 MB in 60 s = 10 Mbit/s
 	f.Set("WANCommonInterfaceConfig#GetAddonInfos", "NewX_AVM_DE_TotalBytesSent64", "5000750000")
 	f.Set("WANPPPConnection#GetStatusInfo", "NewUptime", "3660")
-	f.Set("DeviceInfo#GetInfo", "NewUpTime", "86460")
+	f.Set("DeviceInfo#GetInfo", "NewUpTime", "100060")
 	second, err := c.Poll(context.Background(), cfgFor(srv), first)
 	if err != nil {
 		t.Fatal(err)
@@ -125,7 +125,7 @@ func TestPollRaten(t *testing.T) {
 	if third.Interfaces[0].InBps != nil {
 		t.Errorf("Rate nach Neuverbindung: %v", *third.Interfaces[0].InBps)
 	}
-	if !Rebooted(86460, 30) || Rebooted(86460, 86520) || Rebooted(0, 5) {
+	if !Rebooted(97260, 30) || Rebooted(97260, 97320) || Rebooted(0, 5) || Rebooted(86460, 30) {
 		t.Error("Rebooted")
 	}
 }
@@ -248,7 +248,7 @@ func TestPollEchteBox7590(t *testing.T) {
 	f.Set("WANCommonInterfaceConfig#GetTotalBytesReceived", "NewTotalBytesReceived", "846895105309") // +75 MB = 10 Mbit/s
 	f.Set("WANCommonInterfaceConfig#GetTotalBytesSent", "NewTotalBytesSent", "41436824157")
 	f.Set("WANPPPConnection#GetStatusInfo", "NewUptime", "3660")
-	f.Set("DeviceInfo#GetInfo", "NewUpTime", "86460")
+	f.Set("DeviceInfo#GetInfo", "NewUpTime", "100060")
 	second, err := c.Poll(context.Background(), cfgFor(srv), first)
 	if err != nil {
 		t.Fatal(err)

@@ -191,6 +191,48 @@ function alarme(baum: AnzeigeKnoten): Set<string> {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
+// Ansicht „Namen“ (1.0.6): nur die Sonne, jedes Gerät beschriftet, ohne
+// Seitenleiste. Steht als ?ansicht=namen in der Adresse, damit ein
+// Bildschirm so startet; nichts im Speicher des Browsers.
+function ansichtAusAdresse(): boolean {
+  return new URLSearchParams(window.location.search).get("ansicht") === "namen";
+}
+
+function adresseMitAnsicht(pfad: string, namen: boolean): string {
+  const q = new URLSearchParams(window.location.search);
+  if (namen) q.set("ansicht", "namen");
+  else q.delete("ansicht");
+  const s = q.toString();
+  return s ? `${pfad}?${s}` : pfad;
+}
+
+// So lange ohne Maus oder Taste, dann verschwinden Zeiger und Knöpfe.
+const RUHIG_MS = 3_000;
+
+function istVollbild(): boolean {
+  return document.fullscreenElement !== null;
+}
+
+function vollbildUmschalten(el: HTMLElement | null) {
+  if (istVollbild()) void document.exitFullscreen().catch(() => undefined);
+  else void el?.requestFullscreen().catch(() => undefined);
+}
+
+// Knöpfe am Rand: Vollbild (F) und Ansicht (N). Nach RUHIG_MS ohne Bewegung
+// unsichtbar, damit am Bildschirm nur der Zustand steht.
+function Bedienung(props: { namen: boolean; vollbild: boolean; ruhig: boolean; onNamen: () => void; onVollbild: () => void }) {
+  return (
+    <div className={props.ruhig ? "wand-bedienung wand-bedienung-ruhig" : "wand-bedienung"}>
+      <button type="button" onClick={props.onVollbild} aria-keyshortcuts="F" title="Vollbild (Taste F)">
+        {props.vollbild ? "Vollbild beenden" : "Vollbild"}
+      </button>
+      <button type="button" onClick={props.onNamen} aria-pressed={props.namen} aria-keyshortcuts="N" title="Ansicht wechseln (Taste N)">
+        {props.namen ? "Übersicht" : "Alle Namen"}
+      </button>
+    </div>
+  );
+}
+
 // vorschau: ID der Anzeige; dann lädt die Seite in der Sitzung eines Admins
 // ohne Anzeige-Schlüssel (/anzeige/vorschau?id=…, 0.99.2).
 export function Wandanzeige({ vorschau }: { vorschau?: string } = {}) {
@@ -202,6 +244,10 @@ export function Wandanzeige({ vorschau }: { vorschau?: string } = {}) {
   const vorherTon = useRef<Map<string, string> | null>(null);
   const aus = useRef(false);
   const [tonAn, setTonAn] = useState(false);
+  const [namen, setNamen] = useState(ansichtAusAdresse);
+  const [vollbild, setVollbild] = useState(istVollbild);
+  const [ruhig, setRuhig] = useState(false);
+  const wandRef = useRef<HTMLDivElement>(null);
 
   const holen = useCallback(async () => {
     try {
@@ -255,7 +301,7 @@ export function Wandanzeige({ vorschau }: { vorschau?: string } = {}) {
       const schluessel = vorschau !== undefined ? "" : window.location.hash.replace(/^#/, "");
       if (schluessel) {
         // Schlüssel sofort aus Adresszeile und Verlauf entfernen.
-        window.history.replaceState(null, "", "/anzeige");
+        window.history.replaceState(null, "", adresseMitAnsicht("/anzeige", ansichtAusAdresse()));
         try {
           await api("POST", "/api/v1/anzeige/anmelden", { schluessel });
         } catch (e) {
@@ -303,6 +349,52 @@ export function Wandanzeige({ vorschau }: { vorschau?: string } = {}) {
     };
   }, []);
 
+  // Ansicht in der Adresse mitführen (ohne Schlüssel, der ist da schon weg).
+  const namenUmschalten = useCallback(() => {
+    setNamen((n) => {
+      window.history.replaceState(null, "", adresseMitAnsicht(window.location.pathname, !n));
+      return !n;
+    });
+  }, []);
+
+  // Vollbild verfolgen (auch Esc des Browsers), Tasten F und N.
+  useEffect(() => {
+    const wechsel = () => setVollbild(istVollbild());
+    const taste = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      if (e.target instanceof HTMLElement && e.target.closest("input, textarea, select")) return;
+      if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        vollbildUmschalten(wandRef.current);
+      } else if (e.key === "n" || e.key === "N") {
+        e.preventDefault();
+        namenUmschalten();
+      }
+    };
+    document.addEventListener("fullscreenchange", wechsel);
+    document.addEventListener("keydown", taste);
+    return () => {
+      document.removeEventListener("fullscreenchange", wechsel);
+      document.removeEventListener("keydown", taste);
+    };
+  }, [namenUmschalten]);
+
+  // Zeiger und Knöpfe nach RUHIG_MS ohne Bewegung ausblenden.
+  useEffect(() => {
+    let t: number | undefined;
+    const regt = () => {
+      setRuhig(false);
+      window.clearTimeout(t);
+      t = window.setTimeout(() => setRuhig(true), RUHIG_MS);
+    };
+    regt();
+    for (const ev of ["pointermove", "pointerdown", "keydown"] as const) document.addEventListener(ev, regt);
+    return () => {
+      window.clearTimeout(t);
+      for (const ev of ["pointermove", "pointerdown", "keydown"] as const) document.removeEventListener(ev, regt);
+    };
+  }, []);
+
   if (zustand.art === "laden") {
     return <div className="wand" aria-busy="true" />;
   }
@@ -318,11 +410,48 @@ export function Wandanzeige({ vorschau }: { vorschau?: string } = {}) {
   const { daten, geholt } = zustand;
   const veraltet = jetzt - geholt > VERALTET_MS;
   const hervor = new Set([...neu].filter(([, seit]) => jetzt - seit < NEU_MS).map(([k]) => k));
+  const klasse = ["wand", veraltet && "wand-veraltet", namen && "wand-namen", ruhig && "wand-ruhig"].filter(Boolean).join(" ");
+  const bedienung = (
+    <Bedienung
+      namen={namen}
+      vollbild={vollbild}
+      ruhig={ruhig}
+      onNamen={namenUmschalten}
+      onVollbild={() => vollbildUmschalten(wandRef.current)}
+    />
+  );
+  if (namen) {
+    return (
+      <div className={klasse} ref={wandRef}>
+        <header className="wand-titelzeile">
+          <p className="wand-name">{daten.anzeige}</p>
+          {vorschau !== undefined && <p className="wand-vorschau">Vorschau</p>}
+          {vorschau === undefined && daten.ton && daten.ton.ton !== "aus" && !tonAn && (
+            <button type="button" className="wand-ton" onClick={() => void tonFreigeben().then(setTonAn)}>
+              Ton einschalten
+            </button>
+          )}
+          <Uhr />
+        </header>
+        {stoerung !== null && (
+          <p className="wand-stoerung wand-stoerung-oben" role="alert">
+            Keine Verbindung zur Zentrale seit {uhrzeit(stoerung)}
+            {veraltet ? " – die Anzeige ist veraltet" : ""}
+          </p>
+        )}
+        <main className="wand-flaeche">
+          <Sonne baum={daten.baum} neu={hervor} titel={`Zustand von ${daten.baum.name}`} mitte="marke" alleNamen />
+        </main>
+        {bedienung}
+      </div>
+    );
+  }
   return (
-    <div className={veraltet ? "wand wand-veraltet" : "wand"}>
+    <div className={klasse} ref={wandRef}>
       <main className="wand-flaeche">
         <Sonne baum={daten.baum} neu={hervor} titel={`Zustand von ${daten.baum.name}`} mitte="marke" />
       </main>
+      {bedienung}
       <aside className="wand-seite" aria-label="Übersicht">
         {vorschau !== undefined && <p className="wand-vorschau">Vorschau in deiner Sitzung – so sieht es der Bildschirm</p>}
         {vorschau === undefined && daten.ton && daten.ton.ton !== "aus" && !tonAn && (

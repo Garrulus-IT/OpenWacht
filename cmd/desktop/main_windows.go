@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 	"unsafe"
@@ -22,6 +24,7 @@ const takt = 30 * time.Second
 // Menüeinträge
 const (
 	cmdOeffnen = 1 + iota
+	cmdBrowser
 	cmdAlarme
 	cmdPruefen
 	cmdAutostart
@@ -37,12 +40,37 @@ type app struct {
 
 	mu       sync.Mutex
 	client   desktop.Client
+	cfg      desktop.Config  // nur im Oberflächen-Thread
 	letzte   []desktop.Alarm // nil bis zur ersten Antwort
 	z        desktop.Zusammenfassung
 	fehler   string
 	melden   []desktop.Ereignis
 	gezeigt  desktop.Zustand // Symbol, das gerade steht
 	stoerung bool            // Störung schon gemeldet
+
+	// Hauptfenster (1.0.6): Baum und Sensoren nur abfragen, solange es offen ist.
+	f            *fenster
+	fensterOffen atomic.Bool
+	sitzungWeg   atomic.Bool // Konto: Zentrale hat die Sitzung beendet
+	stand        desktop.Stand
+	standFehler  string
+	baum         []*desktop.Knoten
+
+	// Seite Wartung
+	wartungen      desktop.Wartungen
+	wartungGeladen bool
+	wartungFehler  string
+	wartungSicht   atomic.Bool
+
+	// nachgebildete Seiten (seite_windows.go)
+	seitenSt   seitenStand
+	ergebnisse chan func() // Ergebnisse aus imHintergrund für den Oberflächen-Thread
+}
+
+func (a *app) zentrale() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.client.Zentrale
 }
 
 var a *app
@@ -58,18 +86,30 @@ func run(args []string) int {
 			autostartSetzen(false)
 			meldung("OpenWacht Desktop", "Token, Einstellungen und Autostart sind entfernt. Die Datei openwacht-desktop.exe kannst du jetzt löschen.", false)
 			return 0
-		case "einrichten", "-version", "--version", "version":
+		case "lizenzen":
+			lizenzenAblegen()
+			return 0
+		case "einrichten", "infobereich", "-version", "--version", "version":
 		default:
-			meldung("OpenWacht Desktop", "Aufruf: openwacht-desktop [einrichten | entfernen]", true)
+			meldung("OpenWacht Desktop", "Aufruf: openwacht-desktop [einrichten | infobereich | lizenzen | entfernen]", true)
 			return 2
 		}
-		if args[0] != "einrichten" {
+		if args[0] != "einrichten" && args[0] != "infobereich" {
 			meldung("OpenWacht Desktop", version.String("openwacht-desktop"), false)
 			return 0
 		}
 	}
 	// Nur einmal je Benutzer.
+	nurSymbol := len(args) > 0 && args[0] == "infobereich"
 	if _, _, err := pCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(utf16(`Local\OpenWachtDesktop`)))); err == syscall.Errno(errorAlreadyExists) {
+		// Läuft schon: dessen Fenster nach vorn holen (Doppelklick auf die App).
+		if h, _, _ := pFindWindowW.Call(uintptr(unsafe.Pointer(utf16("OpenWachtDesktop"))), 0); h != 0 {
+			if !nurSymbol {
+				pAllowSetForegroundWindow.Call(asfwAny)
+				pPostMessageW.Call(h, wmZeigen, 0, 0)
+			}
+			return 0
+		}
 		meldung("OpenWacht Desktop", "OpenWacht läuft schon im Infobereich neben der Uhr.", false)
 		return 0
 	}
@@ -79,31 +119,52 @@ func run(args []string) int {
 		return 1
 	}
 	cfg, err := desktop.LoadConfig(pfad)
-	token, terr := tokenLesen()
-	if err != nil || terr != nil || cfg.Zentrale == "" || (len(args) > 0 && args[0] == "einrichten") {
+	runtime.LockOSThread()
+	var sitzung *desktop.Sitzung
+	_, terr := tokenLesen()
+	// Mit Konto gibt es keine gespeicherte Anmeldung: immer anmelden.
+	if err != nil || cfg.Zentrale == "" || cfg.MitKonto() || terr != nil || (len(args) > 0 && args[0] == "einrichten") {
 		var ok bool
-		if cfg, ok = einrichten(cfg); !ok {
-			return 1
-		}
-		if token, err = tokenLesen(); err != nil {
-			meldung("OpenWacht Desktop", "Token nicht lesbar: "+err.Error(), true)
+		if cfg, sitzung, ok = anmelden(0, cfg, ""); !ok {
 			return 1
 		}
 	}
-	runtime.LockOSThread()
-	a = &app{icons: map[desktop.Zustand]syscall.Handle{}, jetzt: make(chan struct{}, 1),
-		client: desktop.Client{Zentrale: cfg.Zentrale, Token: token}, gezeigt: "start"}
+	client, err := clientFuer(cfg, sitzung)
+	if err != nil {
+		meldung("OpenWacht Desktop", err.Error(), true)
+		return 1
+	}
+	a = &app{cfg: cfg, icons: map[desktop.Zustand]syscall.Handle{}, jetzt: make(chan struct{}, 1), ergebnisse: make(chan func(), 64),
+		client: client, gezeigt: "start"}
 	if err := a.fenster(); err != nil {
 		meldung("OpenWacht Desktop", err.Error(), true)
 		return 1
 	}
 	a.symbolHinzufuegen()
+	if autostartAn() {
+		autostartSetzen(true) // Pfad und Aufruf „infobereich“ auf den Stand dieser Datei
+	}
 	go a.abfragen()
+	if !nurSymbol {
+		a.fensterZeigen()
+	}
 	var m msg
 	for {
 		r, _, _ := pGetMessageW.Call(ptr(&m), 0, 0, 0)
 		if int32(r) <= 0 {
 			break
+		}
+		if a.f != nil {
+			// Kurzbefehle (F5, Strg+F, Strg+N, F2, Entf) im Hauptfenster
+			if m.Message == wmKeyDown {
+				if r, _, _ := pGetAncestor.Call(uintptr(m.Hwnd), gaRoot); syscall.Handle(r) == a.f.hwnd && a.taste(m.WParam) {
+					continue
+				}
+			}
+			// Tab und Pfeiltasten zwischen den Teilen des Fensters
+			if d, _, _ := pIsDialogMessageW.Call(uintptr(a.f.hwnd), ptr(&m)); d != 0 {
+				continue
+			}
 		}
 		pTranslateMessage.Call(ptr(&m))
 		pDispatchMessageW.Call(ptr(&m))
@@ -183,7 +244,13 @@ func (a *app) abfragen() {
 		if err != nil {
 			a.fehler = err.Error()
 			if errors.Is(err, desktop.ErrToken) {
-				a.fehler = "API-Token ungültig, abgelaufen oder widerrufen. Rechtsklick → Einrichten."
+				a.fehler = "API-Token ungültig, abgelaufen oder widerrufen. Rechtsklick › Anmeldung ändern."
+			}
+			if errors.Is(err, desktop.ErrSitzung) {
+				a.fehler = "Sitzung abgelaufen. Klicken, um dich neu anzumelden."
+				if !a.sitzungWeg.Swap(true) {
+					pPostMessageW.Call(uintptr(a.hwnd), wmSitzungWeg, 0, 0)
+				}
 			}
 		} else {
 			a.fehler = ""
@@ -195,6 +262,34 @@ func (a *app) abfragen() {
 			a.z = desktop.Zusammenfassen(alarme)
 		}
 		a.mu.Unlock()
+		if a.fensterOffen.Load() {
+			ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+			st, err := c.StandHolen(ctx)
+			cancel()
+			a.mu.Lock()
+			if err != nil {
+				a.standFehler = err.Error()
+				if errors.Is(err, desktop.ErrToken) {
+					a.standFehler = "API-Token ungültig, abgelaufen oder widerrufen (links unten „Abmelden“ und neu anmelden)"
+				}
+				if errors.Is(err, desktop.ErrSitzung) {
+					a.standFehler = "Sitzung abgelaufen, bitte neu anmelden"
+				}
+			} else {
+				a.stand, a.standFehler = st, ""
+			}
+			a.mu.Unlock()
+			if a.wartungSicht.Load() {
+				ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+				w, err := c.WartungenHolen(ctx, "")
+				cancel()
+				a.mu.Lock()
+				if err == nil {
+					a.wartungen, a.wartungGeladen, a.wartungFehler = w, true, ""
+				}
+				a.mu.Unlock()
+			}
+		}
 		pPostMessageW.Call(uintptr(a.hwnd), wmStand, 0, 0)
 		select {
 		case <-t.C:
@@ -204,6 +299,9 @@ func (a *app) abfragen() {
 }
 
 func (a *app) standZeigen() {
+	if a.f != nil && a.fensterOffen.Load() && seiten[a.f.seite] != nil {
+		a.seiteLaden(a.f.seite) // alle 30 s wie im Web
+	}
 	a.mu.Lock()
 	z, fehler, melden := a.z, a.fehler, a.melden
 	a.melden = nil
@@ -220,11 +318,18 @@ func (a *app) standZeigen() {
 	setUTF16(n.Tip[:], tip)
 	pShellNotifyIconW.Call(nimModify, ptr(&n))
 	a.gezeigt = zust
+	if a.fensterOffen.Load() {
+		a.aktualisieren(false)
+	}
 
 	// Störung einmal melden, Erholung still.
 	if fehler != "" && !a.stoerung {
 		a.stoerung = true
-		a.blase("OpenWacht nicht erreichbar", fehler, niifWarning)
+		titel := "OpenWacht nicht erreichbar"
+		if a.sitzungWeg.Load() {
+			titel = "OpenWacht: neu anmelden"
+		}
+		a.blase(titel, fehler, niifWarning)
 	} else if fehler == "" {
 		a.stoerung = false
 	}
@@ -273,15 +378,16 @@ func (a *app) menue() {
 		pAppendMenuW.Call(m, mfString|flags, uintptr(id), uintptr(unsafe.Pointer(utf16(text))))
 	}
 	add(cmdOeffnen, "OpenWacht öffnen", 0)
-	add(cmdAlarme, "Alarme öffnen", 0)
-	add(cmdPruefen, "Jetzt prüfen", 0)
+	add(cmdBrowser, "Im Browser öffnen", 0)
+	add(cmdAlarme, "Alarme im Browser", 0)
+	add(cmdPruefen, "Jetzt abfragen", 0)
 	pAppendMenuW.Call(m, mfSeparator, 0, 0)
 	auto := uintptr(0)
 	if autostartAn() {
 		auto = mfChecked
 	}
 	add(cmdAutostart, "Mit Windows starten", auto)
-	add(cmdEinrichten, "Einrichten …", 0)
+	add(cmdEinrichten, "Anmeldung ändern …", 0)
 	pAppendMenuW.Call(m, mfSeparator, 0, 0)
 	add(0, version.String("openwacht-desktop"), mfGrayed)
 	add(cmdBeenden, "Beenden", 0)
@@ -289,12 +395,17 @@ func (a *app) menue() {
 	pGetCursorPos.Call(ptr(&p))
 	pSetForegroundWindow.Call(uintptr(a.hwnd))
 	id, _, _ := pTrackPopupMenu.Call(m, tpmRightButton|tpmReturnCmd, uintptr(p.X), uintptr(p.Y), 0, uintptr(a.hwnd), 0)
+	// Laut Microsoft nötig, damit das Menü beim nächsten Mal sauber öffnet
+	// und schließt (Menüs von Symbolen im Infobereich).
+	pPostMessageW.Call(uintptr(a.hwnd), wmNull, 0, 0)
 	a.befehl(int(id))
 }
 
 func (a *app) befehl(id int) {
 	switch id {
 	case cmdOeffnen:
+		a.fensterZeigen()
+	case cmdBrowser:
 		a.oeffnen("/")
 	case cmdAlarme:
 		a.oeffnen("/alarme")
@@ -304,31 +415,31 @@ func (a *app) befehl(id int) {
 		default:
 		}
 	case cmdAutostart:
-		if err := autostartSetzen(!autostartAn()); err != nil {
-			meldung("OpenWacht Desktop", err.Error(), true)
+		// Rückmeldung nach dem Nachlesen: Der Haken im Menü allein zeigt nicht,
+		// ob Windows den Eintrag wirklich hat.
+		soll := !autostartAn()
+		err := autostartSetzen(soll)
+		switch {
+		case err != nil:
+			meldung("OpenWacht Desktop", "Autostart nicht geändert: "+err.Error(), true)
+		case autostartAn() != soll:
+			meldung("OpenWacht Desktop", "Autostart nicht geändert: Windows hat den Eintrag „OpenWacht“ unter "+
+				`HKCU\`+runSchluessel+" nicht übernommen.", true)
+		case soll:
+			meldung("OpenWacht Desktop", "OpenWacht startet jetzt mit Windows.", false)
+		default:
+			meldung("OpenWacht Desktop", "OpenWacht startet nicht mehr mit Windows.", false)
 		}
 	case cmdEinrichten:
-		go func() {
-			a.mu.Lock()
-			alt := desktop.Config{Zentrale: a.client.Zentrale}
-			a.mu.Unlock()
-			cfg, ok := einrichten(alt)
-			if !ok {
-				return
-			}
-			token, err := tokenLesen()
-			if err != nil {
-				return
-			}
-			a.mu.Lock()
-			a.client = desktop.Client{Zentrale: cfg.Zentrale, Token: token}
-			a.letzte, a.melden = nil, nil
-			a.mu.Unlock()
-			select {
-			case a.jetzt <- struct{}{}:
-			default:
-			}
-		}()
+		var owner syscall.Handle
+		if a.f != nil && a.fensterOffen.Load() {
+			owner = a.f.hwnd
+		}
+		cfg, sitzung, ok := anmelden(owner, a.cfg, "")
+		if ok {
+			a.altAbmelden()
+			a.neuAngemeldet(cfg, sitzung)
+		}
 	case cmdBeenden:
 		n := a.nid()
 		pShellNotifyIconW.Call(nimDelete, ptr(&n))
@@ -343,17 +454,38 @@ func wndProc(hwnd, m, wp, lp uintptr) uintptr {
 	}
 	switch uint32(m) {
 	case wmTray:
+		// Version 4 (nimSetVersion): Windows meldet Klicks als NIN_SELECT bzw.
+		// WM_CONTEXTMENU und schickt die Mausnachrichten zusätzlich. Nur die
+		// ersten auswerten, sonst öffnet ein Klick zwei Tabs.
 		switch uint32(lp & 0xffff) {
-		case wmContextMenu, wmRButtonUp:
+		case wmContextMenu:
 			a.menue()
-		case ninSelect, wmLButtonUp:
-			a.oeffnen("/")
-		case ninBalloonUserClick:
-			a.oeffnen("/alarme")
+		case ninSelect, ninKeySelect, ninBalloonUserClick:
+			if a.sitzungWeg.Load() {
+				a.sitzungNeu()
+			}
+			a.fensterZeigen()
 		}
 		return 0
 	case wmStand:
 		a.standZeigen()
+		return 0
+	case wmZeigen:
+		a.fensterZeigen()
+		return 0
+	case wmSitzungWeg:
+		a.sitzungNeu()
+		return 0
+	case wmAktion:
+	leeren:
+		for {
+			select {
+			case fn := <-a.ergebnisse:
+				fn()
+			default:
+				break leeren
+			}
+		}
 		return 0
 	case wmDestroy:
 		n := a.nid()
@@ -368,4 +500,110 @@ func wndProc(hwnd, m, wp, lp uintptr) uintptr {
 	}
 	r, _, _ := pDefWindowProcW.Call(hwnd, m, wp, lp)
 	return r
+}
+
+// lizenzenAblegen schreibt die Lizenztexte der eingebetteten Schriften nach
+// %APPDATA%\OpenWacht\lizenzen und öffnet den Ordner.
+func lizenzenAblegen() {
+	d, err := os.UserConfigDir()
+	if err != nil {
+		meldung("OpenWacht Desktop", err.Error(), true)
+		return
+	}
+	ordner := filepath.Join(d, "OpenWacht", "lizenzen")
+	if err := os.MkdirAll(ordner, 0o700); err != nil {
+		meldung("OpenWacht Desktop", err.Error(), true)
+		return
+	}
+	for name, text := range desktop.Lizenztexte() {
+		if err := os.WriteFile(filepath.Join(ordner, name), text, 0o600); err != nil {
+			meldung("OpenWacht Desktop", err.Error(), true)
+			return
+		}
+	}
+	pShellExecuteW.Call(0, uintptr(unsafe.Pointer(utf16("open"))), uintptr(unsafe.Pointer(utf16(ordner))), 0, 0, swShowNormal)
+}
+
+// clientFuer: mit Konto die Sitzung, sonst das Token aus der Anmeldeinformationsverwaltung.
+func clientFuer(cfg desktop.Config, sitzung *desktop.Sitzung) (desktop.Client, error) {
+	if sitzung != nil {
+		return desktop.Client{Zentrale: cfg.Zentrale, Sitzung: sitzung}, nil
+	}
+	token, err := tokenLesen()
+	if err != nil {
+		return desktop.Client{}, fmt.Errorf("Token nicht lesbar: %w", err)
+	}
+	return desktop.Client{Zentrale: cfg.Zentrale, Token: token}, nil
+}
+
+// altAbmelden beendet eine bestehende Sitzung auf der Zentrale (vor dem Wechsel).
+func (a *app) altAbmelden() {
+	a.mu.Lock()
+	c := a.client
+	a.mu.Unlock()
+	if c.Sitzung != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		c.Abmelden(ctx)
+		cancel()
+	}
+}
+
+// neuAngemeldet: neuer Client nach dem Anmelden, alles neu abfragen.
+func (a *app) neuAngemeldet(cfg desktop.Config, sitzung *desktop.Sitzung) {
+	c, err := clientFuer(cfg, sitzung)
+	if err != nil {
+		meldung("OpenWacht Desktop", err.Error(), true)
+		return
+	}
+	a.cfg = cfg
+	a.sitzungWeg.Store(false)
+	dashVergessen() // das Layout gehört zum Konto
+	a.mu.Lock()
+	a.client = c
+	a.letzte, a.melden = nil, nil
+	a.stand, a.standFehler = desktop.Stand{}, ""
+	a.mu.Unlock()
+	if a.f != nil {
+		a.f.dashHost, a.f.sonnenKey, a.f.gewaehlt = "", "", ""
+		a.aktualisieren(true)
+	}
+	a.jetztAbfragen()
+}
+
+// abmelden: Sitzung beenden bzw. Token löschen und neu anmelden; ohne
+// Anmeldung endet die App.
+func (a *app) abmelden() {
+	text := "Die App vergisst das API-Token. Danach meldest du dich neu an, oder die App beendet sich."
+	if a.cfg.MitKonto() {
+		text = "Die Sitzung endet auch auf der Zentrale. Danach meldest du dich neu an, oder die App beendet sich."
+	}
+	if !bestaetigenDialog(a.f.hwnd, "Abmelden?", text, "Abmelden") {
+		return
+	}
+	a.altAbmelden()
+	tokenLoeschen()
+	pShowWindow.Call(uintptr(a.f.hwnd), swHide)
+	a.fensterOffen.Store(false)
+	cfg, sitzung, ok := anmelden(0, a.cfg, "")
+	if !ok {
+		a.befehl(cmdBeenden)
+		return
+	}
+	a.neuAngemeldet(cfg, sitzung)
+	a.fensterZeigen()
+}
+
+// sitzungNeu: Die Zentrale hat die Sitzung beendet (Leerlauf, Höchstdauer,
+// im Browser abgemeldet): neu anmelden. Bei Abbruch bleibt die App ohne
+// Verbindung, ein Klick aufs Symbol fragt wieder.
+func (a *app) sitzungNeu() {
+	var owner syscall.Handle
+	if a.f != nil && a.fensterOffen.Load() {
+		owner = a.f.hwnd
+	}
+	cfg, sitzung, ok := anmelden(owner, a.cfg, "Die Sitzung ist abgelaufen.")
+	if !ok {
+		return
+	}
+	a.neuAngemeldet(cfg, sitzung)
 }

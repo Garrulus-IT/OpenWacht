@@ -761,6 +761,8 @@ func (s *Server) RunAlerts(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
+		// Meldungen zu Anmeldungen (1.0.6); zählen nicht für den Totmann.
+		s.sendAuthNotices(ctx)
 		if err != nil {
 			slog.Warn("Alarme: Durchlauf fehlgeschlagen", "fehler", err)
 		}
@@ -820,7 +822,7 @@ func (s *Server) alertRoundR(ctx context.Context) (sent, failed int, err error) 
 	acked := s.syncAlarms(ctx, tx, now, maint)
 
 	rows, err := tx.Query(ctx, `SELECT check_id::text, tenant_name, check_name, status, message, fails,
-		channel_id::text, coalesce(alerted, ''), alerted_at FROM openwacht.alert_candidates()`)
+		channel_id::text, coalesce(alerted, ''), alerted_at, fail_threshold FROM openwacht.alert_candidates()`)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -837,8 +839,9 @@ func (s *Server) alertRoundR(ctx context.Context) (sent, failed int, err error) 
 		var fails int
 		var channel, alerted string
 		var alertedAt *time.Time
+		var threshold *int
 		if err := rows.Scan(&p.checkID, &p.item.Tenant, &p.item.Check, &p.status, &p.item.Message, &fails,
-			&channel, &alerted, &alertedAt); err != nil {
+			&channel, &alerted, &alertedAt, &threshold); err != nil {
 			rows.Close()
 			return 0, 0, err
 		}
@@ -846,7 +849,7 @@ func (s *Server) alertRoundR(ctx context.Context) (sent, failed int, err error) 
 		if alertedAt != nil {
 			at = *alertedAt
 		}
-		ev := alarm.Decide(p.status, fails, alerted, at, s.cfg.AlertThreshold, s.cfg.AlertReminder, now)
+		ev := alarm.Decide(p.status, fails, alerted, at, s.threshold(threshold), s.cfg.AlertReminder, now)
 		if ev == alarm.None || ev == alarm.Reminder && acked[alarmKeyCheck(p.checkID)] ||
 			suppressed(ev, maint.check(p.checkID)) {
 			continue
@@ -1138,7 +1141,7 @@ func (q snmpRow) collectorDown(lim alarm.HostLimits) string {
 func (q snmpRow) input(warming bool, lim alarm.HostLimits) alarm.SNMPInput {
 	in := alarm.SNMPInput{Name: q.name, Disabled: q.disabled, Warming: warming, LastError: q.lastError,
 		Silent: time.Duration(q.silent * float64(time.Second)), Interval: time.Duration(q.interval) * time.Second,
-		CPU15: q.cpu15, Watched: q.watched, Excluded: q.excluded, Proxmox: q.version == versionPVE || q.version == versionVCenter, FritzBox: q.version == versionTR064, ONTAP: q.version == versionONTAP, XAPI: q.version == versionXAPI, Now: q.now, CollectorDown: q.collectorDown(lim)}
+		CPU15: q.cpu15, Watched: q.watched, Excluded: q.excluded, Proxmox: q.version == versionPVE || q.version == versionVCenter, FritzBox: q.version == versionTR064, ONTAP: q.version == versionONTAP, XAPI: q.version == versionXAPI, Citrix: q.version == versionCitrix, Now: q.now, CollectorDown: q.collectorDown(lim)}
 	if q.collector != nil && q.collectorRevoked != nil && *q.collectorRevoked {
 		in.LastError = "Sammler " + *q.collector + " ist gesperrt, bitte unter „Abgefragt von“ einen anderen wählen"
 	}
@@ -1237,3 +1240,16 @@ func (s *Server) snmpAlerts(ctx context.Context, tx pgx.Tx, now time.Time, acked
 	}
 	return rows.Err()
 }
+
+// threshold: Fehlschläge in Folge bis zum Alarm für einen Sensor; nil heißt
+// Standard der Zentrale (1.0.6).
+func (s *Server) threshold(perCheck *int) int {
+	if perCheck != nil && *perCheck >= 1 && *perCheck <= maxFailThreshold {
+		return *perCheck
+	}
+	return s.cfg.AlertThreshold
+}
+
+// maxFailThreshold: höchste einstellbare Zahl an Fehlversuchen je Sensor
+// (wie die Prüfung in Migration 0061).
+const maxFailThreshold = 10

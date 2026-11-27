@@ -29,6 +29,10 @@ export function SensorVorlagen({ bereich, melden }: { bereich: Bereich; melden: 
   const [satzForm, setSatzForm] = useState("");
   const [satzLoeschen, setSatzLoeschen] = useState<VorlagenSatz | null>(null);
   const darf = darfPflegen(bereich, bereich.mandant.id);
+  // Ordnung (1.0.6): Suche über Namen, Art und Notiz; Abschnitte zum Auf- und Zuklappen
+  const [suche, setSuche] = useState("");
+  const such = suche.trim().toLowerCase();
+  const passt = (...t: (string | undefined | null)[]) => !such || t.some((x) => (x ?? "").toLowerCase().includes(such));
 
   useEffect(() => {
     let ok = true;
@@ -59,7 +63,7 @@ export function SensorVorlagen({ bereich, melden }: { bereich: Bereich; melden: 
     ? (alle.find((v) => v.id === form.slice(6)) ?? null)
     : (eigene.find((v) => v.id === form) ?? null);
 
-  const speichern = async (body: { name: string; typ: CheckTyp; ziel: CheckZiel; intervall_sekunden: number }) => {
+  const speichern = async (body: { name: string; typ: CheckTyp; ziel: CheckZiel; intervall_sekunden: number; fehlversuche: number }) => {
     if (form && !form.startsWith("kopie:") && form !== "neu") {
       await api("PUT", `/api/v1/sensor-vorlagen/${form}`, { ...body, notiz: vorbelegt?.notiz ?? "" });
     } else {
@@ -72,13 +76,20 @@ export function SensorVorlagen({ bereich, melden }: { bereich: Bereich; melden: 
     <tr key={v.id}>
       <td className="name">
         {v.name}
-        {v.notiz && <span className="klein umbruch">{v.notiz}</span>}
+        {v.notiz && (
+          <span className="klein umbruch notiz-kurz" title={v.notiz}>
+            {v.notiz}
+          </span>
+        )}
         {eigen && bereich.mehrere && v.mandant_id && <span className="mandant-marke">{mandantName(bereich, v.mandant_id)}</span>}
       </td>
       <td>{typText[v.typ]}</td>
       <td>{v.am_agent ? "Agent" : v.typ === "snmp_oid" ? "SNMP" : "Zentrale"}</td>
       <td className="umbruch klein">{zielText(v)}</td>
-      <td>{intervallKurz(v.intervall_sekunden)}</td>
+      <td>
+        {intervallKurz(v.intervall_sekunden)}
+        {v.fehlversuche ? <span className="klein"> · Alarm nach {v.fehlversuche}</span> : null}
+      </td>
       <td className="aktionen-zelle">
         {darf && (
           <button className="knopf knopf-klein knopf-haupt" onClick={() => setAnwenden(v)}>
@@ -103,6 +114,30 @@ export function SensorVorlagen({ bereich, melden }: { bereich: Bereich; melden: 
       </td>
     </tr>
   );
+
+  // Vorlagen nach „misst“ (Zentrale, Agent, SNMP) gruppiert, darin nach Art und Name
+  const wo = (v: Vorlage) => (v.am_agent ? "Agent" : v.typ === "snmp_oid" ? "SNMP" : "Zentrale");
+  const gruppiert = (liste: Vorlage[], eigen: boolean) => {
+    const gefiltert = liste
+      .filter((v) => passt(v.name, typText[v.typ], v.notiz, wo(v)))
+      .sort((a, b) => wo(a).localeCompare(wo(b), "de") || typText[a.typ].localeCompare(typText[b.typ], "de") || a.name.localeCompare(b.name, "de"));
+    const teile = ["Zentrale", "Agent", "SNMP"].map((w) => [w, gefiltert.filter((v) => wo(v) === w)] as const).filter(([, l]) => l.length > 0);
+    return teile.map(([w, l]) => (
+      <tbody key={w}>
+        <tr className="tabellen-gruppe">
+          <th scope="rowgroup" colSpan={6}>
+            {w === "Zentrale" ? "Prüfungen der Zentrale" : w === "Agent" ? "Auf dem Agent" : "Über SNMP"} ({l.length})
+          </th>
+        </tr>
+        {l.map((v) => zeile(v, eigen))}
+      </tbody>
+    ));
+  };
+  const eingebauteVorlagen = liste?.eingebaut ?? [];
+  const saetzeEigen = eigeneSaetze.filter((x) => passt(x.name, x.notiz, ...x.sensoren.map((v) => v.name))).sort((a, b) => a.name.localeCompare(b.name, "de"));
+  const saetzeEingebaut = (liste?.saetze ?? [])
+    .filter((x) => passt(x.name, x.notiz, ...x.sensoren.map((v) => v.name)))
+    .sort((a, b) => a.name.localeCompare(b.name, "de"));
 
   const kopf = (
     <thead>
@@ -138,6 +173,10 @@ export function SensorVorlagen({ bereich, melden }: { bereich: Bereich; melden: 
             spätere Änderungen an der Vorlage ändern keine Sensoren. {"{adresse}"} steht für die Adresse des Geräts. Sensoren auf dem Agent
             sind feste Messarten mit Parametern, keine Skripte, und messen nur, was am Rechner freigegeben ist.
           </p>
+          <label className="feld feld-suche">
+            <span>Suchen</span>
+            <input type="search" value={suche} placeholder="Name, Art oder Notiz, z. B. Dienst, Citrix, Zertifikat" onChange={(e) => setSuche(e.target.value)} />
+          </label>
 
           {form && (
             <CheckFormular
@@ -197,25 +236,36 @@ export function SensorVorlagen({ bereich, melden }: { bereich: Bereich; melden: 
             />
           )}
 
-          <h2 className="klein-titel">Eigene Vorlagen</h2>
-          {eigene.length === 0 ? (
-            <p className="klein">Noch keine. Mit „+ Vorlage“ oder „Als eigene“ bei einer eingebauten Vorlage anlegen.</p>
-          ) : (
-            <div className="tabelle-rahmen">
-              <table className="tabelle tabelle-kompakt">
-                {kopf}
-                <tbody>{eigene.map((v) => zeile(v, true))}</tbody>
-              </table>
-            </div>
-          )}
-          <div className="satz-kopf">
-            <h2 className="klein-titel">Vorlagensätze</h2>
+          <details className="vorlagen-abschnitt" open>
+            <summary>
+              <h2 className="klein-titel">Eigene Vorlagen ({eigene.length})</h2>
+            </summary>
+            {eigene.length === 0 ? (
+              <p className="klein">Noch keine. Mit „+ Vorlage“ oder „Als eigene“ bei einer eingebauten Vorlage anlegen.</p>
+            ) : (
+              <div className="tabelle-rahmen">
+                <table className="tabelle tabelle-kompakt">
+                  {kopf}
+                  {gruppiert(eigene, true)}
+                </table>
+              </div>
+            )}
+          </details>
+          <details className="vorlagen-abschnitt" open>
+          <summary className="satz-kopf">
+            <h2 className="klein-titel">Vorlagensätze ({eigeneSaetze.length + (liste?.saetze?.length ?? 0)})</h2>
             {darf && !satzForm && (
-              <button className="knopf knopf-klein" onClick={() => setSatzForm("neu")}>
+              <button
+                className="knopf knopf-klein"
+                onClick={(e) => {
+                  e.preventDefault(); // nicht zugleich den Abschnitt zuklappen
+                  setSatzForm("neu");
+                }}
+              >
                 + Vorlagensatz
               </button>
             )}
-          </div>
+          </summary>
           <p className="klein">
             Ein Satz legt mehrere Sensoren für eine Anwendung auf einmal an, z. B. Dienste und Kennzahlen eines Windows-Servers. Eigene
             Sätze stellst du aus Vorlagen zusammen; „Als eigenen“ kopiert einen eingebauten Satz zum Anpassen.
@@ -270,12 +320,16 @@ export function SensorVorlagen({ bereich, melden }: { bereich: Bereich; melden: 
                 </tr>
               </thead>
               <tbody>
-                {[...eigeneSaetze, ...(liste?.saetze ?? [])].map((s) => (
-                  <tr key={s.id}>
+                {[...saetzeEigen, ...saetzeEingebaut].map((s, i) => (
+                  <tr key={s.id} className={i === saetzeEigen.length && i > 0 ? "zeile-trenner" : undefined}>
                     <td className="name">
                       {s.name}
                       {s.mandant_id && <span className="marke">eigen</span>}
-                      {s.notiz && <span className="klein umbruch">{s.notiz}</span>}
+                      {s.notiz && (
+                        <span className="klein umbruch notiz-kurz" title={s.notiz}>
+                          {s.notiz}
+                        </span>
+                      )}
                       {s.mandant_id && bereich.mehrere && <span className="mandant-marke">{mandantName(bereich, s.mandant_id)}</span>}
                     </td>
                     <td className="klein umbruch">
@@ -309,13 +363,18 @@ export function SensorVorlagen({ bereich, melden }: { bereich: Bereich; melden: 
               </tbody>
             </table>
           </div>
-          <h2 className="klein-titel">Eingebaut</h2>
-          <div className="tabelle-rahmen">
-            <table className="tabelle tabelle-kompakt">
-              {kopf}
-              <tbody>{(liste?.eingebaut ?? []).map((v) => zeile(v, false))}</tbody>
-            </table>
-          </div>
+          </details>
+          <details className="vorlagen-abschnitt" open={!!such}>
+            <summary>
+              <h2 className="klein-titel">Eingebaute Vorlagen ({eingebauteVorlagen.length})</h2>
+            </summary>
+            <div className="tabelle-rahmen">
+              <table className="tabelle tabelle-kompakt">
+                {kopf}
+                {gruppiert(eingebauteVorlagen, false)}
+              </table>
+            </div>
+          </details>
         </div>
       </div>
       <Kennfarben bereich={bereich} melden={melden} />
@@ -366,6 +425,7 @@ function SatzFormular(props: {
         intervall_sekunden: v.intervall_sekunden,
         notiz: v.notiz,
         ...(v.kennfarbe_id ? { kennfarbe_id: v.kennfarbe_id } : {}),
+        ...(v.fehlversuche ? { fehlversuche: v.fehlversuche } : {}),
       })),
     };
     try {

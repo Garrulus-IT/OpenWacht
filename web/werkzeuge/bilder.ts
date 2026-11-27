@@ -53,6 +53,7 @@ const PORT_NTFY = 18586;
 const PORT_SNMP = 16161;
 const PORT_ONTAP = 18447; // ONTAP-Attrappe auf 127.0.20.30 (im Bild 10.20.0.30:443)
 const PORT_BREVIS = 18449; // SMS-Gateway-Attrappe (brevis.one) auf 127.0.20.70 (im Bild https://10.20.0.70)
+const PORT_CITRIX = 18450; // Citrix-Monitor-Attrappe auf 127.0.20.60 (im Bild 10.20.0.60:443)
 const PORT_XAPI = 18448; // XAPI-Attrappe: Pool-Master 127.0.20.50, zweiter Host 127.0.20.51 (im Bild 10.20.0.50:443)
 const BASIS = `http://localhost:${PORT_WEB}`;
 const AUS_HANDBUCH = join(REPO, "docs/handbuch/bilder");
@@ -227,6 +228,9 @@ const ANZEIGE: [RegExp, string][] = [
   [new RegExp(`:${PORT_ONTAP}\\b`, "g"), ":443"],
   [new RegExp(`^${PORT_ONTAP}$`, "g"), "443"],
   [new RegExp(`127\\.0\\.20\\.50:${PORT_XAPI}`, "g"), "10.20.0.50:443"],
+  [new RegExp(`127\\.0\\.20\\.60:${PORT_CITRIX}`, "g"), "10.20.0.60:443"],
+  [new RegExp(`:${PORT_CITRIX}\\b`, "g"), ":443"],
+  [new RegExp(`^${PORT_CITRIX}$`, "g"), "443"],
   [new RegExp(`127\\.0\\.20\\.70:${PORT_BREVIS}`, "g"), "10.20.0.70"],
   [new RegExp(`:${PORT_XAPI}\\b`, "g"), ":443"],
   [new RegExp(`^${PORT_XAPI}$`, "g"), "443"],
@@ -326,6 +330,7 @@ async function main() {
   lauf("go", ["build", "-o", join(bin, "simagent"), "./tools/simagent"]);
   lauf("go", ["build", "-o", join(bin, "ontapattrappe"), "./tools/ontapattrappe"]);
   lauf("go", ["build", "-o", join(bin, "xapiattrappe"), "./tools/xapiattrappe"]);
+  lauf("go", ["build", "-o", join(bin, "citrixattrappe"), "./tools/citrixattrappe"]);
   lauf("go", ["build", "-o", join(bin, "brevisattrappe"), "./tools/brevisattrappe"]);
   const zentrale = join(bin, `${PROG}-zentrale_linux_amd64`);
   const simagent = join(bin, "simagent");
@@ -396,6 +401,8 @@ async function main() {
   hintergrund("ontap", join(bin, "ontapattrappe"), ["-adresse", `127.0.20.30:${PORT_ONTAP}`]);
   // XAPI-Attrappe (XenServer-Pool mit zwei Hosts, je eigenes Zertifikat)
   hintergrund("xapi", join(bin, "xapiattrappe"), ["-master", "127.0.20.50", "-host2", "127.0.20.51", "-port", String(PORT_XAPI)]);
+  // Citrix-Monitor-Attrappe (Delivery Controller, NTLM, eigenes Zertifikat)
+  hintergrund("citrix", join(bin, "citrixattrappe"), ["-adresse", `127.0.20.60:${PORT_CITRIX}`]);
   // SMS-Gateway-Attrappe (brevis.one, eigenes Zertifikat, Testzugang openwacht-api)
   hintergrund("brevis", join(bin, "brevisattrappe"), ["-adresse", `127.0.20.70:${PORT_BREVIS}`]);
 
@@ -439,6 +446,7 @@ async function main() {
 
   schritt("Seiten fotografieren");
   await seiten(page, api, demo, geheimnis);
+  await dashboardFrei(page, api);
   await wandanzeige(page, api, demo);
   await ctx.close();
   await abgemeldet();
@@ -600,6 +608,7 @@ async function demodaten(api: Api, geheimnis: string, simagent: string, snmp: bo
   const fwNord = await neuGeraet(nord, "fw-nord", "10.20.1.1");
   await neuGeraet(haupt, "aff-c250", "10.20.0.30", rz);
   await neuGeraet(haupt, "pool-rz", "10.20.0.50", rz);
+  await neuGeraet(haupt, "ctx-site", "10.20.0.60", rz);
 
   // Abhängigkeiten für die Topologie (1.0.3): alles im Haus hängt am Core-Switch,
   // der Drucker zusätzlich am Access Point.
@@ -741,6 +750,16 @@ async function seiten(page: Page, api: Api, demo: Demo, geheimnis: string) {
   await page.getByRole("button", { name: "Gruppen ordnen" }).click();
   await foto(page, "gruppen");
 
+  // Schnellsuche (1.0.6): Strg+K, Suchbegriff über Geräte und Sensoren
+  if (gewollt("schnellsuche")) {
+    await gehe(page, "/");
+    await page.keyboard.press("Control+k");
+    await page.locator(".such-feld").fill("srv");
+    await page.locator(".such-treffer").first().waitFor();
+    await foto(page, "schnellsuche");
+    await page.keyboard.press("Escape");
+  }
+
   await gehe(page, "/hosts");
   await page.getByRole("button", { name: "Importieren" }).click();
   await page.locator("textarea").first().fill(
@@ -777,8 +796,17 @@ async function seiten(page: Page, api: Api, demo: Demo, geheimnis: string) {
     await foto(page, "hinweise-ton", { element: page.locator("dialog.dialog") });
     await page.keyboard.press("Escape");
   }
+  if (gewollt("geraet-verschieben")) {
+    await gehe(page, `/hosts?geraet=${srv}`);
+    await page.getByRole("button", { name: /Aktionen/ }).first().click();
+    await page.getByRole("menuitem", { name: "In anderen Mandanten verschieben …" }).click();
+    const form = page.locator("form").filter({ hasText: "in einen anderen Mandanten verschieben" });
+    await foto(page, "geraet-verschieben", { element: form });
+    await form.getByRole("button", { name: "Abbrechen" }).click(); // nur zeigen, nicht verschieben
+  }
   await netapp(page, demo);
   await xenserver(page, demo);
+  await citrix(page, demo);
 
   await gehe(page, "/alarme");
   await foto(page, "alarme");
@@ -924,6 +952,36 @@ async function xenserver(page: Page, demo: Demo) {
   await foto(page, "host-xenserver", { ganz: true });
 }
 
+// Citrix über das Aktionsmenü einrichten (1.0.6): Verbindung prüfen,
+// Fingerabdruck übernehmen, erneut prüfen, speichern; danach die Werte.
+async function citrix(page: Page, demo: Demo) {
+  const id = demo.geraete["ctx-site"];
+  if (!id) return;
+  await gehe(page, `/hosts?geraet=${id}`);
+  await page.getByRole("button", { name: /Aktionen/ }).first().click();
+  await page.getByRole("menuitem", { name: "Citrix einrichten" }).click();
+  const form = page.locator("form").filter({ hasText: "Citrix für" });
+  await form.getByLabel("Adresse des Delivery Controllers").fill("127.0.20.60");
+  await form.getByRole("textbox", { name: "Port", exact: true }).fill(String(PORT_CITRIX));
+  await form.getByLabel(/^Benutzer/).fill("BEISPIEL\\svc-openwacht");
+  await form.getByLabel(/^Passwort/).fill("nur-ein-testpasswort-1"); // Testwert der Attrappe
+  await form.getByRole("button", { name: "Verbindung prüfen" }).click();
+  await form.getByRole("button", { name: "Fingerabdruck übernehmen" }).waitFor();
+  await form.getByRole("button", { name: "Fingerabdruck übernehmen" }).click();
+  await warte(3100); // „Verbindung prüfen“ höchstens alle 3 Sekunden
+  await form.getByRole("button", { name: "Verbindung prüfen" }).click();
+  await form.getByText("Verbunden:").waitFor();
+  await foto(page, "citrix-einrichten", { element: form });
+  await form.getByRole("button", { name: "Speichern" }).click();
+  await form.waitFor({ state: "detached" });
+  for (let i = 0; i < 60; i++) {
+    await gehe(page, `/hosts?geraet=${id}`);
+    if ((await page.locator(".geraet-citrix dl").count()) > 0) break;
+    await warte(1000);
+  }
+  await foto(page, "host-citrix", { ganz: true });
+}
+
 // SMS-Kanal (brevis.one) anlegen: eigene Mobilnummer, Gateway aus den
 // Alarmzielen, Fingerabdruck holen, Empfänger, Test-SMS an die Attrappe.
 async function sms(page: Page) {
@@ -1055,6 +1113,44 @@ async function zertifikate(page: Page, api: Api, demo: Demo) {
 }
 
 // Panel der Seite Einstellungen über seine Überschrift (innerste section).
+// Frei angepasstes Dashboard (1.0.7): zwei Seiten, freie Größen, neue Widgets.
+// Danach steht wieder der Standard, damit die übrigen Bilder gleich bleiben.
+async function dashboardFrei(page: Page, api: Api) {
+  if (!gewollt("dashboard-anpassen") && !gewollt("dashboard-fenster")) return;
+  await gehe(page, "/");
+  const { sensoren } = await api.rufe<{ sensoren: { schluessel: string; name: string; status: string }[] }>("GET", "/api/v1/sensoren");
+  const einer = sensoren.find((s) => s.status === "crit") ?? sensoren[0];
+  const w = (id: string, typ: string, breite: number, hoehe: number, mehr: Record<string, unknown> = {}) => ({ id, typ, breite, hoehe, ...mehr });
+  await api.rufe("PUT", "/api/v1/dashboard/layout", {
+    seiten: ["Leitstand", "Auslastung"],
+    widgets: [
+      w("lst1", "zustand", 7, 1),
+      w("lst2", "uhr", 2, 1),
+      w("lst3", "notiz", 3, 1, { titel: "Bereitschaft", text: "Diese Woche: Team Nord\nTelefon 0000 555 01 23" }),
+      w("lst4", "sonne", 4, 2),
+      w("lst5", "alarme", 8, 1),
+      ...(einer ? [w("lst6", "sensor", 3, 1, { sensor: einer.schluessel })] : []),
+      w("lst7", "zertifikate", 5, 1),
+      w("lst8", "wartung", 4, 1),
+      w("lst9", "ereignisse", 4, 1),
+      w("aus1", "auslastung", 4, 2, { seite: 1 }),
+      w("aus2", "graph", 8, 1, { seite: 1, wert: "cpu", zeitraum: "24h" }),
+      w("aus3", "graph", 8, 1, { seite: 1, wert: "speicher", zeitraum: "24h", titel: "Arbeitsspeicher, 24 Std." }),
+    ],
+  });
+  await page.evaluate(() => {
+    window.localStorage.removeItem("openwacht.dashboard.seite");
+    window.localStorage.setItem("openwacht.dashboard.fenster", "1");
+  });
+  await gehe(page, "/");
+  await foto(page, "dashboard-fenster");
+  await page.getByRole("button", { name: "✎ Anpassen" }).click();
+  await foto(page, "dashboard-anpassen", { ganz: true });
+  await page.getByRole("button", { name: "Fertig" }).click();
+  await page.evaluate(() => window.localStorage.removeItem("openwacht.dashboard.fenster"));
+  await api.rufe("DELETE", "/api/v1/dashboard/layout");
+}
+
 function panel(page: Page, titel: string): Locator {
   return page.getByRole("heading", { name: titel, exact: true }).first().locator("xpath=ancestor::section[1]");
 }
@@ -1119,13 +1215,21 @@ async function kennfarbenDemo(api: Api, demo: Demo) {
 
 // Wandanzeige im Querformat eines Leitstellen-Bildschirms (immer dunkel).
 async function wandanzeige(admin: Page, api: Api, demo: Demo) {
-  if (!gewollt("wandanzeige") && !gewollt("wandanzeige-verwaltung")) return;
+  if (!gewollt("wandanzeige") && !gewollt("wandanzeige-verwaltung") && !gewollt("wandanzeige-namen")) return;
   const a = await api.rufe<{ link: string }>("POST", `/api/v1/mandanten/${demo.haupt}/anzeigen`, { name: "Leitstand", netz: "", mit_untermandanten: true });
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 }, colorScheme: "dark", locale: "de-DE", timezoneId: "Europe/Berlin" });
   const page = await ctx.newPage();
   await page.goto(a.link);
   await page.locator(".wand-flaeche .sonne").waitFor();
   await foto(page, "wandanzeige", { breite: 1600 });
+  // Ansicht „Namen“ (1.0.6, Taste N): nur die Sonne, jedes Gerät beschriftet;
+  // nach 3 s ohne Bewegung verschwinden die Knöpfe
+  if (gewollt("wandanzeige-namen")) {
+    await page.keyboard.press("n");
+    await page.locator(".wand-namen .sonne").waitFor();
+    await warte(3500);
+    await foto(page, "wandanzeige-namen", { breite: 1600 });
+  }
   await ctx.close();
   // Verwaltung (0.99.2): Name öffnet die Vorschau, „Neuer Link“ mit Bestätigung
   await gehe(admin, "/wandanzeigen");

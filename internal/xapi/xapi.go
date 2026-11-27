@@ -1278,7 +1278,8 @@ func contains(list []string, s string) bool {
 
 func containsRef(list []string, s string) bool { return contains(list, s) }
 
-// Rebooted: Ein Host läuft kürzer als bei der letzten Abfrage.
+// Rebooted: Ein Host läuft kürzer als bei der letzten Abfrage und lief
+// vorher lange genug (snmp.MinUptimeForReboot).
 func Rebooted(prev, cur *snmp.XAPI) bool {
 	if prev == nil || cur == nil {
 		return false
@@ -1288,7 +1289,7 @@ func Rebooted(prev, cur *snmp.XAPI) bool {
 		before[h.Name] = h.UptimeS
 	}
 	for _, h := range cur.Hosts {
-		if b, ok := before[h.Name]; ok && b > 0 && h.UptimeS > 0 && h.UptimeS+60 < b {
+		if b, ok := before[h.Name]; ok && snmp.RebootCounts(b) && h.UptimeS > 0 && h.UptimeS+60 < b {
 			return true
 		}
 	}

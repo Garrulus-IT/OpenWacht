@@ -17,6 +17,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -102,10 +103,17 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdUpdatesSetup(args[1:], stdout)
 	case "update-installieren":
 		err = cmdUpdateInstall(args[1:], stdout)
-	case "paket-einrichten":
-		err = cmdPackageSetup(ctx, args[1:], stdin, stdout)
-	case "paket-entfernen":
-		err = cmdPackageRemove(args[1:], stdout)
+	case "paket-einrichten", "paket-entfernen":
+		// Unter Windows landet die Ausgabe zusätzlich im Ereignisprotokoll
+		// (Windows Installer zeigt sie nicht an).
+		var mit bytes.Buffer
+		w := io.MultiWriter(stdout, &mit)
+		if args[0] == "paket-einrichten" {
+			err = cmdPackageSetup(ctx, args[1:], stdin, w)
+		} else {
+			err = cmdPackageRemove(args[1:], w)
+		}
+		packageLog("openwacht-agent "+args[0], mit.String(), err)
 	case "-h", "--help", "hilfe":
 		fmt.Fprint(stdout, usage)
 		return 0
@@ -456,6 +464,9 @@ const (
 // packageOptions: Angaben für paket-einrichten.
 type packageOptions struct {
 	dir, zentrale, token, hostname string
+	// Freigaben aus dem Assistenten des MSI (1.0.6), leer = unverändert
+	arten, ordner, indikatoren, netze string
+	neu                               bool // bestehende Registrierung ersetzen („Neu einrichten“)
 }
 
 func cmdPackageSetup(ctx context.Context, args []string, stdin io.Reader, out io.Writer) error {
@@ -465,6 +476,11 @@ func cmdPackageSetup(ctx context.Context, args []string, stdin io.Reader, out io
 	token := fs.String("token", "", "Registrierungs-Token; \"-\" liest es von der Standardeingabe")
 	hostname := fs.String("hostname", "", "Name, unter dem der Rechner erscheint (Standard: Hostname des Systems)")
 	fromEnv := fs.Bool("aus-umgebung", false, "Zentrale, Token und Hostname aus "+envZentrale+", "+envToken+" und "+envHostname+" lesen")
+	kinds := fs.String("arten", "", "Sensoren freigeben wie „sensoren -arten“ (leer = Freigabe unverändert)")
+	folders := fs.String("ordner", "", "Ordner für Datei-Sensoren wie „sensoren -ordner“")
+	counters := fs.String("indikatoren", "", "Objekte der Leistungsindikatoren wie „sensoren -indikatoren“")
+	nets := fs.String("netze", "", "als Sammler für SNMP-Geräte in diesen Netzen freigeben wie „sammler -netze“ (leer = unverändert)")
+	choice := fs.String("wahl", "", "Auswahl im Assistenten des MSI: „neu“ ersetzt eine bestehende Registrierung durch das Token")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -474,7 +490,8 @@ func cmdPackageSetup(ctx context.Context, args []string, stdin io.Reader, out io
 	if !agent.IsRoot() {
 		return errors.New("bitte als root bzw. Administrator ausführen (läuft normalerweise im Paketmanager)")
 	}
-	o := packageOptions{dir: *dir, zentrale: *zentrale, token: *token, hostname: *hostname}
+	o := packageOptions{dir: *dir, zentrale: *zentrale, token: *token, hostname: *hostname,
+		arten: *kinds, ordner: *folders, indikatoren: *counters, netze: *nets, neu: strings.TrimSpace(*choice) == "neu"}
 	if *fromEnv {
 		o.zentrale = firstNonEmpty(o.zentrale, os.Getenv(envZentrale))
 		o.token = firstNonEmpty(o.token, os.Getenv(envToken))
@@ -503,7 +520,36 @@ func cmdPackageSetup(ctx context.Context, args []string, stdin io.Reader, out io
 		}
 		o.hostname = strings.ToLower(h)
 	}
-	return packageSetup(ctx, o, out)
+	if err := packageSetup(ctx, o, out); err != nil {
+		return err
+	}
+	return releaseFromPackage(o, out)
+}
+
+// releaseFromPackage: Freigaben, die im Assistenten des MSI gewählt wurden.
+// Nur was angegeben ist, ändert etwas; ein Update ohne Angaben lässt die
+// bestehende Freigabe stehen. Zurücknehmen geht mit „sensoren -aus“ bzw.
+// „sammler -aus“. Eine ungültige Angabe bricht die Installation nicht ab:
+// Der Agent läuft dann ohne diese Freigabe, die Meldung steht im Protokoll.
+func releaseFromPackage(o packageOptions, out io.Writer) error {
+	if k := splitList(o.arten); len(k) > 0 {
+		rel, err := agent.WriteSensorRelease(o.dir, &agentproto.SensorRelease{Kinds: k, Folders: splitList(o.ordner),
+			Counters: splitList(o.indikatoren)})
+		if err != nil {
+			fmt.Fprintf(out, "Sensoren nicht freigegeben: %v\n", err)
+		} else {
+			fmt.Fprintf(out, "Sensoren freigegeben: %s\n", strings.Join(rel.Kinds, ", "))
+		}
+	}
+	if n := splitList(o.netze); len(n) > 0 {
+		parsed, err := agent.WriteCollectorConfig(o.dir, n)
+		if err != nil {
+			fmt.Fprintf(out, "Sammler nicht freigegeben: %v\n", err)
+		} else {
+			fmt.Fprintf(out, "Sammler freigegeben für: %s\n", joinPrefixes(parsed))
+		}
+	}
+	return nil
 }
 
 // registerFromPackage registriert, wenn ein Token da ist und der Rechner
@@ -513,13 +559,13 @@ func registerFromPackage(ctx context.Context, o packageOptions, out io.Writer) e
 	if o.token == "" {
 		return nil
 	}
-	if agent.Registered(o.dir) {
+	if agent.Registered(o.dir) && !o.neu {
 		fmt.Fprintln(out, "Bereits registriert; das angegebene Token wurde nicht benutzt.")
 		return nil
 	}
 	regCtx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	id, err := agent.Register(regCtx, o.dir, o.zentrale, o.token, o.hostname, false)
+	id, err := agent.Register(regCtx, o.dir, o.zentrale, o.token, o.hostname, o.neu)
 	if err != nil {
 		return fmt.Errorf("Registrierung: %w", err)
 	}
@@ -536,11 +582,24 @@ func firstNonEmpty(a, b string) string {
 
 func cmdPackageRemove(args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("paket-entfernen", flag.ContinueOnError)
+	forget := fs.String("registrierung", "", "„1“: auch Registrierung, Schlüssel und Freigaben in "+agent.DefaultDir+" löschen (Häkchen im MSI)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if !agent.IsRoot() {
 		return errors.New("bitte als root bzw. Administrator ausführen")
 	}
-	return packageRemove(out)
+	if err := packageRemove(out); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*forget) != "1" {
+		fmt.Fprintf(out, "Die Registrierung in %s bleibt; eine neue Installation läuft ohne Token weiter.\n", agent.DefaultDir)
+		return nil
+	}
+	// Nur das feste Verzeichnis des Pakets, nie ein Pfad von außen.
+	if err := os.RemoveAll(agent.DefaultDir); err != nil {
+		return fmt.Errorf("Registrierung löschen: %w", err)
+	}
+	fmt.Fprintf(out, "Registrierung gelöscht (%s). Den Host in OpenWacht bitte selbst löschen.\n", agent.DefaultDir)
+	return nil
 }

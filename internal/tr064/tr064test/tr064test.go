@@ -50,7 +50,7 @@ type Fake struct {
 func NewFake() *Fake {
 	f := &Fake{Calls: map[string]int{}, Paths: map[string]int{}, Denied: map[string]bool{}, Nonce: "n1"}
 	f.Values = map[string]map[string]string{
-		"DeviceInfo#GetInfo": {"NewModelName": "FRITZ!Box 7590", "NewSoftwareVersion": "154.07.57", "NewUpTime": "86400",
+		"DeviceInfo#GetInfo": {"NewModelName": "FRITZ!Box 7590", "NewSoftwareVersion": "154.07.57", "NewUpTime": "100000",
 			"NewSerialNumber": "GEHEIM-SERIE", "NewDeviceLog": "geheimes Protokoll", "NewManufacturerName": "AVM"},
 		"WANCommonInterfaceConfig#GetCommonLinkProperties": {"NewWANAccessType": "DSL", "NewLayer1UpstreamMaxBitRate": "40000000",
 			"NewLayer1DownstreamMaxBitRate": "250000000", "NewPhysicalLinkStatus": "Up"},

@@ -5,12 +5,16 @@
 // Symbol im Infobereich. Die Oberfläche unter Windows steht in cmd/desktop;
 // alles hier ist ohne Windows testbar.
 //
-// Die App liest nur: Sie fragt alle 30 Sekunden GET /api/v1/alarme mit einem
-// API-Token (Rolle Leser, Entscheidung des Herausgebers 25.11.2026). Das Token liegt
-// in der Windows-Anmeldeinformationsverwaltung, nie in einer Datei.
+// Die App fragt alle 30 Sekunden GET /api/v1/alarme ab (bei offenem Fenster
+// auch Mandanten, Gruppen, Geräte, Sensoren und Checks) mit einem API-Token.
+// Was sie darf, bestimmt dessen Rolle: Leser nur sehen, Operator auch Geräte
+// und Sensoren pflegen (Entscheidung des Herausgebers 26.11.2026, vorher nur
+// Leser). Das Token liegt in der Windows-Anmeldeinformationsverwaltung, nie in
+// einer Datei.
 package desktop
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -28,8 +32,22 @@ import (
 
 // Config: was die App außer dem Token braucht (Datei desktop.json).
 type Config struct {
-	Zentrale string `json:"zentrale"` // https://openwacht.example
+	Zentrale    string `json:"zentrale"`              // https://openwacht.example
+	Darstellung string `json:"darstellung,omitempty"` // "" = wie System, "hell", "dunkel"
+	Mandant     string `json:"mandant,omitempty"`     // zuletzt gewählter Mandant
+	OhneUnter   bool   `json:"ohne_unter,omitempty"`  // Untermandanten ausblenden
+	// Anmeldung: "konto" = mit E-Mail, Passwort und Code wie im Browser
+	// (Sitzung nur im Speicher), sonst API-Token aus der Anmeldeinformationsverwaltung.
+	Anmeldung string `json:"anmeldung,omitempty"`
+	Email     string `json:"email,omitempty"` // zuletzt angemeldet (kein Geheimnis)
+	// Dashboard (1.0.7): zuletzt gezeigte Seite und „An Fenster anpassen“.
+	// Beides gilt je Rechner, nicht je Konto.
+	DashSeite   int  `json:"dash_seite,omitempty"`
+	DashFenster bool `json:"dash_fenster,omitempty"`
 }
+
+// MitKonto: Anmeldung wie im Browser statt API-Token.
+func (c Config) MitKonto() bool { return c.Anmeldung == "konto" }
 
 // ConfigPath: %APPDATA%\OpenWacht\desktop.json bzw. ~/.config/OpenWacht/desktop.json.
 func ConfigPath() (string, error) {
@@ -90,7 +108,7 @@ func CleanToken(s string) (string, error) {
 	s = strings.TrimSpace(s)
 	rest, ok := strings.CutPrefix(s, "owt1.")
 	if !ok || len(rest) != 43 || strings.Trim(rest, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_") != "" {
-		return "", errors.New("API-Token: erwartet owt1.… (in OpenWacht unter Verwaltung → API-Tokens, Rolle Leser)")
+		return "", errors.New("API-Token: erwartet owt1.… (in OpenWacht unter Benutzer und Mandanten › API-Tokens, Rolle Leser oder Operator)")
 	}
 	return s, nil
 }
@@ -111,6 +129,9 @@ type Client struct {
 	Zentrale string
 	Token    string
 	HTTP     *http.Client
+	// Sitzung: angemeldet mit Konto wie im Browser (statt Token). Nur im
+	// Speicher, nie auf der Platte.
+	Sitzung *Sitzung
 }
 
 // ErrToken: Token ungültig, abgelaufen oder widerrufen.
@@ -118,12 +139,72 @@ var ErrToken = errors.New("API-Token ungültig, abgelaufen oder widerrufen")
 
 // Alarme holt die Alarme der letzten 30 Tage (offene zuerst).
 func (c Client) Alarme(ctx context.Context) ([]Alarm, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.Zentrale+"/api/v1/alarme?limit=500", nil)
-	if err != nil {
+	var out struct {
+		Alarme []Alarm `json:"alarme"`
+	}
+	if err := c.get(ctx, "/api/v1/alarme?limit=500", &out); err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
+	return out.Alarme, nil
+}
+
+// get: GET mit dem Token, nur an die eingestellte Zentrale, Antwort ≤ 8 MiB.
+func (c Client) get(ctx context.Context, pfad string, out any) error {
+	return c.send(ctx, http.MethodGet, pfad, nil, out)
+}
+
+// FehlerZentrale: die Zentrale hat die Anfrage abgelehnt; Text ist ihre
+// Meldung (für Menschen geschrieben, z. B. „Intervall: 30 Sekunden bis 1 Tag.“).
+type FehlerZentrale struct {
+	Code int
+	Text string
+}
+
+func (e *FehlerZentrale) Error() string {
+	if e.Text != "" {
+		return e.Text
+	}
+	return fmt.Sprintf("Zentrale antwortet mit %d", e.Code)
+}
+
+// send: Anfrage mit Token bzw. Sitzung, nur an die eingestellte Zentrale, Antwort ≤ 32 MiB
+// (PDF-Berichte). out vom Typ *[]byte bekommt die Antwort unverändert.
+// body (falls nicht nil) geht als JSON; out (falls nicht nil) nimmt die
+// Antwort auf. Jede Antwort 2xx gilt als Erfolg.
+func (c Client) send(ctx context.Context, method, pfad string, body, out any) error {
+	if body == nil {
+		return c.roh(ctx, method, pfad, nil, nil, out)
+	}
+	b, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	return c.roh(ctx, method, pfad, b, map[string]string{"Content-Type": "application/json"}, out)
+}
+
+// AnfrageDatei schickt Bytes unverändert (z. B. ein Agent-Paket) mit eigenen Kopfzeilen.
+func (c Client) AnfrageDatei(ctx context.Context, methode, pfad string, daten []byte, kopf map[string]string, out any) error {
+	return c.roh(ctx, methode, pfad, daten, kopf, out)
+}
+
+func (c Client) roh(ctx context.Context, method, pfad string, daten []byte, kopf map[string]string, out any) error {
+	var rd io.Reader
+	if daten != nil {
+		rd = bytes.NewReader(daten)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.Zentrale+pfad, rd)
+	if err != nil {
+		return err
+	}
+	if c.Sitzung != nil {
+		c.Sitzung.anfrage(req)
+	} else {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
 	req.Header.Set("Accept", "application/json")
+	for k, v := range kopf {
+		req.Header.Set(k, v)
+	}
 	hc := c.HTTP
 	if hc == nil {
 		hc = &http.Client{Timeout: 20 * time.Second}
@@ -133,26 +214,47 @@ func (c Client) Alarme(ctx context.Context) ([]Alarm, error) {
 	hc2.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	resp, err := hc2.Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	if c.Sitzung != nil {
+		c.Sitzung.antwort(resp)
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	switch {
+	case resp.StatusCode == http.StatusUnauthorized && c.Sitzung != nil && strings.HasPrefix(pfad, "/api/v1/sitzung"):
+		// Anmeldung selbst: Meldung der Zentrale („E-Mail oder Passwort falsch.“)
+		var f struct {
+			Fehler string `json:"fehler"`
+		}
+		_ = json.Unmarshal(data, &f)
+		return &FehlerZentrale{Code: resp.StatusCode, Text: Kuerzen(strings.TrimSpace(f.Fehler), 400)}
+	case resp.StatusCode == http.StatusUnauthorized && c.Sitzung != nil:
+		c.Sitzung.vergessen()
+		return ErrSitzung
 	case resp.StatusCode == http.StatusUnauthorized:
-		return nil, ErrToken
-	case resp.StatusCode != http.StatusOK:
-		return nil, fmt.Errorf("Zentrale antwortet mit %d", resp.StatusCode)
+		return ErrToken
+	case resp.StatusCode < 200 || resp.StatusCode > 299:
+		var f struct {
+			Fehler string `json:"fehler"`
+		}
+		_ = json.Unmarshal(data, &f)
+		return &FehlerZentrale{Code: resp.StatusCode, Text: Kuerzen(strings.TrimSpace(f.Fehler), 400)}
 	}
-	var out struct {
-		Alarme []Alarm `json:"alarme"`
+	if roh, ok := out.(*[]byte); ok {
+		*roh = data // Datei (z. B. PDF), unverändert
+		return nil
 	}
-	if err := json.Unmarshal(body, &out); err != nil {
-		return nil, fmt.Errorf("Antwort nicht lesbar: %w", err)
+	if out == nil || len(bytes.TrimSpace(data)) == 0 {
+		return nil
 	}
-	return out.Alarme, nil
+	if err := json.Unmarshal(data, out); err != nil {
+		return fmt.Errorf("Antwort nicht lesbar: %w", err)
+	}
+	return nil
 }
 
 // Zustand fürs Symbol: schlimmster offener, nicht bestätigter Alarm.
@@ -240,7 +342,8 @@ func (e Ereignis) Titel() string {
 // Text der Benachrichtigung.
 func (e Ereignis) Text() string {
 	s := e.Alarm.Name
-	if e.Alarm.Gegenstand != "" {
+	// "check" (Sensor der Zentrale) sagt nichts; der Name nennt den Sensor schon.
+	if e.Alarm.Gegenstand != "" && e.Alarm.Gegenstand != "check" {
 		s += " · " + e.Alarm.Gegenstand
 	}
 	if e.Art != "entwarnung" && e.Alarm.Meldung != "" {
@@ -302,4 +405,18 @@ func Kuerzen(s string, n int) string {
 		s = string([]rune(s)[:n-1]) + "…"
 	}
 	return s
+}
+
+// AgentPort: Adresse auf dem üblichen Port für Agents (8444) statt der
+// Weboberfläche. Dort zeigt die Zentrale ein Zertifikat ihrer eigenen CA,
+// dem Windows nicht vertraut; die App braucht die Adresse aus dem Browser.
+func AgentPort(zentrale string) bool {
+	u, err := url.Parse(zentrale)
+	return err == nil && u.Port() == "8444"
+}
+
+// Anfrage: beliebiger Aufruf der API mit derselben Anmeldung (für Seiten,
+// die die Weboberfläche nachbilden). body geht als JSON, out nimmt die Antwort.
+func (c Client) Anfrage(ctx context.Context, methode, pfad string, body, out any) error {
+	return c.send(ctx, methode, pfad, body, out)
 }

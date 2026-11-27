@@ -1,5 +1,121 @@
 # Release-Notizen OpenWacht
 
+## 1.0.7
+
+- **Dashboard frei anpassbar:** Jedes Widget hat eine freie Breite (2 bis 12 Spalten) und Höhe (1 bis 6 Reihen), zum
+  Ziehen an der Ecke oder über ⚙; dazu eigene Titel, jede Art beliebig oft (bis 60 Widgets), „verdoppeln“ und bis zu
+  acht benannte Seiten als Reiter. Neue Widgets: Zertifikate, Wartung, Einzelner Sensor, Uhr und Notiz. Alte Layouts
+  bleiben, wie sie sind ([Kapitel 4](handbuch/04-hosts.md#dashboard-und-wandanzeige)).
+- **Dashboard passt sich dem Fenster an:** Das Raster richtet sich nach seinem eigenen Platz (12, 6 oder 1 Spalte) statt
+  nach festen Bildschirmbreiten. „⤢ An Fenster anpassen“ verteilt die Höhe des Fensters auf die Reihen, das Dashboard
+  passt dann ohne Rollen auf den Bildschirm; die Wahl gilt je Browser.
+- **Desktop-App mit demselben Dashboard:** Die App zeigt das Layout deines Kontos mit allen Widgets, Seiten und „An
+  Fenster anpassen“ und lässt es bearbeiten (Menü „Ändern“ am Widget). Sie ersetzt die feste Ansicht aus Sonne und
+  Übersicht; ein Klick auf ein Gerät öffnet weiter die Sonne mit den Sensoren daneben. Mit API-Token zeigt sie das
+  Standard-Layout ([Kapitel 8](handbuch/08-alarme-und-wartung.md)).
+- **Sonnendiagramm und Wandanzeige kürzen Namen seltener:** Fehlen einem Namen nur wenige Zeichen, wird seine Schrift
+  um bis zu ein Fünftel kleiner und der Name bleibt ganz. Bisher stand dort etwa „Garage Feuerwe…“, obwohl die drei
+  Punkte so viel Platz brauchen wie die zwei gekürzten Buchstaben. Gilt im Web, auf der Wandanzeige und in der
+  Desktop-App.
+- Migration 0062 (läuft beim Update von selbst).
+
+## 1.0.6
+
+- **Kalte Zweitinstanz als geführter Ablauf:** `openwacht-zentrale zweitinstanz -einrichten -quelle <Ordner>` auf einem
+  zweiten Rechner; ein Timer spielt jede neue Sicherung der Hauptinstanz ein und prüft sie (Hauptschlüssel, Schema-Stand,
+  Audit-Kette), `-umschalten` macht die Zweitinstanz mit einem Befehl zur Zentrale. Die Sicherungen kopiert der Betreiber
+  selbst in den Ordner; OpenWacht holt nichts über das Netz ([Handbuch Kapitel 16](handbuch/16-betrieb-und-skalierung.md#ausfallkonzept-kalte-zweitinstanz)).
+- **SSO: Signatur des ID-Tokens geprüft:** zusätzlich zur geprüften TLS-Verbindung zum Token-Endpunkt gegen die
+  Schlüssel des Identity Providers (JWKS), nur RS256 und ES256, mit Zwischenspeicher und Schlüsselwechsel beim IdP.
+  **Vor dem Update prüfen:** Ein IdP, der ID-Tokens mit HS256 oder PS256 signiert, wird danach abgelehnt
+  ([Kapitel 10](handbuch/10-ad-und-sso.md#firmen-login-per-oidc-keycloak-adfs-entra-id)).
+- **Offline-Paket mit Zusatzpaketen:** `paket-bauen.sh -zusatz realmd,sssd,adcli,…` nimmt weitere Debian-Pakete samt
+  Abhängigkeiten auf, z. B. für den Beitritt zur Domäne ohne Internet; `installieren.sh` installiert sie mit
+  ([Kapitel 14](handbuch/14-betrieb-ohne-internet.md#zusatzpakete-z-b-für-den-beitritt-zur-domäne)).
+- **Beschriebene API:** `docs/api/openapi.json` (OpenAPI 3.1) für die 21 lesenden Endpunkte, die ein API-Token mit der
+  Rolle Leser nutzen darf; liegt auch im Paket unter `/usr/share/doc/openwacht-zentrale/`. Ein Test prüft die Datei
+  gegen den Code ([Kapitel 11](handbuch/11-api-tokens.md#beschreibung-der-api-openapi)).
+- **Schnellsuche:** Strg+K (⌘K) bzw. „Suchen“ oben rechts sucht über Geräte, Sensoren, Mandanten und Seiten, mit
+  Pfeiltasten und Enter ([Kapitel 4](handbuch/04-hosts.md)).
+- **Wandanzeige im Vollbild:** Knopf bzw. Taste F; Ansicht „Alle Namen“ (Taste N, auch als `?ansicht=namen` in der
+  Adresse) zeigt nur das Sonnendiagramm mit jedem Gerät beschriftet; Zeiger und Knöpfe verschwinden nach drei Sekunden
+  ([Kapitel 4](handbuch/04-hosts.md#dashboard-und-wandanzeige)).
+- **Geräte in einen anderen Mandanten verschieben:** im Menü des Geräts, für Admins beider Mandanten. Agent, Abfragen,
+  Sensoren, Alarme und Verlauf ziehen mit, der Agent braucht keine neue Registrierung; Gruppe, Abhängigkeiten,
+  Wartungsfenster und nicht geltende Kennfarben fallen weg ([Handbuch Kapitel 4](handbuch/04-hosts.md#in-einen-anderen-mandanten-verschieben)).
+- **Citrix:** Abfrage des Monitor Service einer Citrix-Site (OData, Windows-Anmeldung, nur HTTPS, nur lesend): nicht
+  registrierte VDAs mit Namen und fehlgeschlagene Verbindungen der letzten Stunde je Fehlerart, nie Benutzer
+  ([Kapitel 19](handbuch/19-anbindungen.md#citrix-monitor-service-odata)). Bisher nur gegen eine nachgebaute Gegenstelle
+  getestet, noch nicht gegen einen echten Delivery Controller.
+- **Meldungen bei verdächtigen Anmeldungen:** Mail an das Konto bei einer Anmeldung von einem neuen Rechner; bei Sperren
+  nach Fehlversuchen und bei Notfall-Befehlen auf der Zentrale auch an den Betreiber. Braucht den eingerichteten
+  Mailversand ([Kapitel 3](handbuch/03-mandanten-und-rollen.md)).
+- **Zweiter Faktor kontoweit gebremst:** Zehn falsche Codes binnen 15 Minuten sperren die Anmeldung mit Code für
+  15 Minuten, egal von wie vielen Rechnern; Passkeys gehen weiter.
+- **Notfall-Befehl `passwort-setzen`:** neues Passwort für ein lokales Konto auf der Zentrale, z. B. wenn das einzige
+  Admin-Passwort verloren ist ([Kapitel 3](handbuch/03-mandanten-und-rollen.md)).
+- **Automatische Windows-Dienste:** Dienste, deren Einstellungen der Agent nicht lesen darf, werden nicht mehr still
+  übersprungen; die Meldung nennt ihre Zahl, steht einer davon, gibt es eine Warnung. Braucht den Agent 1.0.6.
+- **Konten löschen:** gesperrte Konten löscht OpenWacht 90 Tage nach dem Sperren, vorher von Hand; das Audit-Log bleibt
+  ([Kapitel 3](handbuch/03-mandanten-und-rollen.md#konten-sperren-und-löschen)).
+- **Oberfläche aufgeräumt:** Dashboard-Widget „Zustand“ neu (Zahlen je Zustand statt Sechsecke; Probleme bleiben auch
+  unter vielen OK-Sensoren sichtbar); Gruppen unter Hosts ab Werk zugeklappt, mit „Alle aufklappen“; Sensor-Vorlagen mit
+  Suche, Abschnitten zum Zuklappen und nach Ort und Art geordnet, lange Hinweise gekürzt.
+- **Desktop-App mit eigenem Fenster wie die Weboberfläche:** Start der Datei oder Linksklick aufs Symbol öffnet ein
+  Fenster ohne Browser, aufgebaut wie die Weboberfläche: Seitenleiste mit Mandantenwahl, „mit Untermandanten“ und den
+  Piktogrammen des Webs, Kopf mit Brotkrumen und Suche, Darstellung wie System, hell oder dunkel. Das **Dashboard**
+  zeigt dauerhaft das Sonnendiagramm wie im Web (Fugen, Namen entlang des Bogens) und daneben Geräte je Zustand und
+  „Aktuell“; ein Klick auf ein Gerät öffnet daneben seine Sensoren. **Kennfarben** färben Sonne, „Aktuell“ und
+  Sensorliste wie in der Wandanzeige („Rot gewinnt immer“). **Jeder Punkt der Seitenleiste ist eine Seite der App:**
+  Hosts (Baum und Gerät), Topologie, Zertifikate, Alarme, Berichte (mit PDF in den Ordner Downloads), Sensor-Vorlagen
+  mit Kennfarben, SNMP-Profile, Wandanzeigen, Wartung sowie Benutzer und Mandanten mit allen Reitern (Benutzer,
+  Agent- und API-Tokens, Agent-Updates, Anmeldung über AD und SSO), jeweils mit Anlegen, Ändern und Löschen wie im
+  Web. Im Browser bleiben nur Formulare für Wartungsfenster und „hängt ab von“, Alarmwege, Einstellungen und das eigene
+  Konto. Mit einem API-Token der Rolle **Operator** lassen sich Geräte und Sensoren anlegen, ändern, löschen,
+  pausieren, jetzt abfragen, in Wartung setzen und Alarme bestätigen; mit **Leser** nur ansehen. Angemeldet wird in einem eigenen Fenster statt in der Konsole,
+  „Abmelden“ steht unten in der Seitenleiste. **Anmeldung wie im Browser:** mit E-Mail, Passwort und Code aus der
+  Authenticator-App führt die App dieselbe Sitzung wie der Browser und darf genau, was das Konto darf, auch als Admin,
+  mit frischem Code für heikle Änderungen; die Sitzung lebt nur im Speicher. Das API-Token bleibt als zweiter Weg für
+  Rechner, die nur im Infobereich wachen. Die Zentrale ändert sich dafür nicht. Dazu: ein Klick öffnet nicht mehr
+  zwei Tabs, „Mit Windows starten“ meldet, ob es geklappt hat, der Autostart startet nur ins Infobereich, und die Datei
+  trägt Programmbeschreibung, Version und das Bildzeichen
+  ([Kapitel 8](handbuch/08-alarme-und-wartung.md#fenster-wie-die-weboberfläche-ab-106)). Unter Wine getestet, auf
+  echtem Windows noch nicht. Die Stückliste führt die eingebetteten Schriften (TTF) mit.
+- **Signieren unter Windows vorbereitet:** `tools/signieren/authenticode.ps1` signiert mit dem Zertifikat aus Certum
+  SimplySign Agent und Desktop-App, baut die MSI aus den signierten Agents neu, signiert sie, berechnet
+  `SHA256SUMS` neu und prüft alles ([Kapitel 15](handbuch/15-signieren-und-verteilen.md)). Die Dateien von 1.0.6
+  sind noch unsigniert, bis das Zertifikat ausgestellt ist.
+- **Agent-MSI mit Assistent:** Per Doppelklick führt das MSI durch Zentrale, Token, Sensor-Freigaben (Dienste,
+  automatische Dienste, Prozesse, Dateien mit Ordnern, Leistungsindikatoren, Hyper-V) und Sammler-Netze, mit Prüfung
+  der Eingaben und eigenem Kopf in Nachtblau. Still per GPO/Intune gehen dieselben Freigaben über die neuen
+  Eigenschaften `SENSOREN`, `ORDNER`, `INDIKATOREN` und `NETZE`; `paket-einrichten` kennt dafür `-arten`, `-ordner`,
+  `-indikatoren` und `-netze`. Ist schon ein Agent installiert, fragt das MSI zuerst: Aktualisieren, Neu einrichten
+  (neues Token ersetzt die Registrierung, `paket-einrichten -wahl neu`) oder Entfernen (wahlweise samt Registrierung,
+  `paket-entfernen -registrierung 1`). Die Einrichtung schreibt Ausgabe und Fehler in die Ereignisanzeige (Quelle
+  `openwacht-agent`), richtet den Dienst vor der Registrierung ein (ein Fehler kostet kein Token), räumt nach einer
+  gescheiterten Registrierung auf und benennt die Ursache (Name, Verbindung, TLS, Zertifikat, Antwort). Behoben: Die
+  Tabelle ServiceControl startete den Dienst statt ihn vor einem Update anzuhalten. Texte im MSI dürfen jetzt Umlaute
+  enthalten (Codepage 1252)
+  ([Kapitel 5](handbuch/05-agent.md#msi-unter-windows-doppelklick-gpo-intune)). Unter Wine getestet, auf echtem
+  Windows noch nicht.
+- **Alarm erst nach 3 Fehlschlägen, je Sensor einstellbar:** Sensoren melden „kritisch“ jetzt nach 3 statt 2
+  Fehlschlägen in Folge, damit kurze Aussetzer (Neustart, verlorenes Paket) keinen Alarm auslösen. Am Sensor, in eigenen
+  Vorlagen und Vorlagensätzen lässt sich „Alarm nach“ von 1 (sofort) bis 10 setzen, im Web und in der Desktop-App;
+  die API kennt dafür `fehlversuche` und zeigt die geltende Zahl als `fehlversuche_gilt`. Warnungen gehen weiter
+  sofort raus ([Kapitel 7](handbuch/07-sensoren-und-vorlagen.md#sensoren)).
+- **Neustart-Meldung ruhiger:** Ein Neustart wird nur noch gemeldet, wenn das Gerät davor mindestens 27 Stunden lief;
+  geplante nächtliche Neustarts (Citrix-Worker, Terminalserver) melden nichts mehr. SNMP liest dafür die Laufzeit des
+  Rechners (`hrSystemUptime`) statt nur die des SNMP-Dienstes, so löst ein Neustart allein des SNMP-Dienstes keine
+  Meldung mehr aus. Gilt auch für Proxmox, NetApp, XenServer und FRITZ!Box
+  ([Kapitel 6](handbuch/06-snmp.md#snmp-an-einem-gerät)). Für die Rechnerlaufzeit über einen Sammler braucht dieser den
+  Agent 1.0.6.
+- Beim Anlegen eines Benutzers lautet die Meldung für eine vergebene Adresse immer gleich; höchstens 20 solcher
+  Ablehnungen je Admin und Stunde.
+- Die Warnung beim Start ohne Alarmziele nennt richtig, was gesperrt ist (Mail geht weiter).
+- Kennfarben: Der Vorschlag Braun (#8a5a2b) hatte auf dunklem Grund nur 2,9:1 Kontrast und fiel durch die eigene
+  Prüfung; jetzt #9a6530 (3,5:1 dunkel, 4,9:1 hell).
+- Migrationen 0056 bis 0061 (laufen beim Update von selbst).
+
 ## 1.0.5
 
 - **Sensor „Automatische Windows-Dienste“:** ein Sensor prüft alle Dienste mit Starttyp „Automatisch“ und meldet die

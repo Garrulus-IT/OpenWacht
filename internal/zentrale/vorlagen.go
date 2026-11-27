@@ -41,6 +41,8 @@ type vorlageOut struct {
 	Geaendert      *time.Time `json:"geaendert,omitempty"`
 	// 1.0.1: Kennfarbe eines Eintrags im eigenen Vorlagensatz (beim Anwenden übernommen)
 	Kennfarbe *string `json:"kennfarbe_id,omitempty"`
+	// 1.0.6: Fehlversuche bis zum Alarm (nil = Standard), beim Anwenden übernommen
+	Fehlversuche *int `json:"fehlversuche"`
 }
 
 // builtinTemplates: die gängigsten Sensoren. IDs mit Präfix „std-“.
@@ -469,6 +471,8 @@ type vorlageIn struct {
 	Intervall int             `json:"intervall_sekunden"`
 	Notiz     string          `json:"notiz"`
 	Kennfarbe *string         `json:"kennfarbe_id"` // nur in eigenen Vorlagensätzen (1.0.1)
+	// 1.0.6: 1 bis 10, 0 oder leer = Standard der Zentrale
+	Fehlversuche *int `json:"fehlversuche"`
 }
 
 func parseTemplateIn(in vorlageIn) (vorlageIn, []byte, error) {
@@ -493,12 +497,15 @@ func parseTemplateIn(in vorlageIn) (vorlageIn, []byte, error) {
 	if err != nil {
 		return in, nil, badRequest(err.Error() + ".")
 	}
+	if in.Fehlversuche, err = parseThreshold(in.Fehlversuche); err != nil {
+		return in, nil, err
+	}
 	return in, target, nil
 }
 
 func (s *Server) handleTemplateList(w http.ResponseWriter, r *http.Request) {
 	s.handle(w, r, "vorlagen", func(ctx context.Context, tx pgx.Tx) (int, any, error) {
-		rows, err := tx.Query(ctx, `SELECT id::text, tenant_id::text, name, kind, target, interval_s, note, changed_at
+		rows, err := tx.Query(ctx, `SELECT id::text, tenant_id::text, name, kind, target, interval_s, note, changed_at, fail_threshold
 			FROM openwacht.sensor_templates ORDER BY lower(name), id`)
 		if err != nil {
 			return 0, nil, err
@@ -508,7 +515,7 @@ func (s *Server) handleTemplateList(w http.ResponseWriter, r *http.Request) {
 			var tid string
 			var target []byte
 			var changed time.Time
-			err := row.Scan(&v.ID, &tid, &v.Name, &v.Typ, &target, &v.Intervall, &v.Notiz, &changed)
+			err := row.Scan(&v.ID, &tid, &v.Name, &v.Typ, &target, &v.Intervall, &v.Notiz, &changed, &v.Fehlversuche)
 			v.MandantID, v.Ziel, v.Geaendert = &tid, target, &changed
 			v.AmAgent, v.BrauchtAdresse = checks.IsAgentKind(v.Typ), checks.UsesPlaceholder(target)
 			return v, err
@@ -542,8 +549,9 @@ func (s *Server) handleTemplateCreate(w http.ResponseWriter, r *http.Request) {
 			return 0, nil, err
 		}
 		var id string
-		if err := tx.QueryRow(ctx, `INSERT INTO openwacht.sensor_templates (tenant_id, name, kind, target, interval_s, note)
-			VALUES ($1, $2, $3, $4, $5, $6) RETURNING id::text`, tid, in.Name, in.Typ, target, in.Intervall, in.Notiz).Scan(&id); err != nil {
+		if err := tx.QueryRow(ctx, `INSERT INTO openwacht.sensor_templates (tenant_id, name, kind, target, interval_s, note, fail_threshold)
+			VALUES ($1, $2, $3, $4, $5, $6, nullif($7::smallint, 0)) RETURNING id::text`,
+			tid, in.Name, in.Typ, target, in.Intervall, in.Notiz, in.Fehlversuche).Scan(&id); err != nil {
 			return 0, nil, err // fremder Mandant oder Leser: 42501 → 403
 		}
 		if err := audit(ctx, tx, &tid, "vorlage.angelegt", map[string]any{"id": id, "name": in.Name, "typ": in.Typ}); err != nil {
@@ -568,8 +576,9 @@ func (s *Server) handleTemplateUpdate(w http.ResponseWriter, r *http.Request) {
 			return 0, nil, err
 		}
 		var tid string
-		if err := tx.QueryRow(ctx, `UPDATE openwacht.sensor_templates SET name = $2, kind = $3, target = $4, interval_s = $5, note = $6
-			WHERE id = $1 RETURNING tenant_id::text`, id, in.Name, in.Typ, target, in.Intervall, in.Notiz).Scan(&tid); err != nil {
+		if err := tx.QueryRow(ctx, `UPDATE openwacht.sensor_templates SET name = $2, kind = $3, target = $4, interval_s = $5, note = $6,
+				fail_threshold = CASE WHEN $7::smallint IS NULL THEN fail_threshold ELSE nullif($7::smallint, 0) END
+			WHERE id = $1 RETURNING tenant_id::text`, id, in.Name, in.Typ, target, in.Intervall, in.Notiz, in.Fehlversuche).Scan(&tid); err != nil {
 			return 0, nil, err // nicht sichtbar oder nur Leser: 404
 		}
 		if err := audit(ctx, tx, &tid, "vorlage.geaendert", map[string]any{"id": id, "name": in.Name, "typ": in.Typ}); err != nil {
@@ -637,8 +646,8 @@ func (s *Server) loadTemplate(ctx context.Context, tx pgx.Tx, id string) (vorlag
 	}
 	var v vorlageOut
 	var target []byte
-	err := tx.QueryRow(ctx, `SELECT id::text, name, kind, target, interval_s FROM openwacht.sensor_templates WHERE id = $1`, id).
-		Scan(&v.ID, &v.Name, &v.Typ, &target, &v.Intervall)
+	err := tx.QueryRow(ctx, `SELECT id::text, name, kind, target, interval_s, fail_threshold FROM openwacht.sensor_templates WHERE id = $1`, id).
+		Scan(&v.ID, &v.Name, &v.Typ, &target, &v.Intervall, &v.Fehlversuche)
 	v.Ziel = target
 	return v, err
 }
@@ -780,11 +789,12 @@ func (s *Server) handleTemplateApply(w http.ResponseWriter, r *http.Request) {
 				}
 				var id string
 				// Kennfarbe aus dem eigenen Satz (1.0.1) nur, wenn sie zum Mandanten des Geräts passt.
-				err = tx.QueryRow(ctx, `INSERT INTO openwacht.checks (device_id, name, kind, target, interval_s, enabled, origin, kennfarbe_id)
+				err = tx.QueryRow(ctx, `INSERT INTO openwacht.checks (device_id, name, kind, target, interval_s, enabled, origin, kennfarbe_id,
+					fail_threshold)
 				VALUES ($1, $2, $3, $4, $5, true, $6,
-					CASE WHEN openwacht.kennfarbe_allowed($7::uuid, $8::uuid) THEN $7::uuid END)
+					CASE WHEN openwacht.kennfarbe_allowed($7::uuid, $8::uuid) THEN $7::uuid END, $9::smallint)
 				ON CONFLICT DO NOTHING RETURNING id::text`,
-					d.id, templateSensorName(t.Name), t.Typ, target, t.Intervall, origin, t.Kennfarbe, d.tenant).Scan(&id)
+					d.id, templateSensorName(t.Name), t.Typ, target, t.Intervall, origin, t.Kennfarbe, d.tenant, t.Fehlversuche).Scan(&id)
 				var pe *pgconn.PgError
 				switch {
 				case errors.Is(err, pgx.ErrNoRows):

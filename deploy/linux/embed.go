@@ -21,6 +21,8 @@ var UnitNames = []string{
 	"openwacht-zentrale.socket",
 	"openwacht-zentrale-update.path",
 	"openwacht-zentrale-update.service",
+	"openwacht-zweitinstanz.service",
+	"openwacht-zweitinstanz.timer",
 }
 
 // Unit liefert den Inhalt einer Unit.

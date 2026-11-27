@@ -46,7 +46,33 @@ Das Skript
 3. legt Paketindex, `installieren.sh`, `LIESMICH.txt` (mit allen Paketversionen), Stückliste und `SHA256SUMS` dazu,
 4. packt alles in eine `.tar` mit einer `.sha256` daneben.
 
-Optionen: `-arch arm64`, `-aus <ordner>`, `-quellen <datei>` (z. B. ein Spiegel im Firmennetz).
+Optionen: `-arch arm64`, `-aus <ordner>`, `-quellen <datei>` (z. B. ein Spiegel im Firmennetz), `-zusatz <liste>`
+(unten).
+
+### Zusatzpakete, z. B. für den Beitritt zur Domäne
+
+Mit `-zusatz` nimmt das Skript weitere Debian-Pakete **samt Abhängigkeiten** ins Paket auf, durch Komma getrennt. Beispiel
+für eine Zentrale, die ohne Internet einer Active-Directory-Domäne beitreten soll (Anmeldung am Rechner mit
+Domänenkonten; für die Anmeldung an OpenWacht selbst reicht LDAPS aus Kapitel 10, dafür ist das nicht nötig):
+
+```bash
+sh deploy/offline/paket-bauen.sh -dist dist \
+  -zusatz realmd,sssd,sssd-tools,adcli,libnss-sss,libpam-sss,samba-common-bin
+```
+
+- Aufgelöst wird alles in einem Durchgang mit PostgreSQL, damit die Versionen zueinander passen; Empfehlungen
+  (`Recommends`) kommen nicht mit. Was dabei fehlt, muss in der Liste stehen.
+- Erlaubt sind nur Paketnamen (Kleinbuchstaben, Ziffern, `+ - .`), höchstens 50; keine Versionen. Ein virtuelles Paket
+  bricht mit einer Meldung ab: dann das konkrete Paket nennen.
+- Die Liste steht als Datei `ZUSATZ` im Paket, damit in `SHA256SUMS` und in der Signatur, und in `LIESMICH.txt`.
+- `installieren.sh` installiert die Zusatzpakete nach `openwacht-zentrale` aus derselben, nur lokalen Quelle mit; mit
+  `-ohne-zusatz` nicht. Den Beitritt selbst macht man danach von Hand (`realm join …`), OpenWacht ändert daran nichts.
+- Für Sicherheitsupdates gilt dasselbe wie für PostgreSQL: Paket mit denselben `-zusatz` neu bauen und einspielen.
+
+Getestet (25.11.2026) mit Ubuntu 24.04 als Quelle und Ziel, weil `deb.debian.org` in der Entwicklungsumgebung gesperrt
+ist: Paket mit der Liste oben gebaut (163 Pakete aus dem Spiegel), in einer frischen Minimal-Umgebung ohne jedes Netz
+installiert; `realmd`, `sssd`, `adcli` und `samba-common-bin` waren danach installiert, `realm` lief. Den Beitritt zu einer
+echten Domäne deckt der Test nicht ab, ebenso wenig Debian 13.
 
 **Signieren (Hersteller).** Das Paket ist zunächst unsigniert. `SHA256SUMS` wird offline mit dem
 Update-Schlüssel signiert (eigener Kontext, eine Update-Signatur gilt dafür nicht):

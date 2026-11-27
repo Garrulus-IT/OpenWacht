@@ -218,6 +218,13 @@ textarea:focus-visible {
   cursor: not-allowed;
 }
 
+/* gedrückter Umschalter im Kopf (z. B. „An Fenster anpassen“) */
+.knopf[aria-pressed="true"] {
+  border-color: var(--marke);
+  box-shadow: inset 0 0 0 1px var(--marke);
+  font-weight: 700;
+}
+
 .knopf-haupt {
   background: var(--marke);
   border-color: var(--marke);
@@ -2901,7 +2908,10 @@ a.nav-punkt:hover {
   text-align: center;
 }
 
-/* --- Raster der Startseite: 12 Spalten, drei Größen ---------------------------- */
+/* --- Raster der Startseite: 12 Spalten, freie Breite und Höhe (1.0.7) -----------
+   Das Raster richtet sich nach seiner eigenen Breite (Startseite.tsx misst sie
+   und setzt raster-12, raster-6 oder raster-1); Spanne und Höhe je Widget
+   stehen als Stil am Element. */
 
 .raster {
   display: grid;
@@ -2911,54 +2921,94 @@ a.nav-punkt:hover {
   gap: var(--a2);
 }
 
+.raster-6 {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.raster-1 {
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: auto;
+}
+
 .widget {
-  grid-column: span 4;
+  position: relative;
   overflow: hidden;
 }
 
-.widget-breit {
-  grid-column: span 8;
+.raster-1 .widget .panel-inhalt {
+  max-height: 22rem;
 }
 
-.widget-hoch {
-  grid-row: span 2;
+.raster-1 .widget:not([data-hoehe="1"]) .panel-inhalt {
+  max-height: 30rem;
 }
 
-@media (max-width: 1100px) {
-  .widget,
-  .widget-hoch {
-    grid-column: span 6;
-  }
-
-  .widget-breit {
-    grid-column: span 12;
-  }
+.raster-1 .griff {
+  display: none;
 }
 
-@media (max-width: 820px) {
-  .raster {
-    grid-template-columns: minmax(0, 1fr);
-    grid-auto-rows: auto;
-  }
+/* Seiten des Dashboards */
+.dash-seiten {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--a1);
+  border-bottom: 1px solid var(--linie);
+}
 
-  .widget,
-  .widget-breit,
-  .widget-hoch {
-    grid-column: auto;
-    grid-row: auto;
-  }
+.dash-seite {
+  padding: var(--a2) var(--a3);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--leise);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
 
-  .widget .panel-inhalt {
-    max-height: 22rem;
-  }
+.dash-seite:hover {
+  color: var(--text);
+}
 
-  .widget-hoch .panel-inhalt {
-    max-height: 30rem;
-  }
+.dash-seite[aria-selected="true"] {
+  border-bottom-color: var(--marke);
+  color: var(--text);
+}
 
-  .griff {
-    display: none;
-  }
+.dash-seiten-werkzeug {
+  display: flex;
+  gap: var(--a3);
+  margin-left: auto;
+  padding-right: var(--a2);
+}
+
+.raster-bearbeiten .werkzeug {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Ecke zum Ziehen der Größe (nur beim Anpassen, nur im 12er-Raster) */
+.widget-ecke {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  min-width: 1.7rem;
+  height: 1.7rem;
+  padding: 0 var(--a1);
+  border: 0;
+  border-top-left-radius: var(--r);
+  background: var(--marke);
+  color: var(--auf-marke);
+  font-size: var(--s-1);
+  font-weight: 700;
+  line-height: 1.7rem;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.widget-misst {
+  box-shadow: 0 0 0 3px var(--marke);
 }
 
 .raster-bearbeiten .widget {
@@ -3029,11 +3079,15 @@ a.nav-punkt:hover {
   min-height: 6rem;
 }
 
-@media (max-width: 820px) {
-  .widget-neu {
-    grid-column: auto;
-  }
+.raster-6 .widget-neu {
+  grid-column: span 3;
+}
 
+.raster-1 .widget-neu {
+  grid-column: auto;
+}
+
+@media (max-width: 820px) {
   .werkzeug-knopf {
     min-width: 2rem;
     height: 2rem;
@@ -3061,71 +3115,88 @@ a.nav-punkt:hover {
 
 .zustand {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-around;
+  flex-direction: column;
   gap: var(--a3);
   height: 100%;
 }
 
-.zustand-teil {
-  display: flex;
-  align-items: center;
-  gap: var(--a4);
-  padding: var(--a1) var(--a2);
-  border: 0;
-  border-radius: var(--r);
-  background: none;
+/* Zustand (1.0.6): Zahlen je Zustand, Probleme kräftig, Balken mit Mindestbreite */
+.zustand-tabelle {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.zustand-tabelle thead th {
+  padding: 0 var(--a1) var(--a1);
+  color: var(--leise);
+  font-size: var(--s-1);
+  font-weight: 400;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.zustand-tabelle tbody th {
+  padding-top: var(--a2);
   text-align: left;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.zustand-zeile {
   cursor: pointer;
 }
 
-.zustand-teil:hover {
-  background: var(--zart);
-}
-
-.sechseck {
-  width: 7.5rem;
-  height: 7.5rem;
-  flex: none;
-}
-
-.legende {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  font-size: var(--s-1);
-  line-height: 1.45;
-}
-
-.legende li {
-  display: flex;
-  align-items: center;
-  gap: var(--a2);
-}
-
-.legende-null {
-  color: var(--leise);
-}
-
-.legende-zahl {
-  min-width: 1.75rem;
-  text-align: right;
+.zustand-wert {
+  padding: var(--a2) var(--a1) 0;
   font-family: var(--mono); /* D-DIN hat keine Tabellenziffern */
   font-variant-numeric: tabular-nums;
+  font-size: var(--s1);
   font-weight: 700;
+  text-align: right;
 }
 
-.legende-farbe {
-  width: 4px;
-  height: 0.8rem;
-  flex: none;
-  background: var(--tinte);
+.zustand-wert-crit {
+  color: var(--krit);
+  font-size: var(--s2);
 }
 
-.legende-gesamt {
-  margin-top: 0.15rem;
-  border-top: 1px solid var(--linie-zart);
+.zustand-wert-warn {
+  color: var(--tinte);
+  font-size: var(--s2);
+  text-decoration: underline 3px var(--warn);
+  text-underline-offset: 4px;
+}
+
+.zustand-wert-unknown {
+  color: var(--tinte);
+  font-size: var(--s2);
+}
+
+.zustand-wert-null,
+.zustand-wert-ruhig {
+  color: var(--leise);
+  font-weight: 400;
+}
+
+.zustand-balken-zeile td {
+  padding: var(--a1) 0 var(--a1);
+}
+
+.zustand-balken {
+  display: flex;
+  width: 100%;
+  height: 0.6rem;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--linie-zart);
+}
+
+.zustand-segment {
+  height: 100%;
+}
+
+.zustand-segment + .zustand-segment {
+  border-left: 2px solid var(--flaeche);
 }
 
 /* Vollflächige Zustandszellen wie im Leitstand */
@@ -3228,10 +3299,8 @@ a.nav-punkt:hover {
   white-space: nowrap;
 }
 
-@media (max-width: 1100px) {
-  .widget:not(.widget-breit) .nur-breit {
-    display: none;
-  }
+.widget:not(.widget-breit) .nur-breit {
+  display: none;
 }
 
 @media (max-width: 600px) {
@@ -3336,6 +3405,58 @@ a.nav-punkt:hover {
   }
 }
 
+/* Uhr, Notiz und einzelner Sensor (1.0.7): groß und mittig, für den Leitstand */
+.uhr-widget,
+.sensor-widget {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: safe center;
+  gap: var(--a1);
+  min-height: 100%;
+  text-align: center;
+}
+
+.uhr-widget {
+  width: 100%;
+  container-type: inline-size;
+}
+
+/* acht Zeichen fester Breite: passt in jede Widget-Breite */
+.uhr-widget-zeit {
+  font-size: clamp(1rem, 18cqw, 4rem);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.sensor-widget .zst {
+  min-width: 6rem;
+  padding: var(--a2) var(--a3);
+  font-size: var(--s0);
+}
+
+.sensor-widget-name {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--a1) var(--a2);
+}
+
+.sensor-widget-meldung {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.sensor-widget .klein {
+  margin: 0;
+}
+
+.notiz-widget {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* --- Dialoge -------------------------------------------------------------------- */
 
 .dialog {
@@ -3395,6 +3516,12 @@ a.nav-punkt:hover {
 .katalog-karte:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.feld-reihe {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--a3);
 }
 
 .einstellungen {
@@ -4651,6 +4778,68 @@ td > .kenn-marke:first-child {
   }
 }
 
+/* Wandanzeige: Vollbild und Ansicht „Namen“ (1.0.6) */
+.wand-ruhig {
+  cursor: none;
+}
+.wand-bedienung {
+  position: absolute;
+  left: var(--a4);
+  bottom: var(--a4);
+  z-index: 2;
+  display: flex;
+  gap: var(--a2);
+  transition: opacity 0.4s;
+}
+.wand-bedienung button {
+  padding: var(--a1) var(--a3);
+  border: 1px solid var(--wand-leise);
+  border-radius: var(--r);
+  background: rgb(17 28 41 / 85%);
+  color: var(--wand-tinte);
+  font: inherit;
+  font-size: var(--s-1);
+  cursor: pointer;
+}
+.wand-bedienung button:focus-visible {
+  outline: 2px solid #45c3e6;
+  outline-offset: 2px;
+}
+.wand-bedienung-ruhig {
+  opacity: 0;
+}
+.wand-bedienung-ruhig:focus-within {
+  opacity: 1;
+}
+.wand-namen {
+  flex-direction: column;
+}
+.wand-titelzeile {
+  display: flex;
+  align-items: baseline;
+  gap: var(--a4);
+  padding: var(--a3) var(--a5) 0;
+}
+.wand-titelzeile .wand-name {
+  margin: 0;
+  flex: 1;
+  font-size: var(--s3);
+}
+.wand-titelzeile .wand-vorschau {
+  flex: none;
+}
+.wand-stoerung-oben {
+  margin: var(--a2) var(--a5) 0;
+}
+.wand-namen .wand-flaeche {
+  padding: var(--a3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wand-bedienung {
+    transition: none;
+  }
+}
+
 /* Wandanzeige: Ton erst nach einem Klick (Autoplay-Regeln der Browser) */
 .wand-ton {
   align-self: flex-start;
@@ -4789,4 +4978,190 @@ td > .kenn-marke:first-child {
 
 .zertifikate td .knopf-text {
   white-space: nowrap;
+}
+
+/* Sensor-Vorlagen (1.0.6): Suche, Abschnitte zum Zuklappen, Gruppen in Tabellen */
+.feld-suche {
+  max-width: 28rem;
+  margin: var(--a2) 0;
+}
+
+.vorlagen-abschnitt {
+  margin-top: var(--a3);
+}
+
+.vorlagen-abschnitt > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  cursor: pointer;
+  list-style: none;
+}
+
+.vorlagen-abschnitt > summary::-webkit-details-marker {
+  display: none;
+}
+
+.vorlagen-abschnitt > summary::before {
+  content: "▸";
+  color: var(--leise);
+}
+
+.vorlagen-abschnitt[open] > summary::before {
+  content: "▾";
+}
+
+.vorlagen-abschnitt > summary .klein-titel {
+  margin: 0;
+}
+
+.tabellen-gruppe th {
+  padding-top: var(--a2);
+  border-bottom: 1px solid var(--linie);
+  color: var(--leise);
+  font-size: var(--s-1);
+  font-weight: 700;
+  text-align: left;
+}
+
+.zeile-trenner td {
+  border-top: 2px solid var(--linie);
+}
+
+.gruppe-alle {
+  list-style: none;
+  text-align: right;
+}
+
+.vorlagen-abschnitt > summary .klein-titel {
+  flex: 1;
+  text-align: left;
+}
+
+/* lange Hinweise in Vorlagen und Sätzen: zwei Zeilen, ganz im Tooltip */
+.notiz-kurz {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* --- Schnellsuche (1.0.6) ------------------------------------------------------ */
+.kopf-suche {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--a1);
+  margin-left: auto;
+  padding: var(--a1) var(--a2);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  background: var(--flaeche);
+  color: var(--leise);
+  font: inherit;
+  font-size: var(--s-1);
+  cursor: pointer;
+}
+.kopf-suche:hover {
+  color: var(--tinte);
+}
+.kopf-suche + .kopf-rechts {
+  margin-left: 0;
+}
+.kopf-suche svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+.kopf-suche-taste,
+.such-fuss kbd {
+  padding: 0 0.35em;
+  border: 1px solid var(--linie);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.85em;
+}
+@media (max-width: 40rem) {
+  .kopf-suche-text,
+  .kopf-suche-taste {
+    display: none;
+  }
+}
+.schnellsuche {
+  width: min(40rem, 94vw);
+  margin-top: 12vh;
+}
+.such-feld {
+  width: 100%;
+  padding: var(--a3) var(--a4);
+  border: 0;
+  border-bottom: 1px solid var(--linie);
+  border-radius: 0;
+  background: transparent;
+  color: var(--tinte);
+  font: inherit;
+  font-size: var(--s1);
+}
+.such-feld:focus {
+  outline: none;
+}
+.such-meldung {
+  margin: var(--a2) var(--a4);
+}
+.such-liste {
+  list-style: none;
+  margin: 0;
+  padding: var(--a1) 0;
+  max-height: 55vh;
+  overflow: auto;
+}
+.such-treffer {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  padding: var(--a2) var(--a4);
+  cursor: pointer;
+}
+.such-aktiv {
+  background: var(--zart, rgb(127 127 127 / 12%));
+}
+.such-ohne {
+  flex: none;
+  width: 0.75rem;
+}
+.such-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.such-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.such-sub {
+  color: var(--leise);
+  font-size: var(--s-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.such-art {
+  margin-left: auto;
+  flex: none;
+  color: var(--leise);
+  font-size: var(--s-1);
+}
+.such-leer {
+  padding: var(--a3) var(--a4);
+  color: var(--leise);
+}
+.such-fuss {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--a2);
+  margin: 0;
+  padding: var(--a2) var(--a4);
+  border-top: 1px solid var(--linie);
+  color: var(--leise);
+  font-size: var(--s-1);
 }

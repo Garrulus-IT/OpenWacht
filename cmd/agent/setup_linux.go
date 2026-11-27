@@ -120,3 +120,6 @@ func packageSetup(ctx context.Context, o packageOptions, out io.Writer) error {
 func packageRemove(io.Writer) error {
 	return errors.New("unter Linux entfernt der Paketmanager den Dienst (apt remove bzw. dnf remove)")
 }
+
+// packageLog: Die Ausgabe des Paketmanagers zeigt alles an; nichts zu tun.
+func packageLog(string, string, error) {}

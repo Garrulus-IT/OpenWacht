@@ -13,8 +13,9 @@
 //   - web/package-lock.json (lockfileVersion 2 oder 3): alle npm-Pakete.
 //     Pakete mit "dev": true sind Bauwerkzeuge (Vite, TypeScript) und
 //     landen nicht in der Oberfläche, also "excluded".
-//   - web/src/schriften/schriften.json: die mitgelieferten Schriftdateien
-//     (LoadFonts), mit SHA-256 und Lizenz.
+//   - web/src/schriften/schriften.json und internal/desktop/schriften/
+//     schriften.json: die mitgelieferten Schriftdateien (LoadFonts), mit
+//     SHA-256 und Lizenz.
 //
 // Die Ausgabe ist reproduzierbar: feste Sortierung, Zeitstempel = Commit-Zeit,
 // serialNumber aus dem SHA-256 des Inhalts. Ein zweiter Lauf auf demselben

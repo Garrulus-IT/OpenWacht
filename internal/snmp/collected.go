@@ -84,6 +84,9 @@ func (s *Snapshot) ValidateCollected(now time.Time) error {
 	if s.XAPI != nil {
 		return errors.New("xapi: kommt nicht vom Sammler")
 	}
+	if s.Citrix != nil {
+		return errors.New("citrix: kommt nicht vom Sammler")
+	}
 	if err := validateExtra(s.Extra); err != nil {
 		return err
 	}

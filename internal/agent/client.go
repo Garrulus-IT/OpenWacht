@@ -18,10 +18,12 @@ import (
 	"log/slog"
 	"math"
 	mrand "math/rand/v2"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -181,24 +183,30 @@ func Register(ctx context.Context, dir, zentrale, token, hostname string, replac
 		return "", err
 	}
 	host := u.Hostname()
-	pinned := &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{
-		MinVersion: tls.VersionTLS13,
-		// Die normale Prüfung entfällt nur, weil VerifyConnection sie durch
-		// die strengere Prüfung gegen den Fingerabdruck ersetzt.
-		InsecureSkipVerify: true,
-		VerifyConnection: func(cs tls.ConnectionState) error {
-			raw := make([][]byte, 0, len(cs.PeerCertificates))
-			for _, c := range cs.PeerCertificates {
-				raw = append(raw, c.Raw)
-			}
-			_, err := pki.VerifyPinnedServer(raw, fp, host, time.Now())
-			return err
-		},
-	}}, CheckRedirect: noRedirect}
+	// Je Schritt eine eigene Frist, damit ein Fehler sagt, woran es lag
+	// (Verbindung, TLS, Antwort), statt nach 30 s nur „Timeout“ zu melden.
+	pinned := &http.Client{Timeout: 45 * time.Second, Transport: &http.Transport{
+		DialContext:           (&net.Dialer{Timeout: 10 * time.Second}).DialContext,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 20 * time.Second,
+		TLSClientConfig: &tls.Config{
+			MinVersion: tls.VersionTLS13,
+			// Die normale Prüfung entfällt nur, weil VerifyConnection sie durch
+			// die strengere Prüfung gegen den Fingerabdruck ersetzt.
+			InsecureSkipVerify: true,
+			VerifyConnection: func(cs tls.ConnectionState) error {
+				raw := make([][]byte, 0, len(cs.PeerCertificates))
+				for _, c := range cs.PeerCertificates {
+					raw = append(raw, c.Raw)
+				}
+				_, err := pki.VerifyPinnedServer(raw, fp, host, time.Now())
+				return err
+			},
+		}}, CheckRedirect: noRedirect}
 	var resp agentproto.RegisterResponse
 	if _, err := postJSON(ctx, pinned, u.String()+agentproto.PathRegister,
 		agentproto.RegisterRequest{Token: token, CSR: csr, Hostname: hostname}, &resp); err != nil {
-		return "", err
+		return "", registerError(u.Host, err)
 	}
 	// Antwort prüfen, bevor etwas gespeichert wird.
 	ca, err := pki.ParseCertPEM([]byte(resp.CA))
@@ -546,4 +554,25 @@ func (r *Runner) Run(ctx context.Context) {
 func backoff(n int) time.Duration {
 	d := time.Duration(math.Pow(2, float64(min(n, 10)))) * 5 * time.Second
 	return min(d, 15*time.Minute)
+}
+
+// registerError benennt, an welchem Schritt die Registrierung scheiterte.
+func registerError(host string, err error) error {
+	var dns *net.DNSError
+	var op *net.OpError
+	l := err.Error()
+	switch {
+	case errors.As(err, &dns):
+		return fmt.Errorf("Name der Zentrale nicht gefunden (%s): %w", host, err)
+	case strings.Contains(l, "TLS handshake timeout"):
+		return fmt.Errorf("Zentrale %s antwortet nicht auf TLS (richtiger Port für Agents? Standard 8444): %w", host, err)
+	case strings.Contains(l, "timeout awaiting response headers"):
+		return fmt.Errorf("Zentrale %s hat nicht rechtzeitig geantwortet: %w", host, err)
+	case errors.As(err, &op) && op.Op == "dial":
+		return fmt.Errorf("keine Verbindung zur Zentrale %s (Firewall, Port, Adresse): %w", host, err)
+	case strings.Contains(l, "Fingerabdruck") || strings.Contains(l, "Zertifikat") || strings.Contains(l, "keine CA") ||
+		strings.Contains(l, "certificate") || strings.Contains(l, "x509"):
+		return fmt.Errorf("Zertifikat der Zentrale %s passt nicht zum Token (Adresse und Port für Agents prüfen): %w", host, err)
+	}
+	return fmt.Errorf("Registrierung bei %s: %w", host, err)
 }

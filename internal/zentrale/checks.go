@@ -31,6 +31,21 @@ type checkIn struct {
 	GeraetID string `json:"geraet_id"`
 	// Beim Anlegen: Name der Vorlage, aus der der Sensor stammt (nur Anzeige)
 	Herkunft string `json:"herkunft"`
+	// Fehlversuche bis zum Alarm (1.0.6): 1 bis 10, 0 = Standard der
+	// Zentrale; fehlt das Feld beim Ändern, bleibt der Wert.
+	Fehlversuche *int `json:"fehlversuche"`
+}
+
+// parseThreshold prüft „fehlversuche“; nil bleibt nil, 0 heißt Standard.
+func parseThreshold(v *int) (*int, error) {
+	if v == nil {
+		return nil, nil
+	}
+	if *v < 0 || *v > maxFailThreshold {
+		return nil, badRequest(fmt.Sprintf("Fehlversuche: 1 bis %d, 0 für den Standard.", maxFailThreshold))
+	}
+	n := *v
+	return &n, nil
 }
 
 type checkOut struct {
@@ -55,6 +70,9 @@ type checkOut struct {
 	AmAgent  bool    `json:"am_agent"`
 	// Agent-Sensor ohne Ergebnis seit mehr als drei Intervallen
 	Veraltet bool `json:"veraltet"`
+	// 1.0.6: eigene Fehlversuche (nil = Standard) und die geltende Zahl
+	Fehlversuche *int `json:"fehlversuche"`
+	FehlGrenze   int  `json:"fehlversuche_gilt"`
 }
 
 func (s *Server) networksText() string {
@@ -157,7 +175,8 @@ func (s *Server) handleCheckList(w http.ResponseWriter, r *http.Request) {
 				c.interval_s, c.enabled, c.status, c.message, c.metric, c.since, c.last_run, c.fails, c.next_run, c.origin,
 				openwacht.is_agent_kind(c.kind),
 				openwacht.is_agent_kind(c.kind) AND c.enabled AND coalesce(c.last_run, c.created_at)
-					< now() - make_interval(secs => 3 * c.interval_s + 120)
+					< now() - make_interval(secs => 3 * c.interval_s + 120),
+				c.fail_threshold
 			FROM openwacht.checks c
 			WHERE ($1 = '' OR c.tenant_id = $1::uuid) ORDER BY lower(c.name)`, filter)
 		if err != nil {
@@ -168,8 +187,9 @@ func (s *Server) handleCheckList(w http.ResponseWriter, r *http.Request) {
 			var target []byte
 			err := row.Scan(&c.ID, &c.MandantID, &c.GeraetID, &c.Name, &c.Typ, &target, &c.Intervall, &c.Aktiv,
 				&c.Status, &c.Meldung, &c.Messwert, &c.Seit, &c.Zuletzt, &c.FehlerFolg, &c.Naechste, &c.Herkunft,
-				&c.AmAgent, &c.Veraltet)
+				&c.AmAgent, &c.Veraltet, &c.Fehlversuche)
 			c.Ziel = target
+			c.FehlGrenze = s.threshold(c.Fehlversuche)
 			c.Wartung = maint[alarmKeyCheck(c.ID)]
 			return c, err
 		})
@@ -204,6 +224,10 @@ func (s *Server) handleCheckCreate(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return 0, nil, err
 		}
+		threshold, err := parseThreshold(in.Fehlversuche)
+		if err != nil {
+			return 0, nil, err
+		}
 		enabled := in.Aktiv == nil || *in.Aktiv
 		origin, err := cleanOrigin(in.Herkunft)
 		if err != nil {
@@ -222,13 +246,14 @@ func (s *Server) handleCheckCreate(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		var id, tid string
-		if err := tx.QueryRow(ctx, `INSERT INTO openwacht.checks (device_id, name, kind, target, interval_s, enabled, origin)
-			VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id::text, tenant_id::text`, device, name, in.Typ, target, interval, enabled, origin).
+		if err := tx.QueryRow(ctx, `INSERT INTO openwacht.checks (device_id, name, kind, target, interval_s, enabled, origin, fail_threshold)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, nullif($8::smallint, 0)) RETURNING id::text, tenant_id::text`,
+			device, name, in.Typ, target, interval, enabled, origin, threshold).
 			Scan(&id, &tid); err != nil {
 			return 0, nil, nameTaken(err, name) // Leser: 42501 → 403
 		}
 		if err := audit(ctx, tx, &tid, "check.angelegt", map[string]any{"id": id, "name": name, "typ": in.Typ,
-			"geraet": device, "herkunft": origin}); err != nil {
+			"geraet": device, "herkunft": origin, "fehlversuche": threshold}); err != nil {
 			return 0, nil, err
 		}
 		return http.StatusCreated, map[string]any{"id": id, "name": name}, nil
@@ -250,6 +275,10 @@ func (s *Server) handleCheckUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	s.handle(w, r, "check ändern", func(ctx context.Context, tx pgx.Tx) (int, any, error) {
 		name, target, interval, auto, err := s.parseCheck(in)
+		if err != nil {
+			return 0, nil, err
+		}
+		threshold, err := parseThreshold(in.Fehlversuche)
 		if err != nil {
 			return 0, nil, err
 		}
@@ -282,13 +311,14 @@ func (s *Server) handleCheckUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 		var tenant, device string
 		if err := tx.QueryRow(ctx, `UPDATE openwacht.checks SET name = $2, kind = $3, target = $4, interval_s = $5, enabled = $6,
-				device_id = coalesce(nullif($7, '')::uuid, device_id)
-			WHERE id = $1 RETURNING tenant_id::text, device_id::text`, id, name, in.Typ, target, interval, enabled, in.GeraetID).
+				device_id = coalesce(nullif($7, '')::uuid, device_id),
+				fail_threshold = CASE WHEN $8::smallint IS NULL THEN fail_threshold ELSE nullif($8::smallint, 0) END
+			WHERE id = $1 RETURNING tenant_id::text, device_id::text`, id, name, in.Typ, target, interval, enabled, in.GeraetID, threshold).
 			Scan(&tenant, &device); err != nil {
 			return 0, nil, nameTaken(err, name)
 		}
 		if err := audit(ctx, tx, &tenant, "check.geaendert", map[string]any{"id": id, "name": name, "typ": in.Typ,
-			"aktiv": enabled, "geraet": device}); err != nil {
+			"aktiv": enabled, "geraet": device, "fehlversuche": threshold}); err != nil {
 			return 0, nil, err
 		}
 		return http.StatusNoContent, nil, nil

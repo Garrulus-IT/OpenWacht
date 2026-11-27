@@ -111,11 +111,13 @@ func TestGenerateMitSchriften(t *testing.T) {
 
 // Die echte Liste im Repository muss zu den Dateien passen.
 func TestEchteSchriftliste(t *testing.T) {
-	fonts, err := LoadFonts(os.DirFS("../../web/src/schriften"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(fonts) == 0 {
-		t.Fatal("keine Schriften")
+	for _, dir := range []string{"../../web/src/schriften", "../../internal/desktop/schriften"} {
+		fonts, err := LoadFonts(os.DirFS(dir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(fonts) == 0 {
+			t.Fatal("keine Schriften in " + dir)
+		}
 	}
 }

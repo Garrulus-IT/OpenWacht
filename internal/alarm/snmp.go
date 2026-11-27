@@ -98,6 +98,8 @@ type SNMPInput struct {
 	ONTAP bool
 	// XAPI: Quelle ist ein XenServer-Pool (Texte „XAPI“ statt SNMP)
 	XAPI bool
+	// Citrix: Quelle ist der Monitor Service einer Citrix-Site
+	Citrix bool
 	// Now: Zeitpunkt der Bewertung (Alter der Backups); Null = jetzt
 	Now time.Time
 	// FullDays: Tage bis voll laut Prognose je Platte (nur steigende)
@@ -154,6 +156,9 @@ func evaluateSNMP(in SNMPInput, prev map[string]string, lim HostLimits) []Findin
 		if in.XAPI {
 			off = "XenServer-Abfrage ausgeschaltet"
 		}
+		if in.Citrix {
+			off = "Citrix-Abfrage ausgeschaltet"
+		}
 		for _, sub := range sortedKeys(prev) {
 			out = append(out, Finding{sub, snmpSubjectName(in.Name, sub), OK, off})
 		}
@@ -180,6 +185,9 @@ func evaluateSNMP(in SNMPInput, prev map[string]string, lim HostLimits) []Findin
 		}
 		if in.XAPI {
 			msg = "antwortet nicht (XAPI), " + since(in.Silent)
+		}
+		if in.Citrix {
+			msg = "antwortet nicht (Citrix Monitor Service), " + since(in.Silent)
 		}
 		if in.LastError != "" {
 			msg += ": " + in.LastError
@@ -353,6 +361,16 @@ func evaluateSNMP(in SNMPInput, prev map[string]string, lim HostLimits) []Findin
 
 	if x := s.XAPI; x != nil {
 		evaluateXAPI(in.Name, x, s.Partial, prev, lim, func(sub, name, status, msg string) {
+			if seen[sub] {
+				return
+			}
+			seen[sub] = true
+			out = append(out, Finding{sub, name, status, Clean(msg, 300)})
+		})
+	}
+
+	if x := s.Citrix; x != nil {
+		evaluateCitrix(in.Name, x, s.Partial, func(sub, name, status, msg string) {
 			if seen[sub] {
 				return
 			}
@@ -564,6 +582,9 @@ func snmpSubjectName(host, sub string) string {
 		return n
 	}
 	if n, ok := xapiSubjectName(host, sub); ok {
+		return n
+	}
+	if n, ok := citrixSubjectName(host, sub); ok {
 		return n
 	}
 	switch {

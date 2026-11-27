@@ -209,6 +209,8 @@ func snmpKind(version string) string {
 		return "ontap"
 	case versionXAPI:
 		return "xapi"
+	case versionCitrix:
+		return "citrix"
 	}
 	return "v1"
 }
@@ -467,6 +469,9 @@ func (s *Server) handleSNMPSet(w http.ResponseWriter, r *http.Request) {
 		if oldVersion == versionXAPI {
 			return 0, nil, &apiError{http.StatusConflict, "Das Gerät wird schon als XenServer abgefragt. Bitte die XenServer-Abfrage zuerst entfernen."}
 		}
+		if oldVersion == versionCitrix {
+			return 0, nil, &apiError{http.StatusConflict, "Das Gerät wird schon als Citrix-Site abgefragt. Bitte die Citrix-Abfrage zuerst entfernen."}
+		}
 		if (p.host != oldHost || p.port != oldPort || snmpKind(p.version) != snmpKind(oldVersion)) && !p.hasSecret() {
 			if p.version == snmp.V3 {
 				return 0, nil, badRequest("Bei neuer Adresse, neuem Port oder beim Wechsel auf SNMPv3 bitte Benutzer, Verfahren und beide Passwörter angeben.")
@@ -604,6 +609,8 @@ func (s *Server) handleSNMPDelete(w http.ResponseWriter, r *http.Request) {
 			action = "netapp.geloescht"
 		case versionXAPI:
 			action = "xenserver.geloescht"
+		case versionCitrix:
+			action = "citrix.geloescht"
 		}
 		if err := audit(ctx, tx, &tenant, action, map[string]any{"id": id, "geraet": deviceID, "adresse": host}); err != nil {
 			return 0, nil, err
@@ -766,11 +773,13 @@ func (s *Server) pollSNMP(ctx context.Context, c claimedSNMP) {
 	var snap, prev *snmp.Snapshot
 	var oids []oidCheck
 	var pollErr error
-	rebooted := false
+	// rebooted: zu meldender Neustart (Rechnerlaufzeit, ≥27 h davor);
+	// counterReset: sysUpTime kleiner, Zähler der eigenen OIDs ungültig
+	rebooted, counterReset := false, false
 	switch {
 	case c.secret == nil && c.version == versionPVE:
 		pollErr = errors.New("kein API-Token gespeichert, bitte neu eingeben")
-	case c.secret == nil && (c.version == versionTR064 || c.version == versionVCenter || c.version == versionONTAP || c.version == versionXAPI):
+	case c.secret == nil && (c.version == versionTR064 || c.version == versionVCenter || c.version == versionONTAP || c.version == versionXAPI || c.version == versionCitrix):
 		pollErr = errors.New("keine Zugangsdaten gespeichert, bitte neu eingeben")
 	case c.secret == nil && c.version == snmp.V3:
 		pollErr = errors.New("keine SNMPv3-Zugangsdaten gespeichert, bitte neu eingeben")
@@ -788,6 +797,8 @@ func (s *Server) pollSNMP(ctx context.Context, c claimedSNMP) {
 		snap, rebooted, pollErr = s.pollONTAP(ctx, c)
 	case c.version == versionXAPI:
 		snap, rebooted, pollErr = s.pollXAPI(ctx, c)
+	case c.version == versionCitrix:
+		snap, pollErr = s.pollCitrix(ctx, c)
 	default:
 		sec, err := s.openSNMP(c.id, c.tenant, c.host, c.port, c.version, c.secret)
 		if err != nil {
@@ -810,7 +821,8 @@ func (s *Server) pollSNMP(ctx context.Context, c claimedSNMP) {
 		snap, pollErr = s.snmpFor(c.tenant).Poll(ctx, cfg, prev)
 		if pollErr == nil && prev != nil && prev.Counters != nil && snap.Counters != nil {
 			dt := snap.Counters.At.Sub(prev.Counters.At).Seconds()
-			rebooted = snmp.Rebooted(prev.Counters.UptimeTicks, snap.Counters.UptimeTicks, dt)
+			counterReset = snmp.Rebooted(prev.Counters.UptimeTicks, snap.Counters.UptimeTicks, dt)
+			rebooted = snmp.HostRebooted(prev, snap)
 		}
 	}
 	if ctx.Err() != nil {
@@ -842,7 +854,7 @@ func (s *Server) pollSNMP(ctx context.Context, c claimedSNMP) {
 		slog.Warn("SNMP: Ergebnis nicht gespeichert", "quelle", c.id, "fehler", err)
 	}
 	if stored && pollErr == nil && len(oids) > 0 {
-		s.recordOIDs(ctx, oids, snap, prev, rebooted)
+		s.recordOIDs(ctx, oids, snap, prev, counterReset)
 	}
 }
 

@@ -93,46 +93,118 @@ werden so lange aufbewahrt wie die 5-Minuten-Werte.
 
 ## Ausfallkonzept: kalte Zweitinstanz
 
-Echte Hochverfügbarkeit (zwei laufende Zentralen) gibt es vor 1.0 nicht. Das Verfahren für einen Ausfall der Zentrale
-ist eine **vorbereitete, ausgeschaltete Zweitinstanz**, auf die die letzte Sicherung eingespielt wird.
+Echte Hochverfügbarkeit (zwei laufende Zentralen) gibt es nicht. Für einen Ausfall der Zentrale gibt es eine
+**kalte Zweitinstanz**: ein zweiter Rechner, auf dem OpenWacht installiert ist, aber nicht läuft. Er spielt jede neue
+Sicherung der Hauptinstanz von selbst ein, prüft sie und hält sie als Bereitschaftskopie bereit. Im Ausfall macht ein
+Befehl ihn zur Zentrale.
 
-**Vorbereiten (einmal):**
+OpenWacht holt die Sicherungen nicht selbst über das Netz. Sie in einen Ordner auf dem Zweitrechner zu kopieren, ist
+Sache des Betreibers (rsync über SSH, NFS, zur Not ein USB-Laufwerk). Damit gibt es keinen neuen Netzweg und keine
+Zugangsdaten in OpenWacht, und das Verfahren geht auch ohne Internet.
 
-1. Zweite VM bzw. zweiten LXC mit demselben Betriebssystem auf **anderer Hardware** anlegen, OpenWacht in
+### Einrichten (einmal)
+
+1. Zweiten Rechner (VM oder LXC) mit demselben Betriebssystem auf **anderer Hardware** anlegen und OpenWacht in
    **derselben Version** installieren (`apt install ./openwacht-zentrale_….deb`, Kapitel 1). Den Einrichtungsassistenten
-   nicht ausführen; Dienste danach anhalten: `systemctl disable --now openwacht-zentrale.socket openwacht-zentrale
-   openwacht-traps.socket openwacht-sicherung.timer`.
+   nicht ausführen.
 2. Den **Hauptschlüssel** der Hauptinstanz nach `/etc/openwacht/schluessel` kopieren (ersetzt den dort erzeugten;
    Eigentümer `svc_openwacht`, Rechte 0400) und ebenso `/etc/openwacht/zentrale.env`.
-3. Die Sicherungen täglich auf die Zweitinstanz holen (Pull, z. B. `rsync` per Timer von der Zweitinstanz aus) nach
-   `/var/backups/openwacht`.
-4. Agents und Browser erreichen die Zentrale über einen **DNS-Namen** mit kurzer TTL (z. B. 300 s), nicht über die
-   IP. Dieser Name muss in den Namen der Zentrale stehen (Einstellungen → Installation, Agent-Namen).
-5. Bei jedem Update beide Instanzen aktualisieren.
+3. Einen Eingangsordner anlegen, z. B. `/var/lib/openwacht-zweitinstanz-eingang` (nicht `/var/backups/openwacht`,
+   dort legt der Zweitrechner seine eigenen Sicherungen ab), und die Sicherungen der Hauptinstanz dorthin kopieren
+   lassen, siehe unten.
+4. Auf dem Zweitrechner:
 
-**Im Ausfall:**
+   ```bash
+   sudo openwacht-zentrale zweitinstanz -einrichten -quelle /var/lib/openwacht-zweitinstanz-eingang
+   ```
+
+   Das legt die Markierung `/etc/openwacht/zweitinstanz` an, schaltet Zentrale, Trap-Dienst und Sicherung dort ab, den
+   Timer `openwacht-zweitinstanz.timer` an und spielt die neueste Sicherung sofort einmal ein. Hat die Datenbank dort
+   schon Konten oder läuft dort eine Zentrale, bricht der Befehl ab (Schutz vor Verwechslung der Rechner); `-ersetzen`
+   übergeht das.
+5. Agents und Browser erreichen die Zentrale über einen **DNS-Namen** mit kurzer TTL (z. B. 300 s), nicht über die
+   IP. Dieser Name muss in den Namen der Zentrale stehen (Einstellungen → Installation, Agent-Namen).
+6. Bei jedem Update beide Rechner aktualisieren, den Zweitrechner **zuerst**. Das Paket-Update startet auf einem
+   markierten Zweitrechner keine Zentrale.
+
+**Kopieren per rsync (Beispiel):** Auf der Hauptinstanz einen Benutzer `openwacht-kopie` anlegen, der die Sicherungen
+lesen darf (`setfacl -m u:openwacht-kopie:rx /var/backups/openwacht` und `setfacl -d -m u:openwacht-kopie:r
+/var/backups/openwacht`). In seine `authorized_keys` den Schlüssel des Zweitrechners nur für lesendes rsync:
+
+```text
+command="rrsync -ro /var/backups/openwacht",restrict ssh-ed25519 AAAA… zweitrechner
+```
+
+Auf dem Zweitrechner stündlich (z. B. per systemd-Timer oder cron als root):
+
+```bash
+rsync -t --chmod=F600 'openwacht-kopie@zentrale.beispiel.example:openwacht-*.dump' /var/lib/openwacht-zweitinstanz-eingang/
+```
+
+`rsync` legt die Datei erst unter einem versteckten Namen an; die Zweitinstanz nimmt nur fertige Dateien
+`openwacht-<Zeit>.dump`, die seit einer Minute unverändert sind. Alte Dateien im Eingang löscht sie nicht; dafür z. B.
+`find /var/lib/openwacht-zweitinstanz-eingang -name 'openwacht-*.dump' -mtime +14 -delete` in denselben Timer.
+
+### Was der Timer prüft
+
+Stündlich nimmt `zweitinstanz -lauf` die neueste Sicherung aus dem Eingang (nach dem Zeitstempel im Namen). Ist sie neu,
+spielt er sie in eine eigene Datenbank `openwacht_neu` ein und prüft:
+
+- Der Hauptschlüssel passt (die Agent-CA der Sicherung lässt sich entschlüsseln).
+- Dieses Paket kennt jede Migration der Sicherung. Ist die Sicherung neuer, scheitert der Lauf mit „Zweitinstanz auf die
+  Version der Hauptinstanz aktualisieren“. Eine ältere Sicherung ist in Ordnung.
+- Die Hash-Kette des Audit-Logs ist heil, es gibt mindestens einen Mandanten.
+
+Erst dann ersetzt sie die bisherige Bereitschaftskopie (die Datenbank `openwacht`); die vorige wird gelöscht. Scheitert
+eine Prüfung, bleibt die bisherige Kopie unverändert. Der Lauf scheitert außerdem, wenn die neueste Sicherung im Eingang
+**älter als 26 Stunden** ist (kommen keine Sicherungen mehr an?). Ohne Markierung oder wenn auf dem Rechner eine Zentrale
+läuft, ändert der Lauf nichts.
+
+```bash
+sudo openwacht-zentrale zweitinstanz -status      # Stand: letzte Sicherung, eingespielt, Inhalt, Fehler
+journalctl -u openwacht-zweitinstanz              # Verlauf
+```
+
+Beim Einspielen braucht der Zweitrechner kurz Platz für zwei Datenbanken.
+
+**Überwachen:** Der Stand liegt in `/var/lib/openwacht-zweitinstanz/` (ohne Geheimnisse, für alle lesbar):
+`status.json` nach jedem Lauf, `ok` nur nach einer erfolgreich eingespielten neuen Sicherung. Einen OpenWacht-Agent auf dem
+Zweitrechner registrieren (bei der Hauptinstanz), den Ordner freigeben (`openwacht-agent sensoren -arten datei -ordner
+/var/lib/openwacht-zweitinstanz`) und einen Sensor „Datei“ auf `/var/lib/openwacht-zweitinstanz/ok` mit höchstem Alter
+26 Stunden anlegen (Kapitel 7). So meldet die Hauptinstanz, wenn die Zweitinstanz nicht mehr mitkommt.
+
+### Im Ausfall
 
 | Schritt | Befehl | Dauer |
 | --- | --- | --- |
-| 1. Entscheidung: Hauptinstanz kommt nicht schnell zurück | | |
-| 2. Neueste Sicherung einspielen | `openwacht-zentrale wiederherstellen -ersetzen` (Kapitel 13) | siehe unten |
-| 3. Dienste an | `systemctl enable --now openwacht-zentrale.socket openwacht-zentrale openwacht-traps.socket openwacht-sicherung.timer` | < 1 Min. |
-| 4. DNS-Namen auf die Zweitinstanz umstellen | im DNS | 1 Min. + TTL |
-| 5. Prüfen | Oberfläche, `curl -k https://<name>/api/v1/gesund`, Agents „melden sich“ | 2–5 Min. |
+| 1. Entscheidung: Hauptinstanz kommt nicht schnell zurück; sie bleibt aus | | |
+| 2. Zweitinstanz wird Zentrale | `sudo openwacht-zentrale zweitinstanz -umschalten` | < 1 Min. |
+| 3. DNS-Namen auf die Zweitinstanz umstellen | im DNS | 1 Min. + TTL |
+| 4. Prüfen | Oberfläche, `curl -k https://<name>/api/v1/gesund`, Agents „melden sich“ | 2–5 Min. |
 
-Dauer (gemessen, 2 vCPU, Datenbank 9,5 GB aus dem Lasttest): Sicherung 74 s, Einspielen (`pg_restore` mit zwei
-Prozessen, wie `wiederherstellen` es tut, ohne Migrationen und Dienste) 242 s, also rund 4 Minuten. Bei
-Standard-Aufbewahrung und 2500 Quellen (≈ 54 GB) wären es hochgerechnet etwa 25 Minuten. Hochgerechnet: bei 100 Quellen und Standard-Aufbewahrung
-(≈ 2 GB Datenbank) wenige Minuten; die **Wiederanlaufzeit insgesamt bei etwa 15–30 Minuten** einschließlich DNS.
+`-umschalten` fragt nach (`-ja` ohne Rückfrage), spielt eine noch neuere fertige Sicherung ein, falls eine im Eingang
+liegt, führt die Migrationen aus, entfernt die Markierung, schaltet den Timer ab und Zentrale, Trap-Dienst und Sicherung
+an. Scheitert das Einspielen der neueren Sicherung, gilt die vorhandene Bereitschaftskopie; der Befehl nennt ihr Datum.
+
+Weil die Kopie schon eingespielt ist, dauert das Umschalten unter einer Minute; die **Wiederanlaufzeit** bestimmt vor
+allem der DNS (etwa 5–10 Minuten mit kurzer TTL). Zum Vergleich: Einspielen von Hand (`wiederherstellen`, Kapitel 13)
+dauerte im Lasttest (2 vCPU, Datenbank 9,5 GB) rund 4 Minuten, bei 54 GB hochgerechnet etwa 25 Minuten.
 
 Was bleibt: Agents, SNMP-Geräte, Zugangsdaten, Agent-CA und HTTPS-Wurzel kommen aus der Sicherung; Agents verbinden
 sich ohne Zutun wieder, sobald der Name auf die Zweitinstanz zeigt. **Was verloren geht:** alles seit der letzten
 Sicherung (bis zu 24 Stunden bei täglicher Sicherung): Messwerte, Alarmverlauf, Änderungen an Geräten und Benutzern.
-Wer weniger verlieren will, sichert öfter (eigener Timer mit `sichern -jetzt`, z. B. alle 4 Stunden).
+Wer weniger verlieren will, sichert öfter (eigener Timer mit `sichern -jetzt`, z. B. alle 4 Stunden); die Zweitinstanz
+nimmt jede neue Sicherung.
 
-**Zurück auf die Hauptinstanz:** dort dieselbe Version installieren, Sicherung der Zweitinstanz einspielen, Dienste
-der Zweitinstanz anhalten, DNS zurück. **Proben:** das Verfahren halbjährlich durchspielen
-und die Zeit notieren.
+**Zurück auf die Hauptinstanz:** Die bisherige Hauptinstanz wird jetzt Zweitinstanz: dort dieselbe Version
+installieren, Hauptschlüssel prüfen, `zweitinstanz -einrichten -quelle … -ersetzen` mit den Sicherungen der neuen
+Zentrale, nach dem ersten erfolgreichen Lauf in einem ruhigen Moment dort `-umschalten` und den DNS-Namen zurückstellen.
+Danach die andere Seite wieder mit `-einrichten -ersetzen` zur Zweitinstanz machen. **Nie beide gleichzeitig laufen
+lassen:** Agents melden sich bei der, auf die der DNS-Name zeigt; die andere hielte veraltete Daten und schickte eigene
+Alarme.
+
+**Proben:** halbjährlich auf einer Kopie des Zweitrechners (z. B. Snapshot der VM ohne Netz) `-umschalten` ausführen,
+anmelden, die Zeit notieren und den Snapshot verwerfen.
 
 Der Totmannschalter (Einstellungen → Totmann) meldet den Ausfall der Zentrale nach außen; ohne ihn merkt niemand,
 dass die Überwachung selbst steht.

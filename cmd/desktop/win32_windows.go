@@ -36,14 +36,12 @@ var (
 	pDestroyIcon              = user32.NewProc("DestroyIcon")
 	pRegisterWindowMessageW   = user32.NewProc("RegisterWindowMessageW")
 	pMessageBoxW              = user32.NewProc("MessageBoxW")
+	pFindWindowW              = user32.NewProc("FindWindowW")
+	pAllowSetForegroundWindow = user32.NewProc("AllowSetForegroundWindow")
 	pShellNotifyIconW         = shell32.NewProc("Shell_NotifyIconW")
 	pShellExecuteW            = shell32.NewProc("ShellExecuteW")
 	pGetModuleHandleW         = kernel32.NewProc("GetModuleHandleW")
 	pCreateMutexW             = kernel32.NewProc("CreateMutexW")
-	pAllocConsole             = kernel32.NewProc("AllocConsole")
-	pFreeConsole              = kernel32.NewProc("FreeConsole")
-	pGetConsoleMode           = kernel32.NewProc("GetConsoleMode")
-	pSetConsoleMode           = kernel32.NewProc("SetConsoleMode")
 	pCredWriteW               = advapi32.NewProc("CredWriteW")
 	pCredReadW                = advapi32.NewProc("CredReadW")
 	pCredDeleteW              = advapi32.NewProc("CredDeleteW")
@@ -59,14 +57,18 @@ const (
 	wmDestroy     = 0x0002
 	wmCommand     = 0x0111
 	wmTimer       = 0x0113
-	wmLButtonUp   = 0x0202
-	wmRButtonUp   = 0x0205
 	wmContextMenu = 0x007B
 	wmApp         = 0x8000
 	wmTray        = wmApp + 1 // Nachrichten vom Symbol
 	wmStand       = wmApp + 2 // neuer Stand aus der Abfrage
+	wmAktion      = wmApp + 3 // Ergebnis einer Änderung
+	wmZeigen      = wmApp + 4 // zweiter Start: Fenster zeigen
+	wmSitzungWeg  = wmApp + 6 // Sitzung abgelaufen: neu anmelden
+	asfwAny       = ^uintptr(0)
 
 	ninSelect           = 0x0400
+	ninKeySelect        = 0x0401
+	wmNull              = 0x0000
 	ninBalloonUserClick = 0x0405
 
 	nimAdd        = 0
@@ -104,7 +106,6 @@ const (
 	keySetValue             = 0x0002
 	keyQueryValue           = 0x0001
 	regSZ                   = 1
-	enableEchoInput         = 0x0004
 	mbOK                    = 0x0
 	mbIconInformation       = 0x40
 	mbIconWarning           = 0x30

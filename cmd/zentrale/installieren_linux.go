@@ -188,7 +188,7 @@ func (in *installer) run(ctx context.Context) error {
 	if _, err := os.Stat(in.path(legacyBin)); err == nil && in.self != legacyBin {
 		in.note("Altes Programm %s gefunden: bitte löschen (rm %s), sonst ruft die Shell weiter die alte Version auf", legacyBin, legacyBin)
 	}
-	if !in.link {
+	if !in.link || in.isStandby() {
 		return nil
 	}
 	return in.printLink(ctx, env)
@@ -505,8 +505,9 @@ func cmdInternPostgres(ctx context.Context, args []string, out io.Writer) error 
 	fs := flag.NewFlagSet("intern-postgres", flag.ContinueOnError)
 	socket := fs.String("pg-socket", "/run/postgresql", "Socket-Verzeichnis")
 	reload := fs.Bool("neu-laden", false, "pg_hba/pg_ident prüfen und neu laden")
-	restore := fs.String("wiederherstellen", "", "Schritt der Rücksicherung: leere-db, ca-schluessel, status, tauschen")
-	suffix := fs.String("zeit", "", "Zeitstempel für openwacht_vor_<zeit> (tauschen)")
+	restore := fs.String("wiederherstellen", "", "Schritt der Rücksicherung: leere-db, ca-schluessel, status, tauschen, pruefen, alte-verwerfen")
+	suffix := fs.String("zeit", "", "Zeitstempel für openwacht_vor_<zeit> (tauschen, alte-verwerfen)")
+	dbName := fs.String("db", restoreDB, "Datenbank für pruefen (openwacht_neu oder openwacht)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -515,6 +516,9 @@ func cmdInternPostgres(ctx context.Context, args []string, out io.Writer) error 
 		return err
 	}
 	defer conn.Close(ctx)
+	if *restore == "pruefen" {
+		return internStandbyInspect(ctx, *socket, *dbName, out)
+	}
 	if *restore != "" {
 		return internRestore(ctx, conn, *socket, *restore, *suffix, out)
 	}
@@ -713,6 +717,15 @@ func (in *installer) startServices() error {
 	sc := in.systemctl
 	if err := sc("daemon-reload"); err != nil {
 		return fmt.Errorf("systemctl daemon-reload: %w", err)
+	}
+	if in.isStandby() {
+		// Kalte Zweitinstanz: auch nach einem Paket-Update keine Zentrale starten.
+		sc(append([]string{"disable", "--now"}, primaryUnits...)...)
+		if err := sc("enable", "--now", standbyTimer); err != nil {
+			return fmt.Errorf("systemctl enable --now %s: %w", standbyTimer, err)
+		}
+		in.step("Kalte Zweitinstanz (%s): Zentrale bleibt aus, %s an", standbyConf, standbyTimer)
+		return nil
 	}
 	legacy := in.legacyProxyMode()
 	if err := sc("enable", "openwacht-zentrale.service", "openwacht-traps.service"); err != nil {

@@ -23,6 +23,7 @@ Für alle gilt:
 | [VMware vCenter](#vmware-vcenter-nur-lesend) | REST-API, Port 443 | Rolle „Nur Lesen“ |
 | [NetApp ONTAP](#netapp-ontap-rest-api) | REST-API, Port 443 | REST-Rolle nur lesend (Pflicht, wird geprüft) |
 | [XenServer / XCP-ng](#xenserver-und-xcp-ng-xapi) | XAPI, Port 443 | AD-Konto mit Rolle read-only (Pflicht, wird geprüft) |
+| [Citrix](#citrix-monitor-service-odata) | OData v4, Port 443, NTLM | AD-Konto mit Rolle „Read Only Administrator“ |
 | [FRITZ!Box](#router-von-avm-fritzbox-tr-064) | TR-064, Port 49000/49443 | eigenes Konto mit „FRITZ!Box Einstellungen“ |
 | [Hyper-V](#hyper-v-über-den-windows-agent) | Windows-Agent | – |
 | [Docker](#docker-über-den-agent) | Agent und Socket-Proxy | – |
@@ -77,7 +78,7 @@ cat /etc/pve/pve-root-ca.pem
 | Backup je Gast | nur Gäste in einem Backup-Job: letztes erfolgreiches Backup älter als 26 Std.: Warnung, älter als 50 Std. oder keins in 8 Tagen: kritisch; ein fehlgeschlagener letzter Versuch steht in der Meldung |
 | Speicher | eingeschaltet, aber nicht verfügbar: kritisch; Belegung mit Schwellen und Prognose wie bei Platten |
 | Thin-Pool Metadaten | ab 80 % Warnung, ab 90 % kritisch |
-| Neustart | der Knoten läuft kürzer als bei der letzten Abfrage |
+| Neustart | der Knoten läuft kürzer als bei der letzten Abfrage und lief davor mindestens 27 Std. |
 
 Die Schwellen für Backups und Metadaten sind fest. Die Backups liest OpenWacht aus den vzdump-Aufgaben des Knotens;
 einen Proxmox Backup Server fragt es nicht selbst ab.
@@ -170,7 +171,7 @@ Befehle `set` und `security login password`, die die eigene Sitzung betreffen.
 | Shelf | Netzteil, Modul oder Lüfter gestört, Temperatur über den Schwellen des Shelfs |
 | SnapMirror | nicht gesund (mit Grund), getrennt, Verzögerung ab 26 Std. Warnung, ab 50 Std. kritisch |
 | EMS | Ereignisse der Schwere „emergency“ und „alert“ der letzten Stunde, je Meldung ein Sensor (höchstens 20) |
-| Neustart | ein Knoten läuft kürzer als bei der letzten Abfrage |
+| Neustart | ein Knoten läuft kürzer als bei der letzten Abfrage und lief davor mindestens 27 Std. |
 
 Graphen: Belegung der Aggregate und Volumes, IOPS und Latenz je Aggregat. Scheitert ein Teil (zum Beispiel 403 auf
 die Shelves), zeigt die Oberfläche ihn als „nicht abfragbar“, und dessen Sensoren behalten ihren letzten Zustand.
@@ -258,7 +259,7 @@ CPU und RAM („Messwerte nicht abrufbar“), alles andere bleibt.
 | SR Anbindung | auf einem Host nicht angebunden (PBD nicht verbunden): kritisch |
 | HA | überbucht: kritisch; Plan reicht nicht für die eingestellte Zahl an Ausfällen: Warnung |
 | Updates | Updates ausstehend oder nach Updates noch zu tun (z. B. Host neu starten): Warnung; nur XenServer 8 mit Update-Kanal |
-| Neustart | ein Host läuft kürzer als bei der letzten Abfrage |
+| Neustart | ein Host läuft kürzer als bei der letzten Abfrage und lief davor mindestens 27 Std. |
 
 Graphen: CPU und RAM des Pools und je Host, Belegung der SRs, CPU und RAM der 30 VMs mit der höchsten CPU-Last.
 Scheitert ein Teil (zum Beispiel die SRs), zeigt die Oberfläche ihn als „nicht abfragbar“, und dessen Sensoren behalten
@@ -272,6 +273,48 @@ Konten, Subjekte, Lizenzen und Seriennummern speichert die Zentrale nicht. Die G
 
 **Grenzen:** höchstens 64 Hosts, 2000 VMs (500 einzeln gezeigt), 500 SRs, 2000 PBDs, 24 MiB je Antwort und 8 MiB je
 Messwertantwort. Weiterleitungen werden nicht verfolgt, kein Proxy, nicht über einen Sammler.
+
+## Citrix (Monitor Service, OData)
+
+Ab 1.0.6 fragt die Zentrale den **Monitor Service** einer Citrix-Site (Citrix Virtual Apps and Desktops, on-prem) an
+einem Delivery Controller ab. Am Gerät: Aktionsmenü → „Citrix einrichten“ (nur Admins). Ein Gerät steht für die Site.
+
+![Citrix einrichten](bilder/citrix-einrichten.webp)
+
+**Konto in Citrix:** In Web Studio bzw. Citrix Studio unter **Administratoren** → „Administrator hinzufügen“ ein
+AD-Konto (z. B. `svc-openwacht`) mit der Rolle **Read Only Administrator** und dem Bereich „Alle“ anlegen. Mehr braucht
+OpenWacht nicht.
+
+1. Adresse eines **Delivery Controllers** eintragen, **HTTPS** (Port 443), Benutzer als `DOMÄNE\name` oder
+   `name@domäne` und Passwort. Die Adresse muss in der Netzfreigabe liegen. Die Anmeldung läuft per Windows-Anmeldung
+   (NTLM, wie Citrix sie für den Monitor Service on-prem verlangt); OpenWacht schickt nie Basic. Ohne HTTPS am
+   Controller geht es nicht: Unverschlüsselt lägen die NTLM-Antworten im Netz.
+2. **Verbindung prüfen** holt beim ersten Mal nur den Fingerabdruck (SHA-256) des Zertifikats. Am Controller vergleichen:
+   Zertifikatsverwaltung (`certlm.msc`) → Eigene Zertifikate → Zertifikat → Details zeigt SHA-1; SHA-256 in PowerShell mit
+   `[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash((Get-Item Cert:\LocalMachine\My\<SHA-1>).RawData))`.
+   Übernehmen, dann noch einmal prüfen und **Speichern**.
+
+**Gelesen werden nur** (GET, OData v4 unter `/Citrix/Monitor/OData/v4/Data/`):
+
+- `Machines` (nur aktive): Name, DNS-Name, Registrierung, Wartungsmodus.
+- `ConnectionFailureLogs` der letzten Stunde: nur die Fehlerart (`ConnectionFailureEnumValue`), nie Benutzer, Sitzungen
+  oder Clients.
+
+Gespeichert werden Zahlen und die Namen der **nicht registrierten** VDAs (höchstens 50), keine Liste aller Maschinen.
+
+![Citrix-Site am Gerät](bilder/host-citrix.webp)
+
+**Alarme:**
+
+| Gegenstand | Fehler wenn |
+| --- | --- |
+| VDAs | Warnung, sobald ein VDA außerhalb des Wartungsmodus nicht registriert ist (mit Namen); kritisch, wenn keiner mehr registriert ist |
+| Verbindungsfehler | Warnung ab 5, kritisch ab 25 fehlgeschlagenen Verbindungen in der letzten Stunde (Zahlen je Fehlerart in der Meldung) |
+
+VDAs, die absichtlich aus sind (z. B. ausgeschaltete Maschinen eines Pools), in Citrix in den Wartungsmodus setzen oder
+den Gegenstand „VDAs“ am Gerät **ausnehmen**. Die Schwellen für Verbindungsfehler sind ein erster Wert; sie werden nach
+den ersten Wochen im Betrieb überprüft. Für CPU, RAM und Neustarts einzelner Worker siehe
+[Windows-Server ohne Agent](#windows-server-ohne-agent-snmp-z-b-citrix-worker).
 
 ## Router von AVM (FRITZ!Box, TR-064)
 

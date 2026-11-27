@@ -259,7 +259,10 @@ function Regeln({ r }: { r: Alarmregeln }) {
     <details className="erweitert regeln">
       <summary>Was gemeldet wird</summary>
       <ul className="hinweis">
-        <li>Sensoren der Zentrale (Ping, Ports, Webseiten …): kritisch nach {r.check_fehlschlaege} Fehlschlägen in Folge, Warnungen sofort.</li>
+        <li>
+          Sensoren (Ping, Ports, Webseiten …): kritisch nach {r.check_fehlschlaege} Fehlschlägen in Folge, je Sensor unter „Alarm nach“
+          änderbar; Warnungen sofort.
+        </li>
         <li>
           Hosts: wenn sich ein Agent {min} {min === 1 ? "Minute" : "Minuten"} lang nicht meldet. Gesperrte Agents nie.
         </li>

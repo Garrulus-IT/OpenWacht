@@ -1,0 +1,40 @@
+# Kalte Zweitinstanz (1.0.6): neueste Sicherung der Hauptinstanz aus dem
+# Ordner der Markierung /etc/openwacht/zweitinstanz einspielen und prüfen.
+# Läuft als root wie `wiederherstellen` (startet sich als postgres und
+# svc_openwacht_db neu). Holt nichts über das Netz: Die Sicherungen kopiert
+# der Betreiber selbst in den Ordner. Ohne Markierung oder bei laufender
+# Zentrale ändert der Lauf nichts. Ergebnis:
+# /var/lib/openwacht-zweitinstanz/status.json und journalctl -u openwacht-zweitinstanz.
+[Unit]
+Description=OpenWacht: kalte Zweitinstanz, neueste Sicherung einspielen und prüfen
+Documentation=https://github.com/garrulus-it/openwacht
+After=postgresql.service
+Requires=postgresql.service
+ConditionPathExists=/etc/openwacht/zweitinstanz
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/openwacht-zentrale zweitinstanz -lauf
+TimeoutStartSec=2h
+NoNewPrivileges=yes
+# Nur, was der Lauf braucht: Wechsel zu postgres und svc_openwacht_db, Lesen
+# der Sicherungen im Eingang (gehören oft einem anderen Benutzer).
+CapabilityBoundingSet=CAP_SETUID CAP_SETGID CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH
+ProtectHome=read-only
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+PrivateTmp=yes
+PrivateNetwork=yes
+ProtectSystem=full
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+UMask=0022

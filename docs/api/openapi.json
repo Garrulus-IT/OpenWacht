@@ -1,0 +1,3068 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "OpenWacht API (lesend)",
+    "version": "1.0.7",
+    "description": "Lesende Endpunkte der Zentrale, die ein API-Token mit der Rolle Leser nutzen darf (Handbuch Kapitel 11). Ein Token sieht nur seinen Mandanten und alles darunter. Höchstens 300 Anfragen je Minute und Token (sonst 429 mit Retry-After). Zeiten sind RFC 3339 in UTC, Verlaufspunkte Unix-Sekunden. Felder können dazukommen; wer die Antworten liest, soll unbekannte Felder übergehen. Diese Datei prüft ein Test gegen den Code (internal/zentrale/openapi_test.go).",
+    "license": {
+      "name": "AGPL-3.0-only",
+      "identifier": "AGPL-3.0-only"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://openwacht.beispiel.example",
+      "description": "Adresse der eigenen Zentrale"
+    }
+  ],
+  "security": [
+    {
+      "apiToken": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Mandanten"
+    },
+    {
+      "name": "Geräte"
+    },
+    {
+      "name": "Sensoren"
+    },
+    {
+      "name": "Alarme"
+    },
+    {
+      "name": "Berichte"
+    },
+    {
+      "name": "Betrieb"
+    }
+  ],
+  "paths": {
+    "/api/v1/gesund": {
+      "get": {
+        "summary": "Zustand der Zentrale",
+        "description": "Ohne Anmeldung. Für Überwachung von außen (z. B. Totmann, Load Balancer).",
+        "tags": [
+          "Betrieb"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Gesund"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/v1/mandanten": {
+      "get": {
+        "summary": "Mandanten",
+        "description": "Alle Mandanten, die das Token sieht: seinen Mandanten und alle darunter.",
+        "tags": [
+          "Mandanten"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mandanten": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Mandant"
+                      }
+                    }
+                  },
+                  "required": [
+                    "mandanten"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/geraete": {
+      "get": {
+        "summary": "Geräte",
+        "description": "Geräte (Hosts) mit Agent, SNMP-Quelle und Zahl der Sensoren.",
+        "tags": [
+          "Geräte"
+        ],
+        "parameters": [
+          {
+            "name": "mandant",
+            "in": "query",
+            "description": "nur diesen Mandanten (ohne Untermandanten); weglassen = alles Sichtbare",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "geraete": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Geraet"
+                      }
+                    }
+                  },
+                  "required": [
+                    "geraete"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/geraete/{id}/sparklines": {
+      "get": {
+        "summary": "Kurzverlauf eines Geräts",
+        "description": "Letzte 24 Stunden je Sensor des Geräts, grob (für kleine Kurven).",
+        "tags": [
+          "Geräte"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Gerät",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "x-openwacht-objekt": "geraet"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sparklines"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/gruppen": {
+      "get": {
+        "summary": "Gruppen",
+        "description": "Ordner der Geräte je Mandant.",
+        "tags": [
+          "Geräte"
+        ],
+        "parameters": [
+          {
+            "name": "mandant",
+            "in": "query",
+            "description": "nur diesen Mandanten (ohne Untermandanten); weglassen = alles Sichtbare",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "gruppen": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Gruppe"
+                      }
+                    }
+                  },
+                  "required": [
+                    "gruppen"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/checks": {
+      "get": {
+        "summary": "Sensoren der Zentrale",
+        "description": "Aktive Prüfungen der Zentrale (Ping, HTTP, TLS …) mit letztem Ergebnis.",
+        "tags": [
+          "Sensoren"
+        ],
+        "parameters": [
+          {
+            "name": "mandant",
+            "in": "query",
+            "description": "nur diesen Mandanten (ohne Untermandanten); weglassen = alles Sichtbare",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "checks": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Check"
+                      }
+                    },
+                    "netze": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "freigegebene Netze"
+                    }
+                  },
+                  "required": [
+                    "checks"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/checks/{id}/verlauf": {
+      "get": {
+        "summary": "Verlauf eines Sensors der Zentrale",
+        "description": "Prüfungen je Zeitblock und Zustandswechsel.",
+        "tags": [
+          "Sensoren"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Sensor der Zentrale",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "x-openwacht-objekt": "check"
+          },
+          {
+            "name": "zeitraum",
+            "in": "query",
+            "description": "Zeitraum, Standard 24h",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1h",
+                "24h",
+                "7t",
+                "30t"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckVerlauf"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/agents": {
+      "get": {
+        "summary": "Agents",
+        "description": "Agents mit letzten Messwerten.",
+        "tags": [
+          "Geräte"
+        ],
+        "parameters": [
+          {
+            "name": "mandant",
+            "in": "query",
+            "description": "nur diesen Mandanten (ohne Untermandanten); weglassen = alles Sichtbare",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "agents": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Agent"
+                      }
+                    },
+                    "intervall_sekunden": {
+                      "type": "integer",
+                      "description": "Meldeintervall"
+                    },
+                    "zentrale": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "agents"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/agents/{id}/verlauf": {
+      "get": {
+        "summary": "Verlauf eines Agents",
+        "description": "Messreihen (CPU, Speicher, Platten …).",
+        "tags": [
+          "Geräte"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Agent",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "x-openwacht-objekt": "agent"
+          },
+          {
+            "name": "zeitraum",
+            "in": "query",
+            "description": "Zeitraum, Standard 24h",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1h",
+                "24h",
+                "7t",
+                "30t"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Verlauf"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/snmp": {
+      "get": {
+        "summary": "SNMP-Quellen",
+        "description": "SNMP-Geräte mit letztem Stand. Zugangsdaten gibt die API nie heraus.",
+        "tags": [
+          "Geräte"
+        ],
+        "parameters": [
+          {
+            "name": "mandant",
+            "in": "query",
+            "description": "nur diesen Mandanten (ohne Untermandanten); weglassen = alles Sichtbare",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "snmp": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SNMPQuelle"
+                      }
+                    },
+                    "netze": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "sammler": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      },
+                      "description": "Agents, die als Sammler abfragen"
+                    }
+                  },
+                  "required": [
+                    "snmp"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/snmp/{id}/verlauf": {
+      "get": {
+        "summary": "Verlauf einer SNMP-Quelle",
+        "description": "Messreihen (CPU, Speicher, Schnittstellen …).",
+        "tags": [
+          "Geräte"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "SNMP-Quelle",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "x-openwacht-objekt": "snmp"
+          },
+          {
+            "name": "zeitraum",
+            "in": "query",
+            "description": "Zeitraum, Standard 24h",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1h",
+                "24h",
+                "7t",
+                "30t"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Verlauf"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/snmp/{id}/traps": {
+      "get": {
+        "summary": "Traps einer SNMP-Quelle",
+        "description": "Zustände aus Trap-Regeln und die letzten Traps (30 Tage).",
+        "tags": [
+          "Alarme"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "SNMP-Quelle",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "x-openwacht-objekt": "snmp"
+          },
+          {
+            "name": "anzahl",
+            "in": "query",
+            "description": "höchstens so viele Traps (1–500)",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "zustaende": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TrapZustand"
+                      }
+                    },
+                    "traps": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      },
+                      "description": "letzte Traps mit Werten"
+                    }
+                  },
+                  "required": [
+                    "zustaende",
+                    "traps"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/sensoren": {
+      "get": {
+        "summary": "Alle Sensoren",
+        "description": "Jeder Sensor (Zentrale, Agent, SNMP) mit Zustand und offenem Alarm, sortiert nach Art.",
+        "tags": [
+          "Sensoren"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sensoren": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Sensor"
+                      }
+                    },
+                    "stumm_nach_s": {
+                      "type": "integer",
+                      "description": "Agent gilt nach so vielen Sekunden ohne Meldung als stumm"
+                    }
+                  },
+                  "required": [
+                    "sensoren"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/alarme": {
+      "get": {
+        "summary": "Alarme",
+        "description": "Offene und beendete Alarme, neueste zuerst.",
+        "tags": [
+          "Alarme"
+        ],
+        "parameters": [
+          {
+            "name": "mandant",
+            "in": "query",
+            "description": "nur diesen Mandanten (ohne Untermandanten); weglassen = alles Sichtbare",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "höchstens so viele (1–1000, Standard 200)",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "alarme": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Alarm"
+                      }
+                    }
+                  },
+                  "required": [
+                    "alarme"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/wartung": {
+      "get": {
+        "summary": "Wartung",
+        "description": "Wartungsfenster und laufende Wartungen.",
+        "tags": [
+          "Alarme"
+        ],
+        "parameters": [
+          {
+            "name": "mandant",
+            "in": "query",
+            "description": "nur diesen Mandanten (ohne Untermandanten); weglassen = alles Sichtbare",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "fenster": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Wartungsfenster"
+                      }
+                    },
+                    "laufend": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "ziele": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "art": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "mandant_id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "art",
+                          "id",
+                          "mandant_id",
+                          "name"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "fenster",
+                    "laufend"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/kennfarben": {
+      "get": {
+        "summary": "Kennfarben",
+        "description": "Kennfarben des Mandanten und darüber.",
+        "tags": [
+          "Sensoren"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "kennfarben": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Kennfarbe"
+                      }
+                    }
+                  },
+                  "required": [
+                    "kennfarben"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/berichte": {
+      "get": {
+        "summary": "Monatsbericht",
+        "description": "Verfügbarkeit, Ausfälle und Alarme eines Monats je Mandant und Gerät.",
+        "tags": [
+          "Berichte"
+        ],
+        "parameters": [
+          {
+            "name": "mandant",
+            "in": "query",
+            "description": "Mandant des Berichts",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "x-openwacht-objekt": "mandant"
+          },
+          {
+            "name": "monat",
+            "in": "query",
+            "description": "JJJJ-MM, Standard: laufender Monat",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}$"
+            }
+          },
+          {
+            "name": "untermandanten",
+            "in": "query",
+            "description": "0 = ohne Untermandanten",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Bericht"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/berichte/pdf": {
+      "get": {
+        "summary": "Monatsbericht als PDF",
+        "description": "Wie /berichte, als PDF-Datei.",
+        "tags": [
+          "Berichte"
+        ],
+        "parameters": [
+          {
+            "name": "mandant",
+            "in": "query",
+            "description": "Mandant des Berichts",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "x-openwacht-objekt": "mandant"
+          },
+          {
+            "name": "monat",
+            "in": "query",
+            "description": "JJJJ-MM",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}$"
+            }
+          },
+          {
+            "name": "untermandanten",
+            "in": "query",
+            "description": "0 = ohne Untermandanten",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/prognose/platten": {
+      "get": {
+        "summary": "Prognose der Platten",
+        "description": "Platten, die nach dem Verlauf voll werden, mit Tagen bis voll.",
+        "tags": [
+          "Berichte"
+        ],
+        "parameters": [
+          {
+            "name": "mandanten",
+            "in": "query",
+            "description": "Mandanten, durch Komma getrennt (grenzt nur ein)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "platten": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Platte"
+                      }
+                    },
+                    "gekuerzt": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "platten",
+                    "gekuerzt"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/kennzahlen": {
+      "get": {
+        "summary": "Kennzahlen",
+        "description": "Alarme je Stunde, Verfügbarkeit der Sensoren und Erreichbarkeit der Quellen (7 und 30 Tage).",
+        "tags": [
+          "Berichte"
+        ],
+        "parameters": [
+          {
+            "name": "mandanten",
+            "in": "query",
+            "description": "Mandanten, durch Komma getrennt (grenzt nur ein)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Kennzahlen"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/verlauf": {
+      "get": {
+        "summary": "Verlauf über alle Geräte",
+        "description": "CPU und Speicher, die höchsten Linien.",
+        "tags": [
+          "Berichte"
+        ],
+        "parameters": [
+          {
+            "name": "mandanten",
+            "in": "query",
+            "description": "Mandanten, durch Komma getrennt (grenzt nur ein)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "zeitraum",
+            "in": "query",
+            "description": "Zeitraum, Standard 24h",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1h",
+                "24h",
+                "7t",
+                "30t"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "in Ordnung",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flottenverlauf"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Fehler400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Fehler401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Fehler403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Fehler404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Fehler429"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "apiToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "owt1.<Geheimnis>",
+        "description": "API-Token aus Benutzer und Mandanten → API-Tokens (Rolle Leser)."
+      }
+    },
+    "responses": {
+      "Fehler400": {
+        "description": "Parameter ungültig",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Fehler"
+            }
+          }
+        }
+      },
+      "Fehler401": {
+        "description": "Token fehlt, ist abgelaufen oder widerrufen",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Fehler"
+            }
+          }
+        }
+      },
+      "Fehler403": {
+        "description": "Rolle reicht nicht",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Fehler"
+            }
+          }
+        }
+      },
+      "Fehler404": {
+        "description": "nicht gefunden oder nicht sichtbar (fremde Mandanten sind nicht von fehlenden zu unterscheiden)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Fehler"
+            }
+          }
+        }
+      },
+      "Fehler429": {
+        "description": "zu viele Anfragen",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Fehler"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Fehler": {
+        "type": "object",
+        "properties": {
+          "fehler": {
+            "type": "string",
+            "description": "Meldung für Menschen, auf Deutsch"
+          }
+        },
+        "required": [
+          "fehler"
+        ]
+      },
+      "Gesund": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "ok, solange die Datenbank antwortet"
+          },
+          "datenbank": {
+            "type": "string"
+          },
+          "planer": {
+            "type": "string"
+          },
+          "traps": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "datenbank",
+          "planer",
+          "traps"
+        ]
+      },
+      "Mandant": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uebergeordnet_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "übergeordneter Mandant (null beim Hauptmandanten)",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rolle": {
+            "type": "string",
+            "description": "eigene Rolle in diesem Mandanten (geerbt von oben)",
+            "enum": [
+              "admin",
+              "operator",
+              "leser"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "uebergeordnet_id",
+          "name",
+          "rolle"
+        ]
+      },
+      "Geraet": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mandant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "adresse": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Adresse oder DNS-Name"
+          },
+          "gruppe_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "erstellt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "agent_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "snmp_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "checks": {
+            "type": "integer",
+            "description": "Zahl der Sensoren der Zentrale"
+          },
+          "wartung": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "laufende Wartung, sonst null"
+          },
+          "abhaengig_von": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "übergeordnetes Gerät (Abhängigkeit)",
+            "format": "uuid"
+          },
+          "nicht_erreichbar_wegen": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Gerät, dessen Ausfall dieses verdeckt",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id",
+          "mandant_id",
+          "name",
+          "adresse",
+          "gruppe_id",
+          "agent_id",
+          "snmp_id",
+          "checks"
+        ]
+      },
+      "Gruppe": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mandant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "eltern_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer"
+          },
+          "erstellt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "mandant_id",
+          "eltern_id",
+          "name"
+        ]
+      },
+      "Check": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mandant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "geraet_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "typ": {
+            "type": "string",
+            "description": "Art des Sensors, z. B. ping, http, tls, dienst"
+          },
+          "ziel": {
+            "type": "object",
+            "description": "Parameter der Art (Daten, keine Befehle)"
+          },
+          "intervall_sekunden": {
+            "type": "integer"
+          },
+          "aktiv": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "ok",
+              "warn",
+              "crit",
+              "unknown",
+              null
+            ],
+            "description": "Zustand (null = noch nicht geprüft)"
+          },
+          "meldung": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "messwert": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "z. B. Antwortzeit in ms"
+          },
+          "seit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Zustand seit",
+            "format": "date-time"
+          },
+          "zuletzt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "letzte Prüfung",
+            "format": "date-time"
+          },
+          "fehler_in_folge": {
+            "type": "integer"
+          },
+          "naechste": {
+            "type": "string",
+            "description": "nächste Prüfung",
+            "format": "date-time"
+          },
+          "wartung": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "laufende Wartung"
+          },
+          "am_agent": {
+            "type": "boolean",
+            "description": "misst der Agent statt der Zentrale"
+          },
+          "veraltet": {
+            "type": "boolean",
+            "description": "Ergebnis älter als erwartet"
+          },
+          "fehlversuche": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "eigene Fehlversuche bis zum Alarm (1 bis 10), null = Standard der Zentrale"
+          },
+          "fehlversuche_gilt": {
+            "type": "integer",
+            "description": "geltende Fehlversuche bis zum Alarm"
+          }
+        },
+        "required": [
+          "id",
+          "mandant_id",
+          "geraet_id",
+          "name",
+          "typ",
+          "ziel",
+          "intervall_sekunden",
+          "aktiv",
+          "status",
+          "meldung",
+          "seit",
+          "zuletzt"
+        ]
+      },
+      "Agent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mandant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "geraet_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "adresse": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Absenderadresse der letzten Meldung"
+          },
+          "registriert": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "zuletzt_gesehen": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "gesperrt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Zeitpunkt der Sperre",
+            "format": "date-time"
+          },
+          "zertifikat_bis": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "messwerte": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "letzte Messwerte (CPU, Speicher, Platten, Version)"
+          },
+          "wartung": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "laufende Wartung"
+          }
+        },
+        "required": [
+          "id",
+          "mandant_id",
+          "geraet_id",
+          "hostname",
+          "registriert",
+          "zuletzt_gesehen",
+          "gesperrt",
+          "zertifikat_bis",
+          "messwerte"
+        ]
+      },
+      "SNMPQuelle": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mandant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "geraet_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "string",
+            "enum": [
+              "1",
+              "2c",
+              "3"
+            ]
+          },
+          "adresse": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "hat_community": {
+            "type": "boolean",
+            "description": "Zugangsdaten hinterlegt (sie selbst gibt die API nie heraus)"
+          },
+          "traps": {
+            "type": "boolean",
+            "description": "Traps annehmen"
+          },
+          "intervall_sekunden": {
+            "type": "integer"
+          },
+          "aktiv": {
+            "type": "boolean"
+          },
+          "zuletzt_versucht": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "zuletzt_ok": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "fehler": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "messwerte": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "letzter Stand (System, Schnittstellen, Speicher …)"
+          },
+          "neustart_am": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "wartung": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "laufende Wartung"
+          },
+          "sammler": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Agent, der abfragt (null = die Zentrale)",
+            "format": "uuid"
+          },
+          "profil_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "profil_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "mandant_id",
+          "geraet_id",
+          "version",
+          "adresse",
+          "port",
+          "traps",
+          "intervall_sekunden",
+          "aktiv",
+          "zuletzt_ok",
+          "fehler",
+          "messwerte"
+        ]
+      },
+      "Alarm": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mandant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "check_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "agent_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "snmp_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "gegenstand": {
+            "type": "string",
+            "description": "was alarmiert, z. B. check, cpu, platte:/, if:3, sammler"
+          },
+          "name": {
+            "type": "string",
+            "description": "Gerät · Sensor"
+          },
+          "status": {
+            "type": "string",
+            "description": "aktueller Zustand",
+            "enum": [
+              "warn",
+              "crit",
+              "unknown",
+              "ok"
+            ]
+          },
+          "schlimmster": {
+            "type": "string",
+            "description": "schlimmster Zustand seit Beginn",
+            "enum": [
+              "warn",
+              "crit",
+              "unknown"
+            ]
+          },
+          "meldung": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "beginn": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "geaendert": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ende": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "null = offen",
+            "format": "date-time"
+          },
+          "bestaetigt_am": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "bestaetigt_von": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kommentar": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "mandant_id",
+          "gegenstand",
+          "name",
+          "status",
+          "schlimmster",
+          "beginn",
+          "ende"
+        ]
+      },
+      "Sensor": {
+        "type": "object",
+        "properties": {
+          "schluessel": {
+            "type": "string",
+            "description": "eindeutig je Sensor, z. B. c:<id>"
+          },
+          "art": {
+            "type": "string",
+            "enum": [
+              "check",
+              "host",
+              "snmp"
+            ]
+          },
+          "quelle_id": {
+            "type": "string",
+            "description": "Check, Agent oder SNMP-Quelle",
+            "format": "uuid"
+          },
+          "mandant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "geraet_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "host": {
+            "type": "string",
+            "description": "Gerät"
+          },
+          "name": {
+            "type": "string"
+          },
+          "gegenstand": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "Zustand; pause = ausgeschaltet oder ausgenommen, neu = noch nicht geprüft",
+            "enum": [
+              "ok",
+              "warn",
+              "crit",
+              "unknown",
+              "pause",
+              "neu"
+            ]
+          },
+          "meldung": {
+            "type": "string"
+          },
+          "seit": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "alarm": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Alarm"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "wartung": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "laufende Wartung"
+          }
+        },
+        "required": [
+          "schluessel",
+          "art",
+          "quelle_id",
+          "mandant_id",
+          "geraet_id",
+          "name",
+          "gegenstand",
+          "status",
+          "meldung",
+          "alarm"
+        ]
+      },
+      "Punkt": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        },
+        "minItems": 4,
+        "maxItems": 4,
+        "description": "Zeit (Unix-Sekunden, Blockbeginn), Mittel, Minimum, Maximum"
+      },
+      "Reihe": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "z. B. cpu, speicher, platte:/, if:3:ein"
+          },
+          "punkte": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Punkt"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "punkte"
+        ]
+      },
+      "Verlauf": {
+        "type": "object",
+        "properties": {
+          "zeitraum": {
+            "type": "string",
+            "enum": [
+              "1h",
+              "24h",
+              "7t",
+              "30t"
+            ]
+          },
+          "spanne_s": {
+            "type": "integer"
+          },
+          "schritt_s": {
+            "type": "integer"
+          },
+          "reihen": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reihe"
+            }
+          }
+        },
+        "required": [
+          "zeitraum",
+          "spanne_s",
+          "schritt_s",
+          "reihen"
+        ]
+      },
+      "CheckPunkt": {
+        "type": "object",
+        "properties": {
+          "t": {
+            "type": "number",
+            "description": "Unix-Sekunden, Blockbeginn"
+          },
+          "n": {
+            "type": "integer",
+            "description": "Prüfungen"
+          },
+          "ok": {
+            "type": "integer",
+            "description": "davon ok"
+          },
+          "schlechtester": {
+            "type": "string"
+          },
+          "ms": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "mittlere Antwortzeit"
+          },
+          "ms_min": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "ms_max": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "t",
+          "n",
+          "ok",
+          "schlechtester"
+        ]
+      },
+      "Zustandswechsel": {
+        "type": "object",
+        "properties": {
+          "zeit": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "von": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "nach": {
+            "type": "string"
+          },
+          "meldung": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "zeit",
+          "nach"
+        ]
+      },
+      "CheckVerlauf": {
+        "type": "object",
+        "properties": {
+          "zeitraum": {
+            "type": "string",
+            "enum": [
+              "1h",
+              "24h",
+              "7t",
+              "30t"
+            ]
+          },
+          "spanne_s": {
+            "type": "integer"
+          },
+          "schritt_s": {
+            "type": "integer"
+          },
+          "punkte": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckPunkt"
+            }
+          },
+          "wechsel": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Zustandswechsel"
+            }
+          }
+        },
+        "required": [
+          "zeitraum",
+          "spanne_s",
+          "schritt_s",
+          "punkte",
+          "wechsel"
+        ]
+      },
+      "Wartungsfenster": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mandant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "grund": {
+            "type": "string"
+          },
+          "ziel_art": {
+            "type": "string"
+          },
+          "ziel_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ziel_name": {
+            "type": "string"
+          },
+          "wiederholung": {
+            "type": "string"
+          },
+          "beginn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "ende": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "zeitzone": {
+            "type": "string"
+          },
+          "aktiv": {
+            "type": "boolean"
+          },
+          "laeuft_bis": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "läuft gerade bis",
+            "format": "date-time"
+          },
+          "naechstes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "nächste Termine"
+          }
+        },
+        "required": [
+          "id",
+          "mandant_id",
+          "name",
+          "grund",
+          "ziel_art",
+          "ziel_id",
+          "wiederholung",
+          "zeitzone",
+          "aktiv"
+        ]
+      },
+      "Kennfarbe": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mandant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "farbe": {
+            "type": "string",
+            "pattern": "^#[0-9a-f]{6}$"
+          },
+          "verwendet": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "mandant_id",
+          "name",
+          "farbe"
+        ]
+      },
+      "Bericht": {
+        "type": "object",
+        "properties": {
+          "mandant": {
+            "type": "string"
+          },
+          "mandant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "untermandanten": {
+            "type": "boolean"
+          },
+          "monat": {
+            "type": "string",
+            "description": "JJJJ-MM"
+          },
+          "von": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "bis": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "erstellt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "mandanten": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "geraete": {
+                  "type": "integer"
+                },
+                "verfuegbarkeit": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "description": "Prozent"
+                },
+                "ziel": {
+                  "type": "number",
+                  "description": "SLA-Ziel in Prozent"
+                },
+                "erfuellt": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "geraete",
+                "ziel"
+              ]
+            }
+          },
+          "geraete": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "mandant_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "mandant": {
+                  "type": "string"
+                },
+                "verfuegbarkeit": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "description": "Prozent"
+                },
+                "ausfall_minuten": {
+                  "type": "integer"
+                },
+                "ausfaelle": {
+                  "type": "integer"
+                },
+                "ziel": {
+                  "type": "number"
+                },
+                "erfuellt": {
+                  "type": "boolean"
+                },
+                "erfasst_minuten": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "mandant_id",
+                "verfuegbarkeit",
+                "ausfall_minuten",
+                "ziel"
+              ]
+            }
+          },
+          "alarme": {
+            "type": "integer"
+          },
+          "kritisch": {
+            "type": "integer"
+          },
+          "warnungen": {
+            "type": "integer"
+          },
+          "bestaetigt": {
+            "type": "integer"
+          },
+          "laengste": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "mandant": {
+                  "type": "string"
+                },
+                "schwere": {
+                  "type": "string"
+                },
+                "beginn": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "minuten": {
+                  "type": "integer"
+                },
+                "offen": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name",
+                "mandant",
+                "schwere",
+                "beginn",
+                "minuten",
+                "offen"
+              ]
+            }
+          },
+          "prognose": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Platten, die bald voll sind (wie /prognose/platten)"
+          }
+        },
+        "required": [
+          "mandant",
+          "mandant_id",
+          "untermandanten",
+          "monat",
+          "von",
+          "bis",
+          "mandanten",
+          "geraete",
+          "alarme",
+          "kritisch",
+          "warnungen"
+        ]
+      },
+      "Platte": {
+        "type": "object",
+        "properties": {
+          "art": {
+            "type": "string",
+            "enum": [
+              "host",
+              "snmp"
+            ]
+          },
+          "quelle_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mandant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "geraet_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "geraet": {
+            "type": "string"
+          },
+          "platte": {
+            "type": "string"
+          },
+          "belegt": {
+            "type": "number",
+            "description": "Prozent"
+          },
+          "pro_tag": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Zuwachs in Prozentpunkten je Tag"
+          },
+          "stand": {
+            "type": "string"
+          },
+          "tage": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Tage bis voll (null = nicht absehbar)"
+          },
+          "basis_tage": {
+            "type": "number"
+          },
+          "nach_sprung": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "art",
+          "quelle_id",
+          "geraet",
+          "platte",
+          "belegt",
+          "tage"
+        ]
+      },
+      "Kennzahlen": {
+        "type": "object",
+        "properties": {
+          "stand": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "gekuerzt": {
+            "type": "boolean",
+            "description": "mehr Zeilen als die Höchstzahl, Liste gekürzt"
+          },
+          "alarme_je_stunde": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "t": {
+                  "type": "integer",
+                  "description": "Unix-Sekunden"
+                },
+                "warn": {
+                  "type": "integer"
+                },
+                "crit": {
+                  "type": "integer"
+                },
+                "unknown": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "t",
+                "warn",
+                "crit",
+                "unknown"
+              ]
+            }
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "mandant_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "geraet_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "geraet": {
+                  "type": "string"
+                },
+                "tage7": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "description": "Verfügbarkeit in Prozent"
+                },
+                "tage30": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "pruefungen30": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "geraet_id",
+                "tage7",
+                "tage30"
+              ]
+            }
+          },
+          "erreichbarkeit": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "art": {
+                  "type": "string"
+                },
+                "quelle_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "mandant_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "geraet_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "geraet": {
+                  "type": "string"
+                },
+                "tage7": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "tage30": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "art",
+                "quelle_id",
+                "geraet_id",
+                "tage7",
+                "tage30"
+              ]
+            }
+          }
+        },
+        "required": [
+          "stand",
+          "gekuerzt",
+          "alarme_je_stunde",
+          "checks",
+          "erreichbarkeit"
+        ]
+      },
+      "Flottenverlauf": {
+        "type": "object",
+        "properties": {
+          "zeitraum": {
+            "type": "string"
+          },
+          "spanne_s": {
+            "type": "integer"
+          },
+          "schritt_s": {
+            "type": "integer"
+          },
+          "cpu": {
+            "type": "object",
+            "properties": {
+              "gesamt": {
+                "type": "integer",
+                "description": "Quellen mit Werten"
+              },
+              "linien": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "art": {
+                      "type": "string"
+                    },
+                    "quelle_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "geraet_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "geraet": {
+                      "type": "string"
+                    },
+                    "mandant_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "punkte": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Punkt"
+                      }
+                    }
+                  },
+                  "required": [
+                    "art",
+                    "quelle_id",
+                    "geraet_id",
+                    "geraet",
+                    "mandant_id",
+                    "punkte"
+                  ]
+                },
+                "description": "die höchsten Linien"
+              }
+            },
+            "required": [
+              "gesamt",
+              "linien"
+            ]
+          },
+          "speicher": {
+            "type": "object",
+            "properties": {
+              "gesamt": {
+                "type": "integer"
+              },
+              "linien": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "art": {
+                      "type": "string"
+                    },
+                    "quelle_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "geraet_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "geraet": {
+                      "type": "string"
+                    },
+                    "mandant_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "punkte": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Punkt"
+                      }
+                    }
+                  },
+                  "required": [
+                    "art",
+                    "quelle_id",
+                    "geraet_id",
+                    "geraet",
+                    "mandant_id",
+                    "punkte"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "gesamt",
+              "linien"
+            ]
+          }
+        },
+        "required": [
+          "zeitraum",
+          "spanne_s",
+          "schritt_s",
+          "cpu",
+          "speicher"
+        ]
+      },
+      "Sparklines": {
+        "type": "object",
+        "properties": {
+          "spanne_s": {
+            "type": "integer"
+          },
+          "schritt_s": {
+            "type": "integer"
+          },
+          "agent": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "reihen": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Reihe"
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "reihen"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snmp": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "reihen": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Reihe"
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "reihen"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "punkte": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CheckPunkt"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "punkte"
+              ]
+            }
+          }
+        },
+        "required": [
+          "spanne_s",
+          "schritt_s",
+          "checks"
+        ]
+      },
+      "TrapZustand": {
+        "type": "object",
+        "properties": {
+          "regel": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "instanz": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "meldung": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "seit": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "bis": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "zuletzt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "anzahl": {
+            "type": "integer"
+          },
+          "bestaetigt": {
+            "type": "boolean",
+            "description": "v3 mit authPriv (v1/v2c gelten als unbestätigt)"
+          },
+          "kennfarbe": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "regel",
+          "name",
+          "status",
+          "seit",
+          "anzahl",
+          "bestaetigt"
+        ]
+      }
+    }
+  }
+}

@@ -100,6 +100,22 @@ du nicht verwaltest“. Im Beispiel kann das nur ein Admin der IT. So kann sich 
 den Passwort-Reset fremde Rechte verschaffen. Setzt ein Admin das Passwort, enden alle Sitzungen des Kontos und eine
 begonnene, noch nicht bestätigte Einrichtung der Zwei-Faktor-Anmeldung wird verworfen.
 
+## Konten sperren und löschen
+
+**Sperren** (Benutzer und Mandanten → Benutzer → „Deaktivieren“) beendet die Anmeldung sofort; Rollen und Einstellungen
+bleiben, „Aktivieren“ holt das Konto zurück.
+
+**Löschen (ab 1.0.6):** Ein gesperrtes Konto löscht OpenWacht **90 Tage nach dem Sperren** von selbst; die Liste zeigt
+das Datum („wird am … gelöscht“). Vorher geht es von Hand mit „Löschen …“ in der Zeile des gesperrten Kontos, durch einen
+Admin, der das Konto ganz verwaltet. Nicht gelöscht werden das eigene Konto und Betreiber (erst das Kennzeichen auf der
+Zentrale entziehen).
+
+Mit dem Konto gehen Rollen, Sitzungen, Passkeys, Wiederherstellungscodes, API-Tokens und persönliche Einstellungen weg.
+Bestätigte Alarme behalten den Namen als Text, Wartungen und Anträge verlieren nur den Verweis. Das **Audit-Log bleibt
+unverändert** (`benutzer.geloescht` mit Quelle „hand“ bzw. „frist“): Es ist eine Hash-Kette und fällt erst mit seiner
+Aufbewahrungsfrist weg (Einstellungen → Installation, ab Werk unbegrenzt). Konten aus dem AD legt der Abgleich bei der nächsten Anmeldung neu
+an, wenn sie dort noch aktiv sind; Rollen aus AD-Gruppen kommen dann wieder, von Hand vergebene nicht.
+
 ## Fehlversuche und Sperre
 
 Nach fünf falschen Passwörtern oder Codes sperrt OpenWacht die **Quelle** (IPv4-Adresse bzw. IPv6-Netz /64) für dieses
@@ -110,6 +126,21 @@ fünf Fehlversuchen vor jeder Prüfung (1, 2, 4 … höchstens 15 Sekunden), dam
 Fehlversuche bei der Bestätigung heikler Änderungen zählen mit. Die Meldung bleibt immer dieselbe („Anmeldung
 fehlgeschlagen“), auch bei einer Sperre.
 
+**Zweiter Faktor (ab 1.0.6):** Zusätzlich zählt die Zentrale falsche Codes (App oder Wiederherstellungscode) für das
+**ganze Konto**: Nach zehn falschen Codes binnen 15 Minuten, egal von welchen Rechnern, ist die Anmeldung mit Code für
+15 Minuten gesperrt. Passkeys gehen weiter. Wer so viele Codes ausprobiert, kennt das Passwort schon; die Sperre bremst
+ihn, kann das Konto aber auch kurz blockieren. `entsperren` hebt sie auf.
+
+**Meldungen per Mail (ab 1.0.6):** Ist der Mailversand eingerichtet, schreibt OpenWacht dem Konto bei
+
+- einer Anmeldung von einem Rechner bzw. Netz, von dem es sich in den letzten 90 Tagen nicht angemeldet hat (nicht bei
+  der allerersten Anmeldung),
+- einer Sperre nach Fehlversuchen, der Sperre des zweiten Faktors und wenn auf der Zentrale die Zwei-Faktor-Anmeldung
+  zurückgesetzt oder das Passwort gesetzt wurde.
+
+Die Meldungen außer „neuer Rechner“ gehen zusätzlich an den Betreiber. Je Konto und Art kommt höchstens eine Mail je
+Stunde. Die Mail nennt Konto und Zeit, aber keine Adresse: Die Zentrale speichert Quellen nur als HMAC.
+
 Gespeichert ist die Quelle nur als HMAC (die Zentrale kann vergleichen, aber keine Adresse auslesen); Einträge
 verfallen nach 90 Tagen ohne Aktivität. Sperre vorzeitig aufheben (als Eigentümer der Datenbank, mit Audit-Eintrag):
 
@@ -117,6 +148,20 @@ verfallen nach 90 Tagen ohne Aktivität. Sperre vorzeitig aufheben (als Eigentü
 sudo -u svc_openwacht_db env OPENWACHT_DB_EIGENTUEMER="host=/run/postgresql user=openwacht_owner dbname=openwacht" \
   openwacht-zentrale entsperren -email erika.mustermann@beispiel.example
 ```
+
+**Passwort vergessen (ab 1.0.6):** Ein lokales Konto bekommt in der Oberfläche ein neues Passwort von einem Admin, der es
+verwaltet (Benutzer und Mandanten → Benutzer → in der Zeile des Kontos „Passwort neu setzen“). Gibt es keinen solchen
+Admin mehr, etwa weil das einzige Admin-Passwort verloren ist, setzt der Eigentümer der Datenbank es auf der Zentrale neu
+(am Terminal verdeckt, zweimal):
+
+```bash
+sudo -u svc_openwacht_db env OPENWACHT_DB_EIGENTUEMER="host=/run/postgresql user=openwacht_owner dbname=openwacht" \
+  openwacht-zentrale passwort-setzen -email erika.mustermann@beispiel.example
+```
+
+Alle Sitzungen des Kontos enden, Sperren nach Fehlversuchen sind aufgehoben, die Zwei-Faktor-Anmeldung bleibt (fehlt auch
+das Handy: zusätzlich `zweifaktor-zuruecksetzen`). Im Audit-Log steht `passwort.gesetzt` mit Quelle `shell`. Für Konten
+aus dem AD oder per SSO lehnt der Befehl ab: Deren Passwort ändert man dort.
 
 Hinter einem Reverse Proxy zählt die Adresse aus `X-Forwarded-For` nur, wenn der Proxy mit `-proxy` als
 vertrauenswürdig eingetragen ist; sonst teilen sich alle Benutzer die Adresse des Proxys und damit auch dessen Sperre.

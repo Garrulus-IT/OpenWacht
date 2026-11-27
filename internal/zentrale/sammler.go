@@ -226,7 +226,9 @@ func (s *Server) handleCollectorResult(w http.ResponseWriter, r *http.Request) {
 	var names []string
 	var values []float64
 	var cur, prev *snmp.Snapshot
-	rebooted := false
+	// rebooted: zu meldender Neustart (Rechnerlaufzeit, ≥27 h davor);
+	// counterReset: sysUpTime kleiner, Zähler der eigenen OIDs ungültig
+	rebooted, counterReset := false, false
 	msg := ""
 	if !in.OK {
 		msg = alarm.Clean(in.Error, 300)
@@ -256,7 +258,8 @@ func (s *Server) handleCollectorResult(w http.ResponseWriter, r *http.Request) {
 		snmp.ApplyRates(&snap, prev)
 		if prev != nil && prev.Counters != nil {
 			dt := snap.Counters.At.Sub(prev.Counters.At).Seconds()
-			rebooted = snmp.Rebooted(prev.Counters.UptimeTicks, snap.Counters.UptimeTicks, dt)
+			counterReset = snmp.Rebooted(prev.Counters.UptimeTicks, snap.Counters.UptimeTicks, dt)
+			rebooted = snmp.HostRebooted(prev, &snap)
 		}
 		// Gespeichert wird die geprüfte Struktur, nicht der Text des Agents.
 		var err error
@@ -278,7 +281,7 @@ func (s *Server) handleCollectorResult(w http.ResponseWriter, r *http.Request) {
 	}
 	if cur != nil && (len(cur.Extra) > 0 || len(cur.Columns) > 0) {
 		if byID, err := s.oidChecks(ctx, []string{in.ID}); err == nil {
-			s.recordOIDs(ctx, byID[in.ID], cur, prev, rebooted)
+			s.recordOIDs(ctx, byID[in.ID], cur, prev, counterReset)
 		}
 	}
 	w.WriteHeader(http.StatusNoContent)

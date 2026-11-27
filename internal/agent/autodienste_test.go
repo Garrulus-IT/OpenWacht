@@ -41,6 +41,30 @@ func TestAutoDienste(t *testing.T) {
 			t.Errorf("%s: %v %q", c.name, r.Status, r.Message)
 		}
 	}
+	// Nicht lesbarer Starttyp: laufend nur gezählt, stehend eine Warnung,
+	// Ausnahmen gelten auch hier.
+	unread := []autoService{
+		{Name: "Spooler", Running: true},
+		{Name: "GDScan", Running: true, Unreadable: true},
+		{Name: "AVKProxy", Unreadable: true},
+	}
+	for _, c := range []struct {
+		name   string
+		list   []autoService
+		ex     []string
+		status string
+		msg    string
+	}{
+		{"nur laufend", unread[:2], nil, checks.OK, "alle 1 automatisch startenden Dienste laufen; 1 nicht lesbar"},
+		{"einer steht", unread, nil, checks.Warn, "alle 1 automatisch startenden Dienste laufen; Starttyp nicht lesbar, steht: AVKProxy"},
+		{"Ausnahme", unread, []string{"AVK*"}, checks.OK, "alle 1 automatisch startenden Dienste laufen; 1 nicht lesbar"},
+		{"mit gestopptem", append([]autoService{{Name: "W32Time"}}, unread...), nil, checks.Crit,
+			"Dienst gestoppt: W32Time; Starttyp nicht lesbar, steht: AVKProxy"},
+	} {
+		if r := autoServicesResult(c.list, time.Hour, c.ex); r.Status != c.status || r.Message != c.msg {
+			t.Errorf("%s: %v %q", c.name, r.Status, r.Message)
+		}
+	}
 	// Viele gestoppte Dienste: Meldung bleibt kurz
 	var many []autoService
 	for range 200 {

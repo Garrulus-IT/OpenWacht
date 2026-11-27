@@ -63,7 +63,9 @@ sudo sh installieren.sh                               # Update einer bestehenden
 von `SHA256SUMS` (`SHA256SUMS.sig`), dann **alle** Prüfsummen (und lehnt Dateien ab, die nicht in
 `SHA256SUMS` stehen), prüft System und Architektur und ruft dann `apt` mit einer eigenen
 Paketliste auf, die nur dieses Paket kennt. Die normalen Paketquellen des Systems werden dabei weder gefragt noch
-geändert. apt installiert nur, was fehlt oder älter ist; nichts wird zurückgestuft.
+geändert. apt installiert nur, was fehlt oder älter ist; nichts wird zurückgestuft. Enthält das Paket Zusatzpakete
+(z. B. für den Beitritt zur Domäne, [Kapitel 14](14-betrieb-ohne-internet.md#zusatzpakete-z-b-für-den-beitritt-zur-domäne)),
+installiert es sie danach mit; `-ohne-zusatz` lässt sie weg.
 
 **Woher die Signatur ihr Vertrauen hat.** Der Schlüssel im Paket allein beweist nichts; wer das Paket ändert, kann
 auch ihn tauschen. Deshalb:
@@ -210,7 +212,7 @@ Dienste wieder. Einzelheiten zur Rücksicherung: [Kapitel 13](13-sicherung.md).
 - **Müssen nicht mit.** Eine neuere Zentrale nimmt Meldungen älterer Agents an. Neue Sensorarten oder Korrekturen im
   Agent stehen in den Release-Notizen; erst dann lohnt das Update der Agents.
 - **Windows:** neues MSI über das alte installieren (GPO, Intune, Softwareverteilung oder per Skript); Registrierung und
-  Freigaben bleiben ([Kapitel 5](05-agent.md#msi-unter-windows-gpo-intune)).
+  Freigaben bleiben ([Kapitel 5](05-agent.md#msi-unter-windows-doppelklick-gpo-intune)).
 - **Linux:** neues `.deb` bzw. `.rpm` installieren; Registrierung und Freigaben bleiben.
 - **Selbst-Update:** Mit signierten Paketen holen sich ausgewählte Agents die neue Version beim nächsten Melden selbst
   ([Kapitel 12](12-agent-updates.md)).

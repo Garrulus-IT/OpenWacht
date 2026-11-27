@@ -1035,7 +1035,8 @@ func ParseDuration(s string) (int64, bool) {
 	return total, true
 }
 
-// Rebooted: Ein Knoten läuft kürzer als bei der letzten Abfrage.
+// Rebooted: Ein Knoten läuft kürzer als bei der letzten Abfrage und lief
+// vorher lange genug (snmp.MinUptimeForReboot).
 func Rebooted(prev, cur *snmp.ONTAP) bool {
 	if prev == nil || cur == nil {
 		return false
@@ -1045,7 +1046,7 @@ func Rebooted(prev, cur *snmp.ONTAP) bool {
 		before[n.Name] = n.UptimeS
 	}
 	for _, n := range cur.Nodes {
-		if b, ok := before[n.Name]; ok && b > 0 && n.UptimeS > 0 && n.UptimeS+60 < b {
+		if b, ok := before[n.Name]; ok && snmp.RebootCounts(b) && n.UptimeS > 0 && n.UptimeS+60 < b {
 			return true
 		}
 	}

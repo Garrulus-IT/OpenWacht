@@ -13,9 +13,12 @@ package zentrale
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
@@ -45,6 +48,52 @@ func badRequest(msg string) error { return &apiError{http.StatusBadRequest, msg}
 // der alle diese Mandanten verwaltet (Befund H2).
 var errForeignRoles = &apiError{http.StatusForbidden,
 	"Dieses Konto hat Rollen auf Mandanten, die du nicht verwaltest. Passwort, Sperre und Anzeigename kann nur ein Admin ändern, der alle diese Mandanten verwaltet."}
+
+// errEmailUnusable: Adresse vergeben (H3). Dieselbe Meldung, egal ob das
+// Konto im eigenen oder einem fremden Mandanten liegt.
+var errEmailUnusable = &apiError{http.StatusConflict, "Diese E-Mail-Adresse kann nicht verwendet werden."}
+
+// maxUserCreateRejects: abgelehnte Anlagen je Admin und Stunde (H3).
+const maxUserCreateRejects = 20
+
+// rejectCounter zählt Ereignisse je Schlüssel in der letzten Stunde.
+type rejectCounter struct {
+	mu   sync.Mutex
+	hits map[string][]time.Time
+}
+
+func (c *rejectCounter) prune(key string, now time.Time) []time.Time {
+	keep := c.hits[key][:0]
+	for _, t := range c.hits[key] {
+		if now.Sub(t) < time.Hour {
+			keep = append(keep, t)
+		}
+	}
+	if len(keep) == 0 {
+		delete(c.hits, key)
+		return nil
+	}
+	c.hits[key] = keep
+	return keep
+}
+
+func (c *rejectCounter) count(key string, now time.Time) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.hits == nil {
+		return 0
+	}
+	return len(c.prune(key, now))
+}
+
+func (c *rejectCounter) add(key string, now time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.hits == nil {
+		c.hits = map[string][]time.Time{}
+	}
+	c.hits[key] = append(c.prune(key, now), now)
+}
 
 // writeDBError übersetzt Datenbankfehler in verständliche Antworten, ohne
 // interne Details preiszugeben.
@@ -261,14 +310,16 @@ type roleOut struct {
 }
 
 type userOut struct {
-	ID              string    `json:"id"`
-	MandantID       string    `json:"mandant_id"`
-	Email           string    `json:"email"`
-	Anzeigename     string    `json:"anzeigename"`
-	Deaktiviert     bool      `json:"deaktiviert"`
-	ZweiFaktorAktiv bool      `json:"zwei_faktor_aktiv"`
-	Verzeichnis     bool      `json:"verzeichnis"` // Konto aus dem AD: Rechte und Passwort kommen von dort
-	Rollen          []roleOut `json:"rollen"`
+	ID          string `json:"id"`
+	MandantID   string `json:"mandant_id"`
+	Email       string `json:"email"`
+	Anzeigename string `json:"anzeigename"`
+	Deaktiviert bool   `json:"deaktiviert"`
+	// LoeschtAm: gesperrt, wird an diesem Tag automatisch gelöscht (90 Tage nach dem Sperren)
+	LoeschtAm       *time.Time `json:"loescht_am,omitempty"`
+	ZweiFaktorAktiv bool       `json:"zwei_faktor_aktiv"`
+	Verzeichnis     bool       `json:"verzeichnis"` // Konto aus dem AD: Rechte und Passwort kommen von dort
+	Rollen          []roleOut  `json:"rollen"`
 }
 
 func (s *Server) handleUserList(w http.ResponseWriter, r *http.Request) {
@@ -278,7 +329,8 @@ func (s *Server) handleUserList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.handle(w, r, "benutzer", func(ctx context.Context, tx pgx.Tx) (int, any, error) {
-		rows, err := tx.Query(ctx, `SELECT u.id::text, u.tenant_id::text, u.email, u.display_name, u.disabled, u.totp_enabled, u.directory_id IS NOT NULL
+		rows, err := tx.Query(ctx, `SELECT u.id::text, u.tenant_id::text, u.email, u.display_name, u.disabled, u.totp_enabled, u.directory_id IS NOT NULL,
+			       CASE WHEN u.disabled AND NOT u.platform_operator THEN u.disabled_at + interval '90 days' END
 			FROM openwacht.users u
 			WHERE u.tenant_id IN (SELECT openwacht.visible_tenants())
 			  AND u.auth_source <> 'token' -- API-Tokens stehen unter Verwaltung › API-Tokens
@@ -289,7 +341,7 @@ func (s *Server) handleUserList(w http.ResponseWriter, r *http.Request) {
 		}
 		users, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (userOut, error) {
 			var u userOut
-			err := row.Scan(&u.ID, &u.MandantID, &u.Email, &u.Anzeigename, &u.Deaktiviert, &u.ZweiFaktorAktiv, &u.Verzeichnis)
+			err := row.Scan(&u.ID, &u.MandantID, &u.Email, &u.Anzeigename, &u.Deaktiviert, &u.ZweiFaktorAktiv, &u.Verzeichnis, &u.LoeschtAm)
 			u.Rollen = []roleOut{}
 			return u, err
 		})
@@ -359,6 +411,14 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	// H3: Eine vergebene Adresse lässt sich am Fehlschlag erkennen (sie ist
+	// installationsweit eindeutig, weil die Anmeldung über sie läuft). Gegen
+	// das Durchprobieren: höchstens 20 abgelehnte Anlagen je Admin und Stunde.
+	sess := sessionFrom(r.Context())
+	if s.userCreateRejects.count(sess.UserID, s.now()) >= maxUserCreateRejects {
+		writeError(w, http.StatusTooManyRequests, "Zu viele abgelehnte Anlagen in der letzten Stunde. Bitte später erneut versuchen.")
+		return
+	}
 	if !s.acquireHash(r.Context()) {
 		return
 	}
@@ -368,10 +428,27 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 		internalError(w, "hash", err)
 		return
 	}
+	rejected := false
+	defer func() {
+		if !rejected {
+			return
+		}
+		s.userCreateRejects.add(sess.UserID, s.now())
+		if err := s.withUser(context.WithoutCancel(r.Context()), sess.UserID, func(tx pgx.Tx) error {
+			return audit(r.Context(), tx, &in.MandantID, "benutzer.anlegen_abgelehnt", map[string]any{"email": email, "grund": "adresse"})
+		}); err != nil {
+			slog.Warn("Audit benutzer.anlegen_abgelehnt fehlgeschlagen", "fehler", err)
+		}
+	}()
 	s.handle(w, r, "benutzer anlegen", func(ctx context.Context, tx pgx.Tx) (int, any, error) {
 		var id string
 		if err := tx.QueryRow(ctx, `INSERT INTO openwacht.users (tenant_id, email, display_name)
 			VALUES ($1, $2, $3) RETURNING id::text`, in.MandantID, email, name).Scan(&id); err != nil {
+			var pe *pgconn.PgError
+			if errors.As(err, &pe) && pe.Code == "23505" {
+				rejected = true
+				return 0, nil, errEmailUnusable
+			}
 			return 0, nil, err
 		}
 		if _, err := tx.Exec(ctx, `SELECT openwacht.auth_set_password($1, $2)`, id, hash); err != nil {
@@ -381,6 +458,49 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 			return 0, nil, err
 		}
 		return http.StatusCreated, userOut{ID: id, MandantID: in.MandantID, Email: email, Anzeigename: name, Rollen: []roleOut{}}, nil
+	})
+}
+
+// handleUserDelete löscht ein gesperrtes Konto endgültig (1.0.6). Nur ein
+// Admin, der das Konto ganz verwaltet (wie beim Sperren), nie sich selbst und
+// keinen Betreiber; das Konto muss vorher gesperrt sein.
+func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	if id == sessionFrom(r.Context()).UserID {
+		writeError(w, http.StatusBadRequest, "Du kannst dich nicht selbst löschen.")
+		return
+	}
+	s.handle(w, r, "benutzer löschen", func(ctx context.Context, tx pgx.Tx) (int, any, error) {
+		var tenant, email string
+		var manageable, disabled, operator bool
+		if err := tx.QueryRow(ctx, `SELECT tenant_id::text, email, disabled, platform_operator, openwacht.user_manageable(id)
+			FROM openwacht.users
+			WHERE id = $1 AND tenant_id IN (SELECT openwacht.admin_tenants()) AND auth_source <> 'token'`, id).
+			Scan(&tenant, &email, &disabled, &operator, &manageable); err != nil {
+			return 0, nil, err
+		}
+		switch {
+		case !manageable:
+			return 0, nil, errForeignRoles
+		case operator:
+			return 0, nil, &apiError{http.StatusConflict, "Das Konto ist Betreiber. Erst auf der Zentrale das Kennzeichen entziehen (openwacht-zentrale betreiber -entziehen)."}
+		case !disabled:
+			return 0, nil, &apiError{http.StatusConflict, "Nur gesperrte Konten lassen sich löschen. Bitte das Konto zuerst sperren."}
+		}
+		tag, err := tx.Exec(ctx, `DELETE FROM openwacht.users WHERE id = $1 AND disabled`, id)
+		if err != nil {
+			return 0, nil, err
+		}
+		if tag.RowsAffected() != 1 {
+			return 0, nil, errNotFound
+		}
+		if err := audit(ctx, tx, &tenant, "benutzer.geloescht", map[string]any{"id": id, "email": email, "quelle": "hand"}); err != nil {
+			return 0, nil, err
+		}
+		return http.StatusNoContent, nil, nil
 	})
 }
 

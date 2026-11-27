@@ -282,9 +282,10 @@ func remove(list []string, s string) []string {
 	return out
 }
 
-// Rebooted: Laufzeit der Box ist kleiner geworden (Neustart).
+// Rebooted: Laufzeit der Box ist kleiner geworden (Neustart), und sie lief
+// vorher lange genug, dass er gemeldet wird (snmp.MinUptimeForReboot).
 func Rebooted(prevUptime, newUptime uint64) bool {
-	return prevUptime > 0 && newUptime+60 < prevUptime
+	return snmp.RebootCounts(prevUptime) && newUptime+60 < prevUptime
 }
 
 // removePrefix entfernt die Gründe eines Teils, der doch noch geliefert wurde.

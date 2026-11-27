@@ -135,19 +135,20 @@ func (s *Server) syncAlarmsTx(ctx context.Context, tx pgx.Tx, now time.Time, mai
 	var in alarmInput
 	// Checks: Warnungen sofort, Fehler erst ab der Schwelle, ab der auch
 	// gemeldet wird (wie alarm.Decide).
-	rows, err = tx.Query(ctx, `SELECT check_id::text, name, status, message, fails FROM openwacht.alarm_check_sources()`)
+	rows, err = tx.Query(ctx, `SELECT check_id::text, name, status, message, fails, fail_threshold FROM openwacht.alarm_check_sources()`)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
 		var id, name, status, msg string
 		var fails int
-		if err := rows.Scan(&id, &name, &status, &msg, &fails); err != nil {
+		var threshold *int
+		if err := rows.Scan(&id, &name, &status, &msg, &fails, &threshold); err != nil {
 			rows.Close()
 			return nil, err
 		}
 		_, isOpen := open[alarmKeyCheck(id)]
-		if isOpen || (status == alarm.Warn || fails >= s.cfg.AlertThreshold) && !maint.check(id) {
+		if isOpen || (status == alarm.Warn || fails >= s.threshold(threshold)) && !maint.check(id) {
 			in.add(&id, nil, subjectCheck, name, status, msg)
 		}
 	}
@@ -681,6 +682,8 @@ func (s *Server) snmpSensors(ctx context.Context, tx pgx.Tx, open map[string]*al
 			kind = "NetApp"
 		case versionXAPI:
 			kind = "XenServer"
+		case versionCitrix:
+			kind = "Citrix"
 		}
 		base := sensorOut{Art: "snmp", QuelleID: q.id, MandantID: tenant, GeraetID: device, Host: q.name}
 		if q.disabled {
@@ -702,7 +705,7 @@ func (s *Server) snmpSensors(ctx context.Context, tx pgx.Tx, open map[string]*al
 		for _, f := range alarm.EvaluateSNMP(fresh, prevAll[q.id], lim) {
 			sn := base
 			sn.Gegenstand, sn.Name, sn.Status, sn.Meldung = f.Subject, alarm.SensorName(f.Subject), f.Status, f.Message
-			if ((q.version == versionPVE || q.version == versionVCenter || q.version == versionONTAP || q.version == versionXAPI) && f.Subject != alarm.SubjectSilent) || strings.HasPrefix(f.Subject, alarm.TrapPrefix) {
+			if ((q.version == versionPVE || q.version == versionVCenter || q.version == versionONTAP || q.version == versionXAPI || q.version == versionCitrix) && f.Subject != alarm.SubjectSilent) || strings.HasPrefix(f.Subject, alarm.TrapPrefix) {
 				// Proxmox: Namen mit Gastnamen („Backup VM 100 (srv-dms)“)
 				sn.Name = strings.TrimPrefix(f.Name, q.name+" · ")
 			}
