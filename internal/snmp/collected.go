@@ -135,6 +135,14 @@ func (s *Snapshot) ValidateCollected(now time.Time) error {
 	if len(s.Interfaces) > MaxInterfaces {
 		return fmt.Errorf("schnittstellen: höchstens %d", MaxInterfaces)
 	}
+	if len(s.PoE) > MaxPoEPorts {
+		return fmt.Errorf("poe: höchstens %d", MaxPoEPorts)
+	}
+	for i, p := range s.PoE {
+		if p.Group < 0 || p.Group > 1<<20 || p.Port < 0 || p.Port > 1<<20 || p.Status < 1 || p.Status > 6 {
+			return fmt.Errorf("poe[%d]: unplausibel", i)
+		}
+	}
 	for i, it := range s.Interfaces {
 		f := fmt.Sprintf("schnittstellen[%d]", i)
 		if it.Index < 0 || i > 0 && it.Index < s.Interfaces[i-1].Index {

@@ -5165,3 +5165,238 @@ td > .kenn-marke:first-child {
   color: var(--leise);
   font-size: var(--s-1);
 }
+
+/* Bild der Ports eines Switches (1.0.10): Frontplatte in Nachtblau, in beiden
+   Darstellungen gleich. Zwei Reihen, Gruppen zu zwölf, Uplinks abgesetzt. Der
+   Zustand steht als Form und Farbe in der Buchse, nie nur als Farbe. */
+.portbild {
+  margin: var(--a3) 0;
+}
+
+.geraet-front {
+  /* Zustandsfarben für dunklen Grund (wie in der dunklen Darstellung) */
+  --f-ok: #4cc38f;
+  --f-krit: #f0776c;
+  --f-poe: #e9b64a;
+  --f-marke: #45c3e6;
+  --f-buchse: #070f1a;
+  --f-rahmen: #3b5069;
+  display: flex;
+  align-items: stretch;
+  gap: var(--a4);
+  padding: var(--a3) var(--a4);
+  overflow-x: auto;
+  color: var(--nacht-tinte);
+  background: linear-gradient(180deg, #17304d 0%, var(--nacht) 22%, #0c1a2c 100%);
+  border: 1px solid #0a1524;
+  border-radius: 6px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 10%),
+    0 1px 2px var(--schatten);
+}
+
+.front-schild {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--a1);
+  flex: 0 0 auto;
+  max-width: 11rem;
+  padding-right: var(--a4);
+  border-right: 1px solid rgb(255 255 255 / 12%);
+}
+
+.front-name {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.front-zahl {
+  color: var(--nacht-leise);
+  font-size: var(--s-1);
+}
+
+.front-ports {
+  display: flex;
+  gap: var(--a4);
+  align-items: center;
+}
+
+.port-gruppe {
+  display: grid;
+  grid-template-rows: repeat(2, auto);
+  grid-auto-flow: column;
+  grid-auto-columns: 2rem;
+  gap: 0.3rem 0.2rem;
+}
+
+.port-gruppe-uplink {
+  padding-left: var(--a4);
+  border-left: 1px solid rgb(255 255 255 / 12%);
+  grid-auto-columns: 2.5rem;
+}
+
+.port {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.1rem;
+  color: var(--nacht-leise);
+  font: inherit;
+  background: none;
+  border: 0;
+  border-radius: var(--r);
+  cursor: pointer;
+}
+
+/* untere Reihe: Buchse oben, Nummer darunter, Rastnase nach unten */
+.port-unten {
+  flex-direction: column-reverse;
+}
+
+.port-nr {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* Buchse in der Form einer RJ45-Buchse: Rahmen außen, dunkle Öffnung innen */
+.port-buchse {
+  --nase: polygon(0 20%, 30% 20%, 30% 0, 70% 0, 70% 20%, 100% 20%, 100% 100%, 0 100%);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.05rem;
+  width: 1.75rem;
+  height: 2rem;
+  padding-top: 0.3rem;
+  background: var(--f-rahmen);
+  clip-path: var(--nase);
+}
+
+.port-unten .port-buchse {
+  --nase: polygon(0 0, 100% 0, 100% 80%, 70% 80%, 70% 100%, 30% 100%, 30% 80%, 0 80%);
+  padding-top: 0;
+  padding-bottom: 0.3rem;
+}
+
+.port-buchse::before {
+  position: absolute;
+  inset: 2px;
+  background: var(--f-buchse);
+  clip-path: var(--nase);
+  content: "";
+}
+
+.port-buchse > * {
+  position: relative;
+}
+
+/* Uplinks: flacher, breiter Schacht ohne Rastnase */
+.port-gruppe-uplink .port-buchse,
+.port-gruppe-uplink .port-unten .port-buchse {
+  --nase: none;
+  width: 2.25rem;
+  padding: 0;
+  border-radius: 2px;
+}
+
+.port-gruppe-uplink .port-buchse::before {
+  border-radius: 1px;
+}
+
+.port .signal,
+.portbild-legende .signal {
+  display: inline-block;
+  margin-top: 0;
+}
+
+.portbild-legende .signal {
+  vertical-align: -0.1em;
+}
+
+.geraet-front .signal {
+  width: 0.7rem;
+  height: 0.7rem;
+  background: var(--f-rahmen);
+}
+
+.geraet-front .signal-ok {
+  background: var(--f-ok);
+}
+
+.geraet-front .signal-crit {
+  background: var(--f-krit);
+}
+
+.geraet-front .signal-pause {
+  background: var(--nacht-leise);
+}
+
+.port-poe {
+  min-height: 0.55rem;
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  font-weight: 700;
+  line-height: 0.55rem;
+  color: var(--f-poe);
+}
+
+.port-poe-fehler {
+  color: var(--f-krit);
+}
+
+/* verbunden: Rahmen leuchtet in der Zustandsfarbe, Nummer hell */
+.port-ok .port-buchse {
+  background: var(--f-ok);
+}
+
+.port-ok .port-nr {
+  color: var(--nacht-tinte);
+}
+
+.port-crit .port-buchse {
+  background: var(--f-krit);
+}
+
+.port-crit .port-nr {
+  color: var(--f-krit);
+  font-weight: 700;
+}
+
+/* abgeschaltet: schraffierte Öffnung */
+.port-aus .port-buchse::before {
+  background: repeating-linear-gradient(135deg, var(--f-buchse) 0 3px, #1b2b40 3px 6px);
+}
+
+.port:hover .port-nr {
+  color: #ffffff;
+}
+
+.port:hover .port-buchse {
+  filter: brightness(1.25);
+}
+
+.port:focus-visible {
+  outline: 2px solid var(--f-marke);
+  outline-offset: 1px;
+}
+
+.port-gewaehlt {
+  background: rgb(69 195 230 / 18%);
+  box-shadow: 0 0 0 2px var(--f-marke);
+}
+
+.port-gewaehlt .port-nr {
+  color: #ffffff;
+}
+
+.port-einzel {
+  margin-top: var(--a2);
+}

@@ -21,6 +21,18 @@ Korrekturen und eine Ergänzung bei den Ausnahmen. Das Update bringt die Migrati
   „12 ms · erreichbar“: am Gerät unter „Sensoren, letzte 24 Stunden“, im Reiter „Sensoren“, auf der Seite „Alarme“ und
   in den Widgets des Dashboards. Die API nennt ihn unter `/api/v1/sensoren` als `messwert`. Die Desktop-App zeigt ihn
   noch nicht.
+- **Bild der Ports am Switch.** Ein Gerät mit SNMP und mindestens acht physischen Ports zeigt über der Tabelle der
+  Schnittstellen seine Ports in zwei Reihen wie auf der Frontplatte, ungerade oben, gerade unten, Uplinks rechts
+  abgesetzt. Jeder Port trägt seinen Zustand als Form und Farbe: verbunden, nicht verbunden, nicht verbunden und
+  überwacht, abgeschaltet. Ein Klick zeigt darunter Name, Status, Geschwindigkeit, Verkehr mit Verlauf und neue Fehler
+  und den Schalter „Überwachen“ ([Kapitel 6](handbuch/06-snmp.md)).
+- **PoE je Port.** Meldet das Gerät die PoE-Tabelle (POWER-ETHERNET-MIB), zeigt das Bild, welche Ports Strom liefern
+  oder einen PoE-Fehler haben. In den Einzelheiten eines Ports legt „PoE-Sensor für diesen Port anlegen“ einen Sensor
+  an, der kritisch wird, sobald der Port keinen Strom mehr liefert. Die Zuordnung gilt für Geräte mit einer
+  PoE-Gruppe, bei denen die Nummer des PoE-Ports dem Index der Schnittstelle entspricht; über einen Sammler braucht
+  das den Agent 1.0.10.
+- **Vorlagensatz „LANCOM 3000“** zählt zusätzlich die LLDP-Nachbarn. Wer den Satz schon angewendet hat, wendet ihn
+  erneut an; vorhandene Sensoren bleiben.
 - **Handbuch** nennt wieder die aktuelle Version, auch in den Beispielnamen der Pakete.
 
 ## 1.0.9

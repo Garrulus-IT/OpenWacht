@@ -440,6 +440,13 @@ export interface SnmpSchnittstelle {
   fehler_neu: number | null;
 }
 
+// PoE-Port (1.0.10): Zeile aus pethPsePortTable; status 1 aus, 2 sucht, 3 liefert Strom, 4/6 Fehler, 5 Test
+export interface SnmpPoePort {
+  gruppe: number;
+  port: number;
+  status: number;
+}
+
 export interface SnmpMesswerte {
   erfasst: string;
   system: { beschreibung: string; name: string; standort: string; objekt_id: string; laufzeit_s: number };
@@ -447,6 +454,7 @@ export interface SnmpMesswerte {
   speicher?: { gesamt: number; verfuegbar: number };
   platten: { einhaengepunkt: string; gesamt: number; frei: number }[];
   schnittstellen: SnmpSchnittstelle[];
+  poe?: SnmpPoePort[];
   synology?: {
     modell: string;
     version: string;

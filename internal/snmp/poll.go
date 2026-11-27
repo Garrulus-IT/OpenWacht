@@ -40,6 +40,45 @@ type Snapshot struct {
 	Extra []ExtraValue `json:"eigene,omitempty"`
 	// Eigene Spalten (0.47.0), nur Kennzahlen ohne Indizes
 	Columns []ColumnValue `json:"spalten,omitempty"`
+	// PoE (1.0.10): Zustand der PoE-Ports für das Bild der Ports; leer bei
+	// Geräten ohne POWER-ETHERNET-MIB
+	PoE []PoEPort `json:"poe,omitempty"`
+}
+
+// PoEPort: eine Zeile aus pethPsePortTable (RFC 3621). Status ist
+// pethPsePortDetectionStatus: 1 disabled, 2 searching, 3 deliveringPower,
+// 4 fault, 5 test, 6 otherFault.
+type PoEPort struct {
+	Group  int `json:"gruppe"`
+	Port   int `json:"port"`
+	Status int `json:"status"`
+}
+
+// MaxPoEPorts: so viele PoE-Ports liest eine Abfrage höchstens.
+const MaxPoEPorts = 512
+
+const oidPethPsePortDetectionStatus = "1.3.6.1.2.1.105.1.1.1.6"
+
+// poe liest den Zustand der PoE-Ports. Die Tabelle ist freiwillig: Fehlt
+// sie oder scheitert die Abfrage, bleibt die Liste leer.
+func (s *session) poe(snap *Snapshot) {
+	rows, err := s.walk(oidPethPsePortDetectionStatus, MaxPoEPorts)
+	if err != nil && !(errors.Is(err, ErrTooMuch) && len(rows) == MaxPoEPorts) {
+		return
+	}
+	for _, r := range rows {
+		g, p, ok := strings.Cut(r.index, ".")
+		if !ok {
+			continue
+		}
+		gi, err1 := strconv.Atoi(g)
+		pi, err2 := strconv.Atoi(p)
+		st, ok := r.v.int()
+		if err1 != nil || err2 != nil || !ok || gi < 0 || pi < 0 || st < 1 || st > 6 {
+			continue
+		}
+		snap.PoE = append(snap.PoE, PoEPort{Group: gi, Port: pi, Status: int(st)})
+	}
 }
 
 type System struct {
@@ -337,6 +376,10 @@ func (c *Client) Poll(ctx context.Context, cfg Config, prev *Snapshot) (_ *Snaps
 		part("Eigene Spalten", err)
 	} else {
 		part("Eigene Spalten", s.columns(snap, cfg.Columns))
+	}
+	// zuletzt, damit das Bild der Ports den Sensoren keine Anfragen wegnimmt
+	if ctx.Err() == nil {
+		s.poe(snap)
 	}
 	if ctx.Err() != nil {
 		snap.Partial = append(snap.Partial, "Zeitgrenze")
