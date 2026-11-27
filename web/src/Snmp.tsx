@@ -24,6 +24,9 @@ import { prognoseSchluessel, PrognoseZeile, type PlattenPrognose } from "./Progn
 import { SparkReihen, type SparkDaten } from "./Sparkline";
 import { ReihenVerlauf } from "./Verlauf";
 import { PortBild, langsam, nachbarText, poeNachIndex, poeText, portNummer } from "./PortBild";
+import { Aufnehmen } from "./Aufnehmen";
+import { finder } from "./Netzbild";
+import { useQuelle } from "./quelle";
 import { bitrate, laufzeit, Pegel, prozent } from "./Pegel";
 import { bytes, vor } from "./zeit";
 import { TrapTeil } from "./Traps";
@@ -133,6 +136,8 @@ export function SnmpTeil(props: {
   // Etappe 19: Knöpfe stehen im Aktionsmenü des Geräts; hier nur noch die
   // Rückfrage zum Entfernen, geöffnet von außen.
   ohneAktionen?: boolean;
+  // 1.0.12: anderes Gerät öffnen (LLDP-Nachbar, gerade aufgenommenes Gerät)
+  onOeffnen?: (id: string) => void;
   entfernen?: boolean;
   onEntfernenEnde?: () => void;
 }) {
@@ -152,6 +157,13 @@ export function SnmpTeil(props: {
   const [portWahl, setPortWahl] = useState<number | null>(null);
   const [poeArbeitet, setPoeArbeitet] = useState(false);
   const [poeHinweis, setPoeHinweis] = useState("");
+  // Nachbar des gewählten Ports, der gerade aufgenommen wird (Stelle in der Liste)
+  const [aufnahme, setAufnahme] = useState<number | null>(null);
+  // Geräte und Abfragen, um LLDP-Nachbarn bekannten Geräten zuzuordnen (gemeinsamer Speicher)
+  const lldpDa = (props.q.messwerte?.lldp?.length ?? 0) > 0;
+  const qGeraete = useQuelle<{ geraete: Geraet[] }>(lldpDa ? "/api/v1/geraete" : null, 60_000);
+  const qQuellen = useQuelle<{ snmp: Snmp[] }>(lldpDa ? "/api/v1/snmp" : null, 60_000);
+  const finde = finder(qGeraete.daten?.geraete ?? [], qQuellen.daten?.snmp ?? []);
   const aktuell = ueberwacht ?? q.ueberwacht;
   const geaendert = ueberwacht !== null && ueberwacht.join("\n") !== q.ueberwacht.join("\n");
 
@@ -394,6 +406,7 @@ export function SnmpTeil(props: {
           onWahl={(i) => {
             setPortWahl(i);
             setPoeHinweis("");
+            setAufnahme(null);
           }}
         />
       )}
@@ -454,15 +467,34 @@ export function SnmpTeil(props: {
                 <dt>Neue Fehler</dt>
                 <dd>{i.fehler_neu ?? "–"}</dd>
                 <dt>Nachbar (LLDP)</dt>
-                <dd>
+                <dd className="port-nachbarn">
                   {nachbarn.length === 0
                     ? "keiner gemeldet"
-                    : nachbarn.map((n, k) => (
-                        <span key={k}>
-                          {k > 0 ? "; " : ""}
-                          {nachbarText(n)}
-                        </span>
-                      ))}
+                    : nachbarn.map((n, k) => {
+                        const id = finde(n.name);
+                        return (
+                          <span key={k} className="port-nachbar">
+                            {id && props.onOeffnen && id !== props.g.id ? (
+                              <button type="button" className="knopf-text" title="Gerät öffnen" onClick={() => props.onOeffnen?.(id)}>
+                                {nachbarText(n)}
+                              </button>
+                            ) : (
+                              <span>{nachbarText(n)}</span>
+                            )}
+                            {n.adresse && <span className="klein"> · {n.adresse}</span>}
+                            {id === undefined && props.darfPflegen && (
+                              <button
+                                type="button"
+                                className="knopf-text klein"
+                                aria-expanded={aufnahme === k}
+                                onClick={() => setAufnahme(aufnahme === k ? null : k)}
+                              >
+                                + Ins Monitoring aufnehmen
+                              </button>
+                            )}
+                          </span>
+                        );
+                      })}
                 </dd>
                 {p && (
                   <>
@@ -497,6 +529,20 @@ export function SnmpTeil(props: {
               )}
               {p && props.darfPflegen && (
                 <p className="klein">Der PoE-Sensor wird kritisch, sobald der Port keinen Strom mehr liefert.</p>
+              )}
+              {aufnahme !== null && nachbarn[aufnahme] && (
+                <Aufnehmen
+                  key={`${i.index}-${aufnahme}`}
+                  k={{ name: nachbarn[aufnahme]!.name ?? nachbarn[aufnahme]!.port ?? "", adresse: nachbarn[aufnahme]!.adresse, port: `Port ${nr}` }}
+                  sw={props.g}
+                  melden={props.melden}
+                  onAbbrechen={() => setAufnahme(null)}
+                  onFertig={(id) => {
+                    setAufnahme(null);
+                    props.onGeaendert();
+                    props.onOeffnen?.(id);
+                  }}
+                />
               )}
               <ReihenVerlauf
                 pfad={`/api/v1/snmp/${q.id}/verlauf`}

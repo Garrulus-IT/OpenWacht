@@ -32,6 +32,14 @@ je höchstens 64 Zeichen, und nur der aktuelle Stand ohne Verlauf. Ist die Portk
 MAC-Adresse, steht sie als solche da. Auch Telefone und PCs können sich per LLDP melden: Ihr Gerätename erscheint
 dann ebenfalls. Fragt ein Agent als Sammler das Gerät ab, braucht er dafür die Version 1.0.11.
 
+**Nachbarn aufnehmen (ab 1.0.12):** Ist ein Nachbar schon ein Gerät in OpenWacht, öffnet ein Klick auf seinen Namen
+dieses Gerät. Ist er es noch nicht, steht daneben „+ Ins Monitoring aufnehmen“ (für Operatoren und Admins). Das öffnet
+ein kurzes Formular: Name aus LLDP, Adresse aus der Verwaltungsadresse, die der Nachbar per LLDP meldet (falls er eine
+meldet), dazu zwei Haken, beide ab Werk an: „Hängt ab von <Switch>“ und „Ping-Sensor anlegen“ (nur mit Adresse). Das
+Gerät kommt in Mandant und Gruppe des Switches; danach öffnet es sich, und dort richtet man Agent, SNMP oder weitere
+Sensoren ein. Liegt die Adresse nicht in der Netzfreigabe, legt OpenWacht das Gerät trotzdem an und meldet, dass der
+Ping-Sensor fehlt. Die Verwaltungsadresse liest die Abfrage ab 1.0.12 (über einen Sammler mit Agent 1.0.12).
+
 **Geschwindigkeit und „seit wann“ (ab 1.0.11):** Ein Port, der verbunden ist, aber weniger als 1 Gbit/s ausgehandelt
 hat, trägt im Bild ein Dreieck statt des Kreises. Das ist ein Hinweis, kein Alarm: Drucker und Telefone können oft
 nur 100 Mbit/s; bei einem PC oder Access Point deutet es auf ein schlechtes Kabel. Die Einzelheiten nennen außerdem,

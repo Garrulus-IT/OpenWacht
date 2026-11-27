@@ -456,6 +456,8 @@ export interface SnmpLldpNachbar {
   index: number;
   name?: string;
   port?: string;
+  // 1.0.12: Verwaltungsadresse aus LLDP, falls gemeldet
+  adresse?: string;
 }
 
 export interface SnmpMesswerte {

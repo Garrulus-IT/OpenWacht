@@ -887,6 +887,7 @@ function GeraetZeile(props: {
             g={g}
             darfAdmin={props.darfAdmin}
             darfPflegen={props.darf}
+            onOeffnen={props.onOeffnen}
             jetzt={jetzt}
             prognose={props.prognose}
             spark={spark}

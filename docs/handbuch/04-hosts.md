@@ -89,7 +89,9 @@ den Switches eingeschaltet sein.
   Namen, den das Gerät per SNMP von sich meldet. Groß- und Kleinschreibung und die Domäne zählen nicht
   („SW-Keller.intern.example“ passt zu „sw-keller“); bei mehreren Treffern wird nichts zugeordnet.
 - Nachbarn ohne Gerät in OpenWacht (Access Points, Telefone, fremde Switches) stehen unter dem Bild je Gerät als graue
-  Marken mit dem Port, ohne Klick. Die Karte des Geräts nennt ihre Zahl.
+  Marken mit dem Port. Die Karte des Geräts nennt ihre Zahl. Ab 1.0.12 öffnet ein Klick auf eine Marke (mit „+“) das
+  Formular „Ins Monitoring aufnehmen“ wie im Bild der Ports ([Kapitel 6](06-snmp.md)); Leser sehen die Marken ohne
+  Klick.
 - Das Netzbild ersetzt die Abhängigkeiten nicht: Welche Alarme ruhen, wenn ein Gerät ausfällt, bestimmt weiter
   „hängt ab von“.
 

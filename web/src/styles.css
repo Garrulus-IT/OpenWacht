@@ -5646,10 +5646,83 @@ td > .kenn-marke:first-child {
 }
 
 .netzbild-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   padding: 0.1rem var(--a2);
   color: var(--leise);
+  font: inherit;
   font-size: var(--s-1);
   background: var(--zart);
   border: 1px dashed var(--linie);
   border-radius: var(--r);
+}
+
+.netzbild-chip-knopf {
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.netzbild-chip-knopf:hover,
+.netzbild-chip-offen {
+  color: var(--tinte);
+  border-color: var(--marke);
+  border-style: solid;
+}
+
+.netzbild-chip-knopf:focus-visible {
+  outline: 2px solid var(--marke);
+  outline-offset: 1px;
+}
+
+.netzbild-chip-plus {
+  display: inline-grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  color: var(--auf-marke);
+  font-weight: 700;
+  line-height: 1;
+  background: var(--marke);
+  border-radius: 50%;
+}
+
+/* Aufnehmen eines LLDP-Nachbarn (1.0.12) */
+.aufnehmen-herkunft {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  margin: 0;
+  color: var(--leise);
+}
+
+.aufnehmen-marke {
+  padding: 0.05rem 0.4rem;
+  color: var(--auf-marke);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: var(--marke);
+  border-radius: 999px;
+}
+
+.aufnehmen-herkunft code {
+  font-family: var(--mono);
+  color: var(--tinte);
+}
+
+.port-nachbarn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.port-nachbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--a2);
 }

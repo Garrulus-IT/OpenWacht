@@ -380,7 +380,7 @@ export function Oberflaeche({ ich, onAbmelden, onAbgelaufen, thema, onThema }: P
           ) : ort.reiter === "zertifikate" ? (
             <Zertifikate bereich={bereich} onOeffnen={(geraet) => wechseln({ reiter: "hosts", geraet })} />
           ) : ort.reiter === "topologie" ? (
-            <Topologie bereich={bereich} onOeffnen={(geraet) => wechseln({ reiter: "hosts", geraet })} />
+            <Topologie bereich={bereich} onOeffnen={(geraet) => wechseln({ reiter: "hosts", geraet })} melden={melden} />
           ) : ort.reiter === "berichte" ? (
             <Berichte key={bereich.mandant.id + String(ort.mitUnter)} bereich={bereich} mitUnter={ort.mitUnter} melden={melden} />
           ) : ort.reiter === "wartung" ? (
