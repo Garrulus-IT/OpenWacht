@@ -8,6 +8,8 @@ import (
 	"errors"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
 var (
@@ -73,7 +75,7 @@ const (
 // --- Datei wählen (Agent-Paket hochladen) ---------------------------------------
 
 var (
-	comdlg32          = syscall.NewLazyDLL("comdlg32.dll")
+	comdlg32          = windows.NewLazySystemDLL("comdlg32.dll")
 	pGetOpenFileNameW = comdlg32.NewProc("GetOpenFileNameW")
 )
 

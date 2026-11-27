@@ -3,20 +3,27 @@
 package main
 
 // Win32-Aufrufe für Infobereich, Menü, Symbol, Anmeldeinformationen und
-// Registry, nur mit syscall (CONTRIBUTING: keine neue Abhängigkeit). Die
+// Registry, ohne Abhängigkeit über die schon vorhandenen hinaus. Die
 // Strukturen folgen den C-Definitionen; Go legt sie mit derselben
 // Ausrichtung ab (amd64 und arm64).
+//
+// DLLs von Windows lädt die App nur aus dem Systemordner
+// (windows.NewLazySystemDLL), nie über den Suchpfad: Sonst lüde Windows eine
+// gleichnamige Datei, die neben openwacht-desktop.exe liegt (z. B. im Ordner
+// Downloads), zuerst.
 
 import (
+	"strings"
 	"syscall"
-	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
 var (
-	user32   = syscall.NewLazyDLL("user32.dll")
-	shell32  = syscall.NewLazyDLL("shell32.dll")
-	kernel32 = syscall.NewLazyDLL("kernel32.dll")
-	advapi32 = syscall.NewLazyDLL("advapi32.dll")
+	user32   = windows.NewLazySystemDLL("user32.dll")
+	shell32  = windows.NewLazySystemDLL("shell32.dll")
+	kernel32 = windows.NewLazySystemDLL("kernel32.dll")
+	advapi32 = windows.NewLazySystemDLL("advapi32.dll")
 
 	pRegisterClassExW         = user32.NewProc("RegisterClassExW")
 	pCreateWindowExW          = user32.NewProc("CreateWindowExW")
@@ -181,19 +188,26 @@ type credential struct {
 	UserName       *uint16
 }
 
+// utf16 liefert nie nil: Enthält s ein Nullzeichen (aus der Datenbank kommt
+// keines), endet der Text dort, statt dass Windows einen leeren Zeiger bekommt.
 func utf16(s string) *uint16 {
-	p, _ := syscall.UTF16PtrFromString(s)
+	p, _ := syscall.UTF16PtrFromString(bisNull(s))
 	return p
+}
+
+func bisNull(s string) string {
+	if i := strings.IndexByte(s, 0); i >= 0 {
+		return s[:i]
+	}
+	return s
 }
 
 // setUTF16 kopiert s gekürzt in ein festes Feld (mit abschließender 0).
 func setUTF16(dst []uint16, s string) {
-	u, _ := syscall.UTF16FromString(s)
+	u, _ := syscall.UTF16FromString(bisNull(s))
 	if len(u) > len(dst) {
 		u = u[:len(dst)]
 		u[len(u)-1] = 0
 	}
 	copy(dst, u)
 }
-
-func ptr[T any](p *T) uintptr { return uintptr(unsafe.Pointer(p)) }

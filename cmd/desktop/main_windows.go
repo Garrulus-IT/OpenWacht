@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -150,7 +151,7 @@ func run(args []string) int {
 	}
 	var m msg
 	for {
-		r, _, _ := pGetMessageW.Call(ptr(&m), 0, 0, 0)
+		r, _, _ := pGetMessageW.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0)
 		if int32(r) <= 0 {
 			break
 		}
@@ -162,12 +163,12 @@ func run(args []string) int {
 				}
 			}
 			// Tab und Pfeiltasten zwischen den Teilen des Fensters
-			if d, _, _ := pIsDialogMessageW.Call(uintptr(a.f.hwnd), ptr(&m)); d != 0 {
+			if d, _, _ := pIsDialogMessageW.Call(uintptr(a.f.hwnd), uintptr(unsafe.Pointer(&m))); d != 0 {
 				continue
 			}
 		}
-		pTranslateMessage.Call(ptr(&m))
-		pDispatchMessageW.Call(ptr(&m))
+		pTranslateMessage.Call(uintptr(unsafe.Pointer(&m)))
+		pDispatchMessageW.Call(uintptr(unsafe.Pointer(&m)))
 	}
 	return 0
 }
@@ -185,7 +186,7 @@ func (a *app) fenster() error {
 	klasse := utf16("OpenWachtDesktop")
 	wc := wndClassEx{WndProc: syscall.NewCallback(wndProc), Instance: syscall.Handle(inst), ClassName: klasse}
 	wc.Size = uint32(unsafe.Sizeof(wc))
-	if r, _, err := pRegisterClassExW.Call(ptr(&wc)); r == 0 {
+	if r, _, err := pRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc))); r == 0 {
 		return fmt.Errorf("Fensterklasse: %w", err)
 	}
 	h, _, err := pCreateWindowExW.Call(0, uintptr(unsafe.Pointer(klasse)), uintptr(unsafe.Pointer(utf16("OpenWacht"))), 0,
@@ -222,9 +223,9 @@ func (a *app) symbolHinzufuegen() {
 	n.CallbackMessage = wmTray
 	n.Icon = a.icon(desktop.ZustandStoerung)
 	setUTF16(n.Tip[:], "OpenWacht: verbinde …")
-	pShellNotifyIconW.Call(nimAdd, ptr(&n))
+	pShellNotifyIconW.Call(nimAdd, uintptr(unsafe.Pointer(&n)))
 	n.TimeoutOrVersion = notifyIconVersion4
-	pShellNotifyIconW.Call(nimSetVersion, ptr(&n))
+	pShellNotifyIconW.Call(nimSetVersion, uintptr(unsafe.Pointer(&n)))
 	a.gezeigt = desktop.ZustandStoerung
 }
 
@@ -316,7 +317,7 @@ func (a *app) standZeigen() {
 	}
 	n.Icon = a.icon(zust)
 	setUTF16(n.Tip[:], tip)
-	pShellNotifyIconW.Call(nimModify, ptr(&n))
+	pShellNotifyIconW.Call(nimModify, uintptr(unsafe.Pointer(&n)))
 	a.gezeigt = zust
 	if a.fensterOffen.Load() {
 		a.aktualisieren(false)
@@ -361,10 +362,13 @@ func (a *app) blase(titel, text string, art uint32) {
 	n.InfoFlags = art
 	setUTF16(n.InfoTitle[:], desktop.Kuerzen(titel, 63))
 	setUTF16(n.Info[:], desktop.Kuerzen(text, 255))
-	pShellNotifyIconW.Call(nimModify, ptr(&n))
+	pShellNotifyIconW.Call(nimModify, uintptr(unsafe.Pointer(&n)))
 }
 
 func (a *app) oeffnen(pfad string) {
+	if !strings.HasPrefix(pfad, "/") {
+		return // nur Seiten der eingestellten Zentrale
+	}
 	a.mu.Lock()
 	url := a.client.Zentrale + pfad
 	a.mu.Unlock()
@@ -392,7 +396,7 @@ func (a *app) menue() {
 	add(0, version.String("openwacht-desktop"), mfGrayed)
 	add(cmdBeenden, "Beenden", 0)
 	var p point
-	pGetCursorPos.Call(ptr(&p))
+	pGetCursorPos.Call(uintptr(unsafe.Pointer(&p)))
 	pSetForegroundWindow.Call(uintptr(a.hwnd))
 	id, _, _ := pTrackPopupMenu.Call(m, tpmRightButton|tpmReturnCmd, uintptr(p.X), uintptr(p.Y), 0, uintptr(a.hwnd), 0)
 	// Laut Microsoft nötig, damit das Menü beim nächsten Mal sauber öffnet
@@ -442,7 +446,7 @@ func (a *app) befehl(id int) {
 		}
 	case cmdBeenden:
 		n := a.nid()
-		pShellNotifyIconW.Call(nimDelete, ptr(&n))
+		pShellNotifyIconW.Call(nimDelete, uintptr(unsafe.Pointer(&n)))
 		pPostQuitMessage.Call(0)
 	}
 }
@@ -489,7 +493,7 @@ func wndProc(hwnd, m, wp, lp uintptr) uintptr {
 		return 0
 	case wmDestroy:
 		n := a.nid()
-		pShellNotifyIconW.Call(nimDelete, ptr(&n))
+		pShellNotifyIconW.Call(nimDelete, uintptr(unsafe.Pointer(&n)))
 		pPostQuitMessage.Call(0)
 		return 0
 	}

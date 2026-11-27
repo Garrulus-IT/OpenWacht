@@ -15,6 +15,7 @@ import (
 	"context"
 	"strconv"
 	"sync"
+	"unsafe"
 
 	"github.com/garrulus-it/openwacht/internal/desktop"
 )
@@ -596,7 +597,7 @@ func (a *app) seiteMalen(hdc uintptr, r rect) {
 
 func (f *fenster) seitenScrollen(d int32) {
 	var r rect
-	pGetClientRect.Call(uintptr(f.seitenF), ptr(&r))
+	pGetClientRect.Call(uintptr(f.seitenF), uintptr(unsafe.Pointer(&r)))
 	f.seitenOff = max(0, min(f.seitenOff+d, f.seitenHoehe-r.Bottom))
 	pInvalidateRect.Call(uintptr(f.seitenF), 0, 0)
 }
@@ -620,7 +621,7 @@ func (a *app) listeWaehlen(z ziel, texte []string, aktiv int) int {
 		e[i] = listenEintrag{text: t, an: true, gewaehlt: i == aktiv}
 	}
 	p := point{z.r.Left, z.r.Bottom + f.s(4)}
-	pClientToScreen.Call(uintptr(f.seitenF), ptr(&p))
+	pClientToScreen.Call(uintptr(f.seitenF), uintptr(unsafe.Pointer(&p)))
 	return schwebend(f.hwnd, e, p, z.r.Right-z.r.Left, false)
 }
 

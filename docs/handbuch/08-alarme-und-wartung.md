@@ -66,6 +66,11 @@ Infobereich neben der Uhr, **auch ohne offenes Browserfenster**:
 - **Menü** (Rechtsklick aufs Symbol): OpenWacht öffnen (Fenster), im Browser öffnen, Alarme im Browser, jetzt prüfen,
   mit Windows starten (mit Rückmeldung), einrichten, beenden.
 
+**Ablegen:** Lege `openwacht-desktop.exe` in einen eigenen Ordner, den nur dein Konto beschreiben darf (z. B.
+`%LOCALAPPDATA%\Programs\OpenWacht`), nicht in Downloads, und starte sie von dort; „Mit Windows starten“ merkt sich
+diesen Ort. Solange die Datei nicht signiert ist, vorher die Prüfsumme mit `SHA256SUMS` vergleichen. Ab 1.0.9 lädt die
+App Windows-DLLs nur noch aus dem Systemordner; ältere Versionen laden eine gleichnamige Datei aus dem eigenen Ordner zuerst.
+
 #### Fenster wie die Weboberfläche (ab 1.0.6)
 
 Ein Start der Datei (oder Linksklick aufs Symbol) öffnet das Fenster, **ohne Browser**; startet die App mit Windows,

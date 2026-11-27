@@ -15,12 +15,14 @@ import (
 	"syscall"
 	"unsafe"
 
+	"golang.org/x/sys/windows"
+
 	"github.com/garrulus-it/openwacht/internal/desktop"
 )
 
 var (
-	msimg32 = syscall.NewLazyDLL("msimg32.dll")
-	dwmapi  = syscall.NewLazyDLL("dwmapi.dll")
+	msimg32 = windows.NewLazySystemDLL("msimg32.dll")
+	dwmapi  = windows.NewLazySystemDLL("dwmapi.dll")
 
 	pAddFontMemResourceEx   = gdi32.NewProc("AddFontMemResourceEx")
 	pCreateDIBSection       = gdi32.NewProc("CreateDIBSection")
@@ -35,7 +37,6 @@ var (
 	pAlphaBlend             = msimg32.NewProc("AlphaBlend")
 	pDwmSetWindowAttribute  = dwmapi.NewProc("DwmSetWindowAttribute")
 	pTrackMouseEvent        = user32.NewProc("TrackMouseEvent")
-	pLoadLibraryW           = kernel32.NewProc("LoadLibraryW")
 	pGetProcAddress         = kernel32.NewProc("GetProcAddress")
 	pLoadImageW             = user32.NewProc("LoadImageW")
 	pRegQueryValueExWDword  = advapi32.NewProc("RegGetValueW")
@@ -111,10 +112,10 @@ func pinsel(c desktop.RGB) uintptr {
 // 135 SetPreferredAppMode und 136 FlushMenuThemes, seit Windows 10 1903).
 // Ohne diese Funktionen bleiben sie hell.
 func dunkleMenues(dunkel bool) {
-	h, _, _ := pLoadLibraryW.Call(uintptr(unsafe.Pointer(utf16("uxtheme.dll"))))
-	if h == 0 {
+	if uxtheme.Load() != nil {
 		return
 	}
+	h := uxtheme.Handle()
 	setze, _, _ := pGetProcAddress.Call(h, 135)
 	flush, _, _ := pGetProcAddress.Call(h, 136)
 	if setze == 0 || flush == 0 {

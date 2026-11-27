@@ -33,7 +33,7 @@ func tokenSpeichern(token string) error {
 		Persist:    credPersistLocalMachine,
 		UserName:   utf16("openwacht-desktop"),
 	}
-	r, _, err := pCredWriteW.Call(ptr(&c), 0)
+	r, _, err := pCredWriteW.Call(uintptr(unsafe.Pointer(&c)), 0)
 	if r == 0 {
 		return fmt.Errorf("Anmeldeinformation speichern: %w", err)
 	}

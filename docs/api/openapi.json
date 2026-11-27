@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "OpenWacht API (lesend)",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "description": "Lesende Endpunkte der Zentrale, die ein API-Token mit der Rolle Leser nutzen darf (Handbuch Kapitel 11). Ein Token sieht nur seinen Mandanten und alles darunter. Höchstens 300 Anfragen je Minute und Token (sonst 429 mit Retry-After). Zeiten sind RFC 3339 in UTC, Verlaufspunkte Unix-Sekunden. Felder können dazukommen; wer die Antworten liest, soll unbekannte Felder übergehen. Diese Datei prüft ein Test gegen den Code (internal/zentrale/openapi_test.go).",
     "license": {
       "name": "AGPL-3.0-only",

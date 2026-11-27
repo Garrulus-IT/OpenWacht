@@ -102,6 +102,30 @@ func TestClient(t *testing.T) {
 	}
 }
 
+// Ein Pfad ohne führenden Schrägstrich darf nie zu einer Anfrage werden:
+// „https://zentrale“ + „@anderer.example/x“ wäre ein anderer Host.
+func TestPfadNurMitSchraegstrich(t *testing.T) {
+	anfragen := 0
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		anfragen++
+		w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+	c := Client{Zentrale: srv.URL, Token: "owt1." + strings.Repeat("A", 43), HTTP: srv.Client()}
+	ctx := context.Background()
+	for _, pfad := range []string{"@anderer.example/api/v1/alarme", "api/v1/alarme", "", ".anderer.example/"} {
+		if err := c.Anfrage(ctx, http.MethodGet, pfad, nil, nil); err == nil {
+			t.Errorf("Pfad %q angenommen", pfad)
+		}
+	}
+	if anfragen != 0 {
+		t.Errorf("%d Anfragen trotz ungültigem Pfad", anfragen)
+	}
+	if err := c.Anfrage(ctx, http.MethodGet, "/api/v1/alarme", nil, nil); err != nil || anfragen != 1 {
+		t.Errorf("gültiger Pfad: %v, %d Anfragen", err, anfragen)
+	}
+}
+
 func TestVergleichenUndZusammenfassen(t *testing.T) {
 	jetzt := time.Now()
 	alt := []Alarm{{ID: "1", Status: "warn"}, {ID: "2", Status: "crit"}, {ID: "3", Status: "warn"}}
