@@ -99,6 +99,17 @@ type Spec struct {
 	Relative  string `json:"bezug,omitempty"`
 	// SNMP-Spalte (0.47.0): Vergleichswert für anzahl_gleich/anzahl_ungleich
 	Compare *int64 `json:"vergleichswert,omitempty"`
+	// 1.0.8, SNMP-OID: Zahl aus einem Text des Geräts („1500RPM“ → 1500).
+	// TextNumber: "" (aus), "erste", "nte" (TextIndex 1–16) oder "nach"
+	// (erste Zahl hinter TextAfter). Gelesen wird beim Abfragen; gespeichert
+	// wird nur die Zahl, nie der Text.
+	TextNumber string `json:"zahl_aus_text,omitempty"`
+	TextIndex  int    `json:"zahl_nr,omitempty"`
+	TextAfter  string `json:"zahl_nach,omitempty"`
+	// 1.0.8, SNMP-OID: Faktor (0 = 1) und Einheit für die Anzeige. Schwellen
+	// gelten auf den umgerechneten Wert.
+	Factor float64 `json:"faktor,omitempty"`
+	Unit   string  `json:"einheit,omitempty"`
 
 	// 1.0.5: automatisch startende Windows-Dienste; diese Dienste zählen
 	// nicht (Dienst- oder Anzeigename, ein „*“ am Ende passt auf den Anfang).
@@ -169,7 +180,7 @@ var allowedFields = map[string][]string{
 	"tcp_banner": {"host", "port", "tls", "enthaelt", "timeout_s", "ca_pem"},
 	"ntp":        {"host", "port", "abweichung_warnung_ms", "abweichung_kritisch_ms", "timeout_s"},
 	"snmp_oid": {"oid", "rate", "warnung_ueber", "kritisch_ueber", "warnung_unter", "kritisch_unter", "gleich",
-		"zusammenfassung", "vergleichswert"},
+		"zusammenfassung", "vergleichswert", "zahl_aus_text", "zahl_nr", "zahl_nach", "faktor", "einheit"},
 	"dienst":  {"name"},
 	"prozess": {"name", "mindestens", "hoechstens"},
 	"datei":   {"pfad", "ordner", "warnung_stunden", "kritisch_stunden", "mindestgroesse"},
@@ -230,6 +241,11 @@ func (s *Spec) setFields() []string {
 	add(s.Aggregate != "", "zusammenfassung")
 	add(s.Relative != "", "bezug")
 	add(s.Compare != nil, "vergleichswert")
+	add(s.TextNumber != "", "zahl_aus_text")
+	add(s.TextIndex != 0, "zahl_nr")
+	add(s.TextAfter != "", "zahl_nach")
+	add(s.Factor != 0, "faktor")
+	add(s.Unit != "", "einheit")
 	add(len(s.Exceptions) > 0, "ausnahmen")
 	return f
 }

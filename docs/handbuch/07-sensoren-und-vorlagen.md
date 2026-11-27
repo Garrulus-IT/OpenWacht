@@ -70,6 +70,30 @@ Zeilen mit Wert gleich bzw. ungleich einem Vergleichswert. Als OID die Spalte oh
 14“. Beispiel Zustand: Spalte `1.3.6.1.4.1.5951.4.1.3.1.1.5` (Zustand der virtuellen Server), „Zeilen mit Wert gleich“,
 Vergleichswert 1 (down), „Fehler über 0“.
 
+### Zahl aus Text, Faktor und Einheit
+
+Manche Geräte liefern Messwerte als Text mit Beiwerk, zum Beispiel LANCOM-Switche den Lüfter als „1500RPM“ und die CPU
+als „100ms:52%, 1s:57%, 10s:50%“. Ab 1.0.8 liest ein SNMP-OID-Sensor daraus eine Zahl, unter **„Zahl aus Text“**:
+
+| Art | liest | Beispiel |
+| --- | --- | --- |
+| erste Zahl im Text | die erste Zahl | „1500RPM“ → 1500, „994 M“ → 994 |
+| n-te Zahl im Text | die 1. bis 16. Zahl | „100ms:52%, 1s:57%, 10s:50%“, 6. Zahl → 50 |
+| Zahl nach einem Text | die erste Zahl hinter dem genannten Text | nach „10s:“ → 50 |
+
+- Eine Zahl sind Ziffern mit höchstens einem Punkt oder Komma („41,5“); ein Minus direkt davor zählt als Vorzeichen.
+- Der Text vor der Zahl wird genau verglichen, auch Groß- und Kleinschreibung und Leerzeichen.
+- Steht an der Stelle keine Zahl, wird der Sensor „unbekannt“ mit dem Grund.
+- **Gespeichert wird nur die Zahl.** Der Text des Geräts verlässt die Abfrage nicht, auch nicht als Verlauf.
+- Fragt ein Agent als **Sammler** das Gerät ab, braucht er dafür die Version 1.0.8; mit einem älteren bleibt der Sensor
+  „unbekannt“ („Zahl aus Text noch nicht gelesen“).
+- Geht nicht zusammen mit einer Tabellenspalte, einer Rate oder „Wert gleich Text“.
+
+**Faktor und Einheit** gelten für alle Zahlen eines SNMP-OID-Sensors, auch für Summe, Minimum und Maximum einer
+Spalte: Der Wert wird mit dem Faktor malgenommen und mit der Einheit gezeigt (°C, %, W, V, A, RPM, MB, GB, s, ms, bit/s,
+dBm). Beispiel: Ein Switch meldet die PoE-Leistung in Zehntel-Watt, mit Faktor 0,1 und Einheit W steht dort „81 W“.
+**Schwellen gelten auf den umgerechneten Wert**, hier also in Watt.
+
 - Gelesen wird nur lesend (GETNEXT/GETBULK), höchstens 2000 Zeilen je Spalte; bei mehr steht „nur die ersten 2000
   Zeilen“ in der Meldung.
 - Gemeldet und gespeichert werden nur die Kennzahlen, **nie die Indizes der Zeilen** (darin stehen oft Namen) und nie
@@ -91,8 +115,9 @@ nicht. „Als eigene“ macht aus einer eingebauten Vorlage eine eigene zum Anpa
 
 ## Vorlagensätze
 
-Ein **Vorlagensatz** legt mehrere Sensoren für eine Anwendung auf einmal an. Eingebaut sind fünfzehn Sätze, vierzehn für
-Windows-Server und einer für den NetScaler; jeder Sensor heißt „Satz: …“ und merkt sich den Satz als Herkunft.
+Ein **Vorlagensatz** legt mehrere Sensoren für eine Anwendung auf einmal an. Eingebaut sind sechzehn Sätze: vierzehn für
+Windows-Server, einer für den NetScaler und einer für LANCOM-Switche. Jeder Sensor heißt „Satz: …“ und merkt sich den
+Satz als Herkunft.
 
 ![Vorlagensätze](bilder/sensor-vorlagensaetze.webp)
 
@@ -113,6 +138,7 @@ Windows-Server und einer für den NetScaler; jeder Sensor heißt „Satz: …“
 | **Citrix Cloud Connector** | Dienste Agent System, WatchDog, Agent Discovery, AD Provider, Credential Provider, WebRelay, Message Broker, Remote Broker Provider (`XaXdCloudProxy`), STA, Config Synchronizer, High Availability (Local Host Cache), Remote HCL, Cloud Gateway, Monitor; VDA-Anmeldung auf Port 80 | `-arten dienst` |
 | **Citrix Provisioning** | Dienste Stream Service, SOAP Server, API, TFTP, PXE, Two-Stage Boot; SOAP-Port 54321 | `-arten dienst` |
 | **NetScaler** | über SNMP: CPU (80 %/95 %), Speicher (80 %/90 %), HA-Zustand, virtuelle Server down (ab 1 kritisch), Dienste down (Warnung ab 1), **kürzeste Restlaufzeit aller Zertifikate** (Warnung 30, kritisch 14 Tage), Zahl der Zertifikate; Zertifikat der Verwaltung | keine; SNMPv3 am Gerät ([Kapitel 6](06-snmp.md)) |
+| **LANCOM 3000** (ab 1.0.8) | über SNMP, für Switche der Serie GS-3000 mit LCOS SX 4.x: Temperatur 1 (80/90 °C), Temperatur 2 und 3 (60/70 °C), Lüfter (kritisch unter 300 RPM), CPU über 10 s (85 %/95 %), PoE-Leistung in W, PoE-Budget, PoE-Versorgung an, PoE-Ports im Fehler (Warnung ab 1), PoE-Ports mit Strom. Die Schwellen der Temperaturen sind eine Vorbelegung: erst die eigenen Werte ansehen, dann anpassen | keine; SNMPv3 am Gerät ([Kapitel 6](06-snmp.md)) |
 
 ![Swyx-Sensoren an einem Gerät](bilder/host-sensoren-swyx.webp)
 

@@ -444,6 +444,39 @@ var builtinSets = []vorlagenSatz{
 			{"NetScaler: Verwaltung (HTTPS)", "tls", `{"host":"{adresse}","port":443,"warnung_tage":30,"kritisch_tage":14}`,
 				"Zertifikat der Verwaltungsadresse", 3600},
 		}),
+	// 1.0.8: LANCOM-Switche der Serie GS-3000 (gemessen an einem GS-3628XUP mit LCOS SX 4.30). Temperatur, Lüfter und CPU
+	// liefert diese Firmware als Text, deshalb „Zahl aus Text“.
+	newSet("satz-lancom-3000", "LANCOM 3000", "LANCOM-Switche der Serie GS-3000 mit LCOS SX 4.x über SNMPv3: Temperaturen, Lüfter, CPU und PoE. "+
+		"Die Schwellen der Temperaturen sind eine Vorbelegung; an die eigenen Geräte anpassen. Braucht eine SNMP-Abfrage am Gerät.",
+		[]satzEintrag{
+			{"LANCOM: Temperatur 1", "snmp_oid",
+				`{"oid":"1.3.6.1.4.1.2356.14.1.1.1.22.0","zahl_aus_text":"erste","einheit":"°C","warnung_ueber":80,"kritisch_ueber":90}`,
+				"lcsSystemInfoTemperature1; der wärmste Fühler, im Betrieb um 70 °C", 300},
+			{"LANCOM: Temperatur 2", "snmp_oid",
+				`{"oid":"1.3.6.1.4.1.2356.14.1.1.1.23.0","zahl_aus_text":"erste","einheit":"°C","warnung_ueber":60,"kritisch_ueber":70}`,
+				"lcsSystemInfoTemperature2", 300},
+			{"LANCOM: Temperatur 3", "snmp_oid",
+				`{"oid":"1.3.6.1.4.1.2356.14.1.1.1.34.0","zahl_aus_text":"erste","einheit":"°C","warnung_ueber":60,"kritisch_ueber":70}`,
+				"lcsSystemInfoTemperature3", 300},
+			{"LANCOM: Lüfter", "snmp_oid",
+				`{"oid":"1.3.6.1.4.1.2356.14.1.1.1.17.0","zahl_aus_text":"erste","einheit":"RPM","kritisch_unter":300}`,
+				"lcsSystemInfoFanSpeed („1500RPM“); kritisch, wenn der Lüfter steht; bei lüfterlosen Modellen löschen", 300},
+			{"LANCOM: CPU (10 s)", "snmp_oid",
+				`{"oid":"1.3.6.1.4.1.2356.14.1.1.1.24.0","zahl_aus_text":"nach","zahl_nach":"10s:","einheit":"%","warnung_ueber":85,"kritisch_ueber":95}`,
+				"lcsSystemInfoCPULoad, Mittel über 10 Sekunden", 60},
+			{"LANCOM: PoE-Leistung", "snmp_oid", `{"oid":"1.3.6.1.4.1.2356.14.1.1.1.204.0","faktor":0.1,"einheit":"W"}`,
+				"abgegebene PoE-Leistung (Wert des Geräts in 0,1 W); nur Anzeige, Schwelle je nach Budget selbst setzen", 300},
+			{"LANCOM: PoE-Budget", "snmp_oid", `{"oid":"1.3.6.1.2.1.105.1.3.1.1.2.1","einheit":"W"}`,
+				"pethMainPsePower: verfügbare PoE-Leistung (nur Anzeige)", 3600},
+			{"LANCOM: PoE-Versorgung", "snmp_oid", `{"oid":"1.3.6.1.2.1.105.1.3.1.1.3.1","gleich":"1"}`,
+				"pethMainPseOperStatus 1 = an (2 = aus, 3 = gestört); bei Modellen ohne PoE löschen", 300},
+			{"LANCOM: PoE-Ports im Fehler", "snmp_oid",
+				`{"oid":"1.3.6.1.2.1.105.1.1.1.6","zusammenfassung":"anzahl_gleich","vergleichswert":4,"warnung_ueber":0}`,
+				"pethPsePortDetectionStatus 4 = fault, gezählt über alle Ports", 300},
+			{"LANCOM: PoE-Ports mit Strom", "snmp_oid",
+				`{"oid":"1.3.6.1.2.1.105.1.1.1.6","zusammenfassung":"anzahl_gleich","vergleichswert":3}`,
+				"Ports, die gerade ein Gerät versorgen (nur Anzeige)", 300},
+		}),
 }
 
 func builtinSet(id string) (vorlagenSatz, bool) {

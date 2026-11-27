@@ -1,5 +1,16 @@
 # Release-Notizen OpenWacht
 
+## 1.0.8
+
+- **Zahl aus Text:** Ein SNMP-OID-Sensor liest eine Zahl aus einem Text des Geräts: die erste, die n-te oder die Zahl
+  nach einem Text („1500RPM“ → 1500; „100ms:52%, 1s:57%, 10s:50%“ nach „10s:“ → 50). Gespeichert wird nur die Zahl,
+  nie der Text. Über einen Sammler braucht das den Agent 1.0.8
+  ([Kapitel 7](handbuch/07-sensoren-und-vorlagen.md#zahl-aus-text-faktor-und-einheit)).
+- **Faktor und Einheit** für SNMP-OID-Sensoren, auch für Spalten: „810“ in Zehntel-Watt wird mit Faktor 0,1 und Einheit W
+  zu „81 W“; Schwellen gelten auf den umgerechneten Wert.
+- **Vorlagensatz „LANCOM 3000“** für Switche der Serie GS-3000 mit LCOS SX 4.x: Temperaturen, Lüfter, CPU und PoE über
+  SNMPv3, gemessen an einem GS-3628XUP.
+
 ## 1.0.7
 
 - **Dashboard frei anpassbar:** Jedes Widget hat eine freie Breite (2 bis 12 Spalten) und Höhe (1 bis 6 Reihen), zum

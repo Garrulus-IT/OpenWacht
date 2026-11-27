@@ -124,6 +124,14 @@ var Typen = []Typ{
 		Feld{Schluessel: "zusammenfassung", Beschriftung: "Tabellenspalte zusammenfassen", Art: FeldAuswahl,
 			Optionen: []string{"", "minimum", "maximum", "summe", "anzahl", "anzahl_gleich", "anzahl_ungleich"}, Hinweis: "leer = einzelner Wert"},
 		Feld{Schluessel: "vergleichswert", Beschriftung: "Vergleichswert (Zeilen gleich/ungleich)", Art: FeldGanzzahl},
+		// 1.0.8: Zahl aus einem Text des Geräts, Faktor und Einheit
+		Feld{Schluessel: "zahl_aus_text", Beschriftung: "Zahl aus Text", Art: FeldAuswahl, Optionen: []string{"", "erste", "nte", "nach"},
+			Hinweis: "leer = nein; erste Zahl, n-te Zahl oder Zahl nach einem Text (z. B. „1500RPM“ → 1500)"},
+		Feld{Schluessel: "zahl_nr", Beschriftung: "Die wievielte Zahl (bei „nte“)", Art: FeldGanzzahl, Hinweis: "1 bis 16"},
+		Feld{Schluessel: "zahl_nach", Beschriftung: "Text vor der Zahl (bei „nach“)", Art: FeldText, Hinweis: "z. B. 10s:"},
+		Feld{Schluessel: "faktor", Beschriftung: "Faktor", Art: FeldZahl, Hinweis: "leer = 1, z. B. 0,1"},
+		Feld{Schluessel: "einheit", Beschriftung: "Einheit", Art: FeldAuswahl,
+			Optionen: []string{"", "°C", "%", "W", "V", "A", "RPM", "MB", "GB", "s", "ms", "bit/s", "dBm"}},
 		fGrenzen, fGleich)},
 	{Schluessel: "dienst", Name: "Dienst läuft", AmAgent: true, Felder: felder(
 		Feld{Schluessel: "name", Beschriftung: "Dienstname", Art: FeldText, Hinweis: "Windows-Dienst oder systemd-Unit"})},

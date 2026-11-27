@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -56,6 +57,33 @@ func (s *Server) oidChecks(ctx context.Context, sources []string) (map[string][]
 
 // extraOIDs: die OIDs, die eine Abfrage zusätzlich lesen soll (ohne Doppel).
 func extraOIDs(list []oidCheck) []string { return oidList(list, false) }
+
+// extraText: Aufträge „Zahl aus Text“ der Sensoren (ohne Doppel, 1.0.8).
+func extraText(list []oidCheck) []snmp.TextZahl {
+	var out []snmp.TextZahl
+	for _, c := range list {
+		sp := c.spec
+		if sp.TextNumber == "" || sp.Aggregate != "" {
+			continue
+		}
+		t := textAuftrag(sp)
+		if !slices.Contains(out, t) && len(out) < snmp.MaxExtraText {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// textAuftrag: Auftrag zu einem Sensor mit „Zahl aus Text“.
+func textAuftrag(sp checks.Spec) snmp.TextZahl {
+	switch sp.TextNumber {
+	case "nte":
+		return snmp.TextZahl{OID: sp.OID, N: sp.TextIndex}
+	case "nach":
+		return snmp.TextZahl{OID: sp.OID, Nach: sp.TextAfter}
+	}
+	return snmp.TextZahl{OID: sp.OID, N: 1}
+}
 
 // extraColumns: die Tabellenspalten, die eine Abfrage zusammenfassen soll.
 func extraColumns(list []oidCheck) []string { return oidList(list, true) }
@@ -125,7 +153,18 @@ func evalColumn(sp checks.Spec, cur *snmp.Snapshot) (checks.Result, bool) {
 	if !ok {
 		return checks.Result{Status: checks.Unknown, Message: msg}, true
 	}
-	res := judgeThresholds(sp, x, numText(x))
+	// Faktor und Einheit (1.0.8) für Minimum, Maximum und Summe, nicht für Anzahlen
+	metric := numText(x)
+	if !strings.HasPrefix(sp.Aggregate, "anzahl") {
+		if sp.Factor != 0 {
+			x *= sp.Factor
+		}
+		metric = numText(x)
+		if sp.Unit != "" {
+			metric += " " + sp.Unit
+		}
+	}
+	res := judgeThresholds(sp, x, metric)
 	if c.Truncated {
 		res.Message += fmt.Sprintf(" (nur die ersten %d Zeilen)", snmp.MaxColumnRows)
 	}
@@ -163,11 +202,38 @@ func evalOID(sp checks.Spec, cur, prev *snmp.Snapshot, rebooted bool) (res check
 	}
 	var num *float64
 	switch {
+	case sp.TextNumber != "":
+		// Zahl aus Text (1.0.8): Die Abfrage hat sie schon herausgelesen.
+		if e.TextHash == "" {
+			if e.Number == nil {
+				return checks.Result{Status: checks.Unknown, Message: "Wert ist kein Text"}, true
+			}
+			num = e.Number // das Gerät liefert schon eine Zahl
+			break
+		}
+		want := textAuftrag(sp)
+		i := slices.IndexFunc(e.AusText, func(t snmp.TextWert) bool { return t.N == want.N && t.Nach == want.Nach })
+		if i < 0 {
+			// Auftrag gerade erst angelegt (nächste Abfrage) oder der Sammler ist zu alt
+			return checks.Result{Status: checks.Unknown, Message: "Zahl aus Text noch nicht gelesen (ein Sammler braucht dafür den Agent ab 1.0.8)"}, true
+		}
+		if e.AusText[i].Zahl == nil {
+			return checks.Result{Status: checks.Unknown, Message: "Im Text steht an dieser Stelle keine Zahl"}, true
+		}
+		num = e.AusText[i].Zahl
 	case e.Number != nil:
 		num = e.Number
 	case e.Counter != nil:
 		f := float64(*e.Counter)
 		num = &f
+	}
+	if num != nil && sp.Factor != 0 && !sp.Rate {
+		f := *num * sp.Factor
+		num = &f
+	}
+	unit := ""
+	if sp.Unit != "" {
+		unit = " " + sp.Unit
 	}
 	metric := ""
 	if sp.Rate {
@@ -197,10 +263,13 @@ func evalOID(sp checks.Spec, cur, prev *snmp.Snapshot, rebooted bool) (res check
 			return res, false
 		}
 		rate := diff / dt
+		if sp.Factor != 0 {
+			rate *= sp.Factor
+		}
 		num = &rate
-		metric = numText(rate) + "/s"
+		metric = numText(rate) + unit + "/s"
 	} else if num != nil {
-		metric = numText(*num)
+		metric = numText(*num) + unit
 	}
 	if utf := []rune(metric); len(utf) > 50 {
 		metric = string(utf[:50])
@@ -208,7 +277,7 @@ func evalOID(sp checks.Spec, cur, prev *snmp.Snapshot, rebooted bool) (res check
 	if sp.Equals != nil {
 		ok := false
 		switch {
-		case e.TextHash != "":
+		case e.TextHash != "" && sp.Factor == 0:
 			ok = e.TextHash == snmp.TextHash(*sp.Equals)
 		case num != nil:
 			if f, err := strconv.ParseFloat(strings.Replace(strings.TrimSpace(*sp.Equals), ",", ".", 1), 64); err == nil {

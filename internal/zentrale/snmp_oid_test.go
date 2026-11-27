@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/netip"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -383,4 +384,77 @@ func TestSNMPSpalteSammler(t *testing.T) {
 	}
 	expectStatus(t, "Geschwister ändert", as(t, "v_oa").do("PUT", "/api/v1/checks/"+cert, map[string]any{"name": "x", "typ": "snmp_oid",
 		"ziel": json.RawMessage(`{"oid":"` + days + `","zusammenfassung":"anzahl"}`), "intervall_sekunden": 300}), 404)
+}
+
+// TestEvalOIDZahlAusText (1.0.8): Zahl aus Text, Faktor und Einheit.
+func TestEvalOIDZahlAusText(t *testing.T) {
+	now := time.Now()
+	f := func(v float64) *float64 { return &v }
+	const o = "1.3.6.1.4.1.2356.14.1.1.1.24.0"
+	h := snmp.TextHash("100ms:52%, 1s:57%, 10s:50%")
+	cpu := snapAt(now, snmp.ExtraValue{OID: o, TextHash: h, AusText: []snmp.TextWert{{N: 6, Zahl: f(50)}, {Nach: "1s:", Zahl: f(57)}, {N: 1, Zahl: f(100)},
+		{N: 9}}})
+	for _, tc := range []struct {
+		name, spec string
+		cur        *snmp.Snapshot
+		status     string
+		in, metric string
+	}{
+		{"n-te", `{"oid":"` + o + `","zahl_aus_text":"nte","zahl_nr":6,"einheit":"%","warnung_ueber":80}`, cpu, checks.OK, "im Rahmen", "50 %"},
+		{"nach Text", `{"oid":"` + o + `","zahl_aus_text":"nach","zahl_nach":"1s:","warnung_ueber":55}`, cpu, checks.Warn, "über 55", "57"},
+		{"erste", `{"oid":"` + o + `","zahl_aus_text":"erste"}`, cpu, checks.OK, "vorhanden", "100"},
+		{"keine Zahl", `{"oid":"` + o + `","zahl_aus_text":"nte","zahl_nr":9}`, cpu, checks.Unknown, "keine Zahl", ""},
+		{"nicht gelesen", `{"oid":"` + o + `","zahl_aus_text":"nte","zahl_nr":3}`, cpu, checks.Unknown, "noch nicht gelesen", ""},
+		{"Gerät liefert Zahl", `{"oid":"` + o + `","zahl_aus_text":"erste","einheit":"°C"}`, snapAt(now, snmp.ExtraValue{OID: o, Number: f(42)}),
+			checks.OK, "vorhanden", "42 °C"},
+		{"Zahl als Text „72“", `{"oid":"` + o + `","zahl_aus_text":"erste","kritisch_ueber":70}`,
+			snapAt(now, snmp.ExtraValue{OID: o, Number: f(72), TextHash: snmp.TextHash("72"), AusText: []snmp.TextWert{{N: 1, Zahl: f(72)}}}),
+			checks.Crit, "über 70", "72"},
+		{"Faktor und Einheit", `{"oid":"` + o + `","faktor":0.1,"einheit":"W","warnung_ueber":600}`, snapAt(now, snmp.ExtraValue{OID: o, Number: f(810)}),
+			checks.OK, "im Rahmen", "81 W"},
+		{"Faktor, Schwelle auf umgerechnet", `{"oid":"` + o + `","faktor":0.1,"warnung_ueber":80}`, snapAt(now, snmp.ExtraValue{OID: o, Number: f(810)}),
+			checks.Warn, "über 80", "81"},
+	} {
+		sp, err := checks.Parse("snmp_oid", []byte(tc.spec))
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		res, record := evalOID(sp, tc.cur, nil, false)
+		if !record || res.Status != tc.status || !strings.Contains(res.Message, tc.in) || res.Metric != tc.metric {
+			t.Errorf("%s: record=%v %+v", tc.name, record, res)
+		}
+	}
+	// Aufträge aus den Sensoren: ohne Doppel, „erste“ ist die 1. Zahl
+	var list []oidCheck
+	for _, raw := range []string{
+		`{"oid":"` + o + `","zahl_aus_text":"erste"}`, `{"oid":"` + o + `","zahl_aus_text":"nte","zahl_nr":1}`,
+		`{"oid":"` + o + `","zahl_aus_text":"nach","zahl_nach":"10s:"}`, `{"oid":"` + o + `"}`,
+	} {
+		sp, err := checks.Parse("snmp_oid", []byte(raw))
+		if err != nil {
+			t.Fatal(err)
+		}
+		list = append(list, oidCheck{spec: sp})
+	}
+	got := extraText(list)
+	if len(got) != 2 || got[0] != (snmp.TextZahl{OID: o, N: 1}) || got[1] != (snmp.TextZahl{OID: o, Nach: "10s:"}) {
+		t.Errorf("Aufträge: %+v", got)
+	}
+	if oids := extraOIDs(list); len(oids) != 1 {
+		t.Errorf("OIDs: %v", oids)
+	}
+}
+
+// TestEinheitenUeberall: Web und Desktop-App bieten dieselben Einheiten an wie checks.Units.
+func TestEinheitenUeberall(t *testing.T) {
+	want := `"` + strings.Join(checks.Units, `", "`) + `"`
+	for _, datei := range []string{"../../web/src/Checks.tsx", "../desktop/felder.go"} {
+		b, err := os.ReadFile(datei)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(b), want) {
+			t.Errorf("%s: Einheiten weichen von checks.Units ab (%s)", datei, want)
+		}
+	}
 }

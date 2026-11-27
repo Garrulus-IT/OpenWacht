@@ -23,6 +23,22 @@ import { WartungHinweis, WartungMarke, WartungSteuerung } from "./Wartung";
 // (Standard der Zentrale seit 1.0.6; Warnungen gehen sofort raus).
 export const STANDARD_FEHLVERSUCHE = 3;
 
+// Einheiten für eigene SNMP-Werte (1.0.8), wie checks.Units in der Zentrale.
+export const EINHEITEN = ["°C", "%", "W", "V", "A", "RPM", "MB", "GB", "s", "ms", "bit/s", "dBm"];
+
+// Kurztext zu „Zahl aus Text“ für die Spalte „misst“.
+function zahlAusTextKurz(z: CheckZiel): string {
+  switch (z.zahl_aus_text) {
+    case "erste":
+      return " (erste Zahl im Text)";
+    case "nte":
+      return ` (${z.zahl_nr ?? 1}. Zahl im Text)`;
+    case "nach":
+      return ` (Zahl nach „${z.zahl_nach ?? ""}“)`;
+  }
+  return "";
+}
+
 // Anzeigezustand: Status des letzten Laufs, dazu „neu“ und „pausiert“.
 export type Anzeige = CheckStatus | "neu" | "pause";
 
@@ -121,7 +137,7 @@ export function zielText(c: { typ: CheckTyp; ziel: CheckZiel }) {
     case "ntp":
       return `${z.host}${z.port && z.port !== 123 ? `:${z.port}` : ""}`;
     case "snmp_oid":
-      return `${z.oid ?? ""}${z.rate ? " (Rate)" : ""}${z.zusammenfassung ? ` (Spalte: ${spaltenText[z.zusammenfassung] ?? z.zusammenfassung})` : ""}`;
+      return `${z.oid ?? ""}${z.rate ? " (Rate)" : ""}${z.zusammenfassung ? ` (Spalte: ${spaltenText[z.zusammenfassung] ?? z.zusammenfassung})` : ""}${zahlAusTextKurz(z)}`;
     case "dienst":
     case "prozess":
     case "docker":
@@ -226,6 +242,8 @@ export function schwellenText(c: { typ: CheckTyp; ziel: CheckZiel }): string {
     case "leistungsindikator":
       if (z.instanz === "*") teile.push(`alle Instanzen: ${z.zusammenfassung ?? "summe"}`);
       if (z.vergleichswert !== undefined) teile.push(`Wert ${z.vergleichswert}`);
+      if (z.faktor) teile.push(`mal ${zahl(z.faktor)}`);
+      if (z.einheit) teile.push(`in ${z.einheit}`);
       if (z.warnung_ueber !== undefined) teile.push(`Warnung über ${zahl(z.warnung_ueber)}`);
       if (z.kritisch_ueber !== undefined) teile.push(`Fehler über ${zahl(z.kritisch_ueber)}`);
       if (z.warnung_unter !== undefined) teile.push(`Warnung unter ${zahl(z.warnung_unter)}`);
@@ -508,6 +526,12 @@ export function CheckFormular(props: {
   // 0.47.0: SNMP-Tabellenspalte statt einzelnem Wert ("" = einzelner Wert)
   const [spalte, setSpalte] = useState<string>(typ === "snmp_oid" ? (z.zusammenfassung ?? "") : "");
   const [vergleichswert, setVergleichswert] = useState(t0(z.vergleichswert));
+  // 1.0.8: Zahl aus Text, Faktor und Einheit
+  const [ausText, setAusText] = useState<string>(z.zahl_aus_text ?? "");
+  const [zahlNr, setZahlNr] = useState(z.zahl_nr ?? 2);
+  const [zahlNach, setZahlNach] = useState(z.zahl_nach ?? "");
+  const [faktor, setFaktor] = useState(z.faktor ? String(z.faktor).replace(".", ",") : "");
+  const [einheit, setEinheit] = useState(z.einheit ?? "");
   const [objekt, setObjekt] = useState(z.objekt ?? "");
   const [indikator, setIndikator] = useState(z.indikator ?? "");
   const [instanz, setInstanz] = useState(z.instanz ?? "");
@@ -603,7 +627,12 @@ export function CheckFormular(props: {
           ...(vergleich === "zahl"
             ? { warnung_ueber: zahl(wUeber), kritisch_ueber: zahl(kUeber), warnung_unter: zahl(wUnter), kritisch_unter: zahl(kUnter) }
             : {}),
-          ...(vergleich === "gleich" && !rate && !spalte ? { gleich } : {}),
+          ...(vergleich === "gleich" && !rate && !spalte && !ausText ? { gleich } : {}),
+          ...(ausText && !spalte && !rate
+            ? { zahl_aus_text: ausText, ...(ausText === "nte" ? { zahl_nr: zahlNr } : {}), ...(ausText === "nach" ? { zahl_nach: zahlNach } : {}) }
+            : {}),
+          faktor: zahl(faktor),
+          ...(einheit ? { einheit } : {}),
         });
       case "dienst":
       case "docker":
@@ -917,18 +946,74 @@ export function CheckFormular(props: {
                 />
               </label>
             )}
-            {!spalte && (
+            {!spalte && !ausText && (
               <label className="haken">
                 <input type="checkbox" checked={rate} onChange={(e) => setRate(e.target.checked)} />
                 <span>Zähler: Rate je Sekunde</span>
               </label>
             )}
+            {!spalte && !rate && (
+              <label className="feld">
+                <span>Zahl aus Text</span>
+                <select
+                  value={ausText}
+                  onChange={(e) => {
+                    setAusText(e.target.value);
+                    if (e.target.value && vergleich === "gleich") setVergleich("zahl");
+                  }}
+                >
+                  <option value="">nein (der Wert ist eine Zahl oder ein Text zum Vergleichen)</option>
+                  <option value="erste">erste Zahl im Text, z. B. „1500RPM“ → 1500</option>
+                  <option value="nte">n-te Zahl im Text</option>
+                  <option value="nach">Zahl nach einem Text, z. B. nach „10s:“</option>
+                </select>
+              </label>
+            )}
+            {!spalte && !rate && ausText === "nte" && (
+              <label className="feld">
+                <span>Die wievielte Zahl</span>
+                <select value={zahlNr} onChange={(e) => setZahlNr(Number(e.target.value))}>
+                  {Array.from({ length: 16 }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>
+                      {n}.
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {!spalte && !rate && ausText === "nach" && (
+              <label className="feld">
+                <span>Text vor der Zahl (genau so, höchstens 40 Zeichen)</span>
+                <input required maxLength={40} value={zahlNach} placeholder="z. B. 10s:" onChange={(e) => setZahlNach(e.target.value)} />
+              </label>
+            )}
+            {!spalte && !rate && ausText && (
+              <p className="klein formular-voll">
+                Die Zentrale liest beim Abfragen nur die Zahl heraus und speichert sie; der Text des Geräts wird nicht gespeichert. Steht an
+                der Stelle keine Zahl, wird der Sensor „unbekannt“. Über einen Sammler braucht das den Agent ab 1.0.8.
+              </p>
+            )}
+            <label className="feld">
+              <span>Faktor (optional)</span>
+              <input inputMode="decimal" value={faktor} placeholder="z. B. 0,1" onChange={(e) => setFaktor(e.target.value)} />
+            </label>
+            <label className="feld">
+              <span>Einheit (optional)</span>
+              <select value={einheit} onChange={(e) => setEinheit(e.target.value)}>
+                <option value="">keine</option>
+                {EINHEITEN.map((x) => (
+                  <option key={x} value={x}>
+                    {x}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="feld">
               <span>Bewerten</span>
               <select value={vergleich} onChange={(e) => setVergleich(e.target.value as typeof vergleich)}>
                 <option value="vorhanden">Wert vorhanden</option>
                 <option value="zahl">Zahl mit Schwellen</option>
-                {!rate && !spalte && <option value="gleich">Wert gleich Text oder Zahl</option>}
+                {!rate && !spalte && !ausText && <option value="gleich">Wert gleich Text oder Zahl</option>}
               </select>
             </label>
             {spalte && (

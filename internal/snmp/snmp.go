@@ -64,6 +64,9 @@ type Config struct {
 	V3        *V3Auth // v3
 	// Extra: eigene OIDs für Sensoren (Etappe 18b), geprüft mit CheckExtraOIDs
 	Extra []string
+	// ExtraText (1.0.8): aus dem Text dieser eigenen OIDs je eine Zahl lesen,
+	// geprüft mit CheckExtraText
+	ExtraText []TextZahl
 	// Columns: eigene Tabellenspalten (0.47.0), geprüft mit CheckColumns
 	Columns []string
 }

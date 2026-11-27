@@ -182,3 +182,92 @@ func TestNTP(t *testing.T) {
 		t.Errorf("NTP-Zeit: %v", tt)
 	}
 }
+
+// TestNumberFromText (1.0.8): Zahl aus einem Text des Geräts, Beispiele vom
+// LANCOM GS-3628XUP.
+func TestNumberFromText(t *testing.T) {
+	cpu := "100ms:52%, 1s:57%, 10s:50%"
+	for _, c := range []struct {
+		text  string
+		n     int
+		after string
+		want  float64
+		ok    bool
+	}{
+		{"72", 1, "", 72, true},
+		{"1500RPM", 1, "", 1500, true},
+		{"994 M", 1, "", 994, true},
+		{cpu, 1, "", 100, true},
+		{cpu, 2, "", 52, true},
+		{cpu, 6, "", 50, true},
+		{cpu, 7, "", 0, false},
+		{cpu, 0, "10s:", 50, true},
+		{cpu, 0, "1s:", 57, true},
+		{cpu, 0, "5min:", 0, false},
+		{"Temp: 41,5 °C", 1, "", 41.5, true},
+		{"Temp: 41.5 °C", 1, "", 41.5, true},
+		{"-5 dBm", 1, "", -5, true},
+		{"rx -12.3", 1, "", -12.3, true},
+		{"port1-5", 2, "", 5, true},
+		{"a-5", 1, "", 5, true},
+		{"1.2.3", 2, "", 3, true},
+		{"1,", 1, "", 1, true},
+		{"v4.30.0503SU11", 1, "", 4.30, true},
+		{"none", 1, "", 0, false},
+		{"", 1, "", 0, false},
+		{"5", 0, "", 0, false},
+		{"Lüfter 2: 1500", 0, "Lüfter 2: ", 1500, true},
+		{strings.Repeat("9", 500), 1, "", 0, false},
+	} {
+		got, ok := NumberFromText(c.text, c.n, c.after)
+		if ok != c.ok || got != c.want {
+			t.Errorf("NumberFromText(%q, %d, %q) = %v, %v", c.text, c.n, c.after, got, ok)
+		}
+	}
+}
+
+func TestSNMPOIDZahlAusText(t *testing.T) {
+	gut := []string{
+		`{"oid":"1.3.6.1.4.1.2356.14.1.1.1.17.0","zahl_aus_text":"erste","einheit":"RPM","warnung_unter":500}`,
+		`{"oid":"1.3.6.1.4.1.2356.14.1.1.1.24.0","zahl_aus_text":"nte","zahl_nr":6,"einheit":"%","warnung_ueber":80}`,
+		`{"oid":"1.3.6.1.4.1.2356.14.1.1.1.24.0","zahl_aus_text":"nach","zahl_nach":"10s:","einheit":"%"}`,
+		`{"oid":"1.3.6.1.4.1.2356.14.1.1.1.204.0","faktor":0.1,"einheit":"W"}`,
+		`{"oid":"1.3.6.1.2.1.2.2.1.14","zusammenfassung":"summe","faktor":2}`,
+	}
+	for _, g := range gut {
+		if _, err := Parse("snmp_oid", []byte(g)); err != nil {
+			t.Errorf("%s: %v", g, err)
+		}
+	}
+	schlecht := []string{
+		`{"oid":"1.3.6.1.2.1.1.1.0","zahl_aus_text":"regex"}`,
+		`{"oid":"1.3.6.1.2.1.1.1.0","zahl_aus_text":"erste","zahl_nr":2}`,
+		`{"oid":"1.3.6.1.2.1.1.1.0","zahl_aus_text":"nte"}`,
+		`{"oid":"1.3.6.1.2.1.1.1.0","zahl_aus_text":"nte","zahl_nr":17}`,
+		`{"oid":"1.3.6.1.2.1.1.1.0","zahl_aus_text":"nach"}`,
+		`{"oid":"1.3.6.1.2.1.1.1.0","zahl_aus_text":"nach","zahl_nach":"` + strings.Repeat("x", 41) + `"}`,
+		`{"oid":"1.3.6.1.2.1.1.1.0","zahl_aus_text":"nach","zahl_nach":"a\u0007"}`,
+		`{"oid":"1.3.6.1.2.1.1.1.0","zahl_nr":2}`,
+		`{"oid":"1.3.6.1.2.1.1.1.0","zahl_nach":"x"}`,
+		`{"oid":"1.3.6.1.2.1.1.1.0","zahl_aus_text":"erste","gleich":"5"}`,
+		`{"oid":"1.3.6.1.2.1.1.1.0","zahl_aus_text":"erste","rate":true}`,
+		`{"oid":"1.3.6.1.2.1.2.2.1.14","zusammenfassung":"summe","zahl_aus_text":"erste"}`,
+		`{"oid":"1.3.6.1.2.1.1.1.0","einheit":"Furlong"}`,
+		`{"oid":"1.3.6.1.2.1.1.1.0","faktor":1e12}`,
+		`{"oid":"1.3.6.1.2.1.1.1.0","faktor":1e-12}`,
+		`{"host":"a.example","zahl_aus_text":"erste"}`,
+	}
+	for _, s := range schlecht {
+		if _, err := Parse("snmp_oid", []byte(s)); err == nil {
+			t.Errorf("angenommen: %s", s)
+		}
+	}
+	if _, err := Parse("ping", []byte(`{"host":"a.example","faktor":2}`)); err == nil {
+		t.Error("Faktor am Ping angenommen")
+	}
+	// Faktor 1 ist kein Faktor.
+	sp, err := Parse("snmp_oid", []byte(`{"oid":"1.3.6.1.2.1.1.1.0","faktor":1}`))
+	if err != nil || sp.Factor != 0 {
+		t.Errorf("Faktor 1: %v %v", sp.Factor, err)
+	}
+}

@@ -15,7 +15,9 @@ import (
 	"path"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -167,7 +169,123 @@ func (s *Spec) normalizeOID() error {
 	if s.Compare != nil && (*s.Compare < math.MinInt32 || *s.Compare > math.MaxInt32) {
 		return errors.New("Vergleichswert: ganze Zahl im 32-Bit-Bereich")
 	}
+	if err := s.normalizeTextNumber(); err != nil {
+		return err
+	}
+	if f := math.Abs(s.Factor); s.Factor != 0 && (math.IsNaN(f) || f < 1e-9 || f > 1e9) {
+		return errors.New("Faktor: nicht 0, Betrag zwischen 0,000000001 und 1000000000")
+	}
+	if s.Factor == 1 {
+		s.Factor = 0
+	}
+	s.Unit = strings.TrimSpace(s.Unit)
+	if s.Unit != "" && !slices.Contains(Units, s.Unit) {
+		return errors.New("Einheit: " + strings.Join(Units, ", "))
+	}
 	return s.normalizeValue()
+}
+
+// Units: Einheiten für eigene SNMP-Werte (feste Liste, nur Anzeige).
+var Units = []string{"°C", "%", "W", "V", "A", "RPM", "MB", "GB", "s", "ms", "bit/s", "dBm"}
+
+// TextNumberModes: Arten, eine Zahl aus einem Text zu lesen.
+var TextNumberModes = []string{"erste", "nte", "nach"}
+
+const (
+	// MaxTextIndex: höchstens die so vielte Zahl im Text.
+	MaxTextIndex = 16
+	// MaxTextAfter: Länge des Texts, hinter dem die Zahl steht.
+	MaxTextAfter = 40
+)
+
+func (s *Spec) normalizeTextNumber() error {
+	s.TextNumber = strings.ToLower(strings.TrimSpace(s.TextNumber))
+	switch s.TextNumber {
+	case "":
+		if s.TextIndex != 0 || s.TextAfter != "" {
+			return errors.New("Zahl aus Text: Nummer und „nach Text“ nur zusammen mit der Art")
+		}
+		return nil
+	case "erste":
+		if s.TextIndex != 0 || s.TextAfter != "" {
+			return errors.New("Zahl aus Text „erste“: ohne Nummer und ohne „nach Text“")
+		}
+	case "nte":
+		if s.TextIndex < 1 || s.TextIndex > MaxTextIndex || s.TextAfter != "" {
+			return fmt.Errorf("Zahl aus Text „nte“: Nummer 1 bis %d", MaxTextIndex)
+		}
+	case "nach":
+		// Der Text vergleicht genau, auch mit Leerzeichen am Rand („10s: “).
+		if s.TextIndex != 0 || s.TextAfter == "" || utf8.RuneCountInString(s.TextAfter) > MaxTextAfter || !utf8.ValidString(s.TextAfter) ||
+			strings.ContainsFunc(s.TextAfter, unicode.IsControl) {
+			return fmt.Errorf("Zahl aus Text „nach“: Text mit 1 bis %d Zeichen", MaxTextAfter)
+		}
+	default:
+		return errors.New("Zahl aus Text: " + strings.Join(TextNumberModes, ", "))
+	}
+	if s.Aggregate != "" || s.Rate || s.Equals != nil {
+		return errors.New("Zahl aus Text: nur mit Schwellen, nicht mit Spalte, Rate oder erwartetem Text")
+	}
+	return nil
+}
+
+// NumberFromText liest eine Zahl aus einem Text: die n-te (ab 1), oder, wenn
+// after gesetzt ist, die erste hinter dem ersten Vorkommen von after. Zahlen
+// sind Ziffernfolgen mit höchstens einem Punkt oder Komma als Dezimaltrenner;
+// ein Minus direkt davor zählt als Vorzeichen, wenn davor kein Buchstabe und
+// keine Ziffer steht („-5“, aber nicht „a-5“ oder „1-5“).
+func NumberFromText(text string, n int, after string) (float64, bool) {
+	if after != "" {
+		i := strings.Index(text, after)
+		if i < 0 {
+			return 0, false
+		}
+		text, n = text[i+len(after):], 1
+	}
+	if n < 1 {
+		return 0, false
+	}
+	b := []byte(text)
+	digit := func(i int) bool { return i >= 0 && i < len(b) && b[i] >= '0' && b[i] <= '9' }
+	for i := 0; i < len(b); i++ {
+		if !digit(i) {
+			continue
+		}
+		start := i
+		for digit(i) {
+			i++
+		}
+		if i < len(b) && (b[i] == '.' || b[i] == ',') && digit(i+1) {
+			i++
+			for digit(i) {
+				i++
+			}
+		}
+		n--
+		if n > 0 {
+			i--
+			continue
+		}
+		num := strings.Replace(string(b[start:i]), ",", ".", 1)
+		if len(num) > 40 {
+			return 0, false
+		}
+		if start > 0 && b[start-1] == '-' {
+			vor := rune(' ')
+			if start > 1 {
+				vor, _ = utf8.DecodeLastRune(b[:start-1])
+			}
+			if !unicode.IsLetter(vor) && !unicode.IsDigit(vor) {
+				num = "-" + num
+			}
+		}
+		f, err := strconv.ParseFloat(num, 64)
+		if err != nil || math.IsInf(f, 0) || math.IsNaN(f) {
+			return 0, false
+		}
+		return f, true
+	}
+	return 0, false
 }
 
 func (s *Spec) normalizeNTP() error {
