@@ -25,6 +25,18 @@ sobald der Port keinen Strom mehr liefert, etwa für Access Points oder Kameras.
 Schnittstelle mit dem Index n zu; das stimmt bei üblichen Switchen mit einer PoE-Gruppe. Bei mehreren Gruppen (Stack)
 bleibt PoE im Bild weg. Fragt ein Agent als Sammler das Gerät ab, braucht er dafür die Version 1.0.10.
 
+**Nachbar je Port (ab 1.0.11):** Meldet das Gerät seine Nachbarn per LLDP, stehen in den Einzelheiten eines Ports unter
+„Nachbar (LLDP)“ der Name des Nachbarn und dessen Port, etwa „sw-keller, Port GigabitEthernet 1/24“; derselbe Text
+steht im Hinweis, wenn die Maus auf dem Port ruht. Gelesen werden aus der LLDP-Tabelle nur diese beiden Angaben,
+je höchstens 64 Zeichen, und nur der aktuelle Stand ohne Verlauf. Ist die Portkennung des Nachbarn eine
+MAC-Adresse, steht sie als solche da. Auch Telefone und PCs können sich per LLDP melden: Ihr Gerätename erscheint
+dann ebenfalls. Fragt ein Agent als Sammler das Gerät ab, braucht er dafür die Version 1.0.11.
+
+**Geschwindigkeit und „seit wann“ (ab 1.0.11):** Ein Port, der verbunden ist, aber weniger als 1 Gbit/s ausgehandelt
+hat, trägt im Bild ein Dreieck statt des Kreises. Das ist ein Hinweis, kein Alarm: Drucker und Telefone können oft
+nur 100 Mbit/s; bei einem PC oder Access Point deutet es auf ein schlechtes Kabel. Die Einzelheiten nennen außerdem,
+seit wann der Port in seinem Zustand ist, wenn das Gerät den Zeitpunkt des letzten Wechsels meldet.
+
 **Neustart:** Die Laufzeit kommt aus `hrSystemUptime` (Laufzeit des Rechners); nur wenn ein Gerät sie nicht liefert,
 aus `sysUpTime`. Diese zählt nur den SNMP-Dienst und springt auch zurück, wenn nur er neu startet. Gemeldet wird ein
 Neustart (15 Minuten Warnung) nur, wenn das Gerät **davor mindestens 27 Stunden** lief. Geplante nächtliche Neustarts,

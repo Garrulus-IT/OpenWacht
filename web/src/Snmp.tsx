@@ -23,7 +23,7 @@ import { SnmpVerlauf } from "./Verlauf";
 import { prognoseSchluessel, PrognoseZeile, type PlattenPrognose } from "./Prognose";
 import { SparkReihen, type SparkDaten } from "./Sparkline";
 import { ReihenVerlauf } from "./Verlauf";
-import { PortBild, poeNachIndex, poeText, portNummer } from "./PortBild";
+import { PortBild, langsam, nachbarText, poeNachIndex, poeText, portNummer } from "./PortBild";
 import { bitrate, laufzeit, Pegel, prozent } from "./Pegel";
 import { bytes, vor } from "./zeit";
 import { TrapTeil } from "./Traps";
@@ -387,6 +387,7 @@ export function SnmpTeil(props: {
         <PortBild
           ifs={m.schnittstellen}
           poe={m.poe}
+          lldp={m.lldp}
           ueberwacht={aktuell}
           gewaehlt={portWahl}
           name={m.system.name || props.g.name}
@@ -403,6 +404,7 @@ export function SnmpTeil(props: {
           if (!i) return null;
           const nr = portNummer(m.schnittstellen, i.index);
           const p = poeNachIndex(m.poe).get(i.index);
+          const nachbarn = (m.lldp ?? []).filter((n) => n.index === i.index);
           const poeSensor = async () => {
             if (!p) return;
             setPoeArbeitet(true);
@@ -432,14 +434,36 @@ export function SnmpTeil(props: {
                 <dd className={i.status !== "up" && aktuell.includes(i.name) ? "text-crit" : undefined}>
                   {i.admin_an ? ifStatusText[i.status] : "abgeschaltet"}
                 </dd>
+                {i.seit_s !== undefined && (
+                  <>
+                    <dt>Seit</dt>
+                    <dd>
+                      {i.status === "up" ? "verbunden" : "in diesem Zustand"} seit {laufzeit(i.seit_s)}
+                    </dd>
+                  </>
+                )}
                 <dt>Geschwindigkeit</dt>
-                <dd>{geschwindigkeit(i.geschwindigkeit_bps)}</dd>
+                <dd>
+                  {geschwindigkeit(i.geschwindigkeit_bps)}
+                  {langsam(i) ? " (unter 1 Gbit/s: Kabel oder Gegenstelle prüfen, falls das Gerät mehr kann)" : ""}
+                </dd>
                 <dt>Verkehr</dt>
                 <dd>
                   ein {i.ein_bps !== null ? bitrate(i.ein_bps) : "–"}, aus {i.aus_bps !== null ? bitrate(i.aus_bps) : "–"}
                 </dd>
                 <dt>Neue Fehler</dt>
                 <dd>{i.fehler_neu ?? "–"}</dd>
+                <dt>Nachbar (LLDP)</dt>
+                <dd>
+                  {nachbarn.length === 0
+                    ? "keiner gemeldet"
+                    : nachbarn.map((n, k) => (
+                        <span key={k}>
+                          {k > 0 ? "; " : ""}
+                          {nachbarText(n)}
+                        </span>
+                      ))}
+                </dd>
                 {p && (
                   <>
                     <dt>PoE</dt>

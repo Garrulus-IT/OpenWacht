@@ -143,6 +143,9 @@ func (s *Snapshot) ValidateCollected(now time.Time) error {
 			return fmt.Errorf("poe[%d]: unplausibel", i)
 		}
 	}
+	if err := validateLLDP(s.LLDP); err != nil {
+		return err
+	}
 	for i, it := range s.Interfaces {
 		f := fmt.Sprintf("schnittstellen[%d]", i)
 		if it.Index < 0 || i > 0 && it.Index < s.Interfaces[i-1].Index {
@@ -159,6 +162,9 @@ func (s *Snapshot) ValidateCollected(now time.Time) error {
 		}
 		if !it.HC && (it.InOctets > math.MaxUint32 || it.OutOctets > math.MaxUint32) {
 			return errors.New(f + ": 32-Bit-Zähler zu groß")
+		}
+		if it.SinceS != nil && *it.SinceS > math.MaxUint32/100 {
+			return errors.New(f + ".seit_s: unplausibel")
 		}
 	}
 	if y := s.Synology; y != nil {

@@ -89,6 +89,12 @@ als „100ms:52%, 1s:57%, 10s:50%“. Ab 1.0.8 liest ein SNMP-OID-Sensor daraus 
   „unbekannt“ („Zahl aus Text noch nicht gelesen“).
 - Geht nicht zusammen mit einer Tabellenspalte, einer Rate oder „Wert gleich Text“.
 
+**Laufzeiten (ab 1.0.11):** Misst ein SNMP-OID-Sensor eine Dauer, zeigt er sie als Stunden, Minuten und Sekunden
+(„26 Std. 14 Min. 5 Sek.“), und die Meldung nennt die Schwelle genauso. Als Dauer gelten die Laufzeit des Systems
+(`1.3.6.1.2.1.25.1.1.0` und `1.3.6.1.2.1.1.3.0`, vom Gerät in Hundertstelsekunden gemeldet) ohne Faktor und Einheit
+und jeder Sensor mit der Einheit „s“. Die Schwellen trägt man weiter in der Zahl des Sensors ein: bei der Laufzeit
+des Systems in Hundertstelsekunden (26 Stunden = 9 360 000), mit Faktor 0,01 und Einheit „s“ in Sekunden (93 600).
+
 **Text des Geräts anzeigen (ab 1.0.10):** Manche Werte sind Text und sollen als Text sichtbar sein, etwa die
 Firmware-Version. Mit dem Haken „Text des Geräts anzeigen“ am Sensor speichert die Zentrale den zuletzt gelesenen Text
 dieser einen OID (höchstens 50 Zeichen, ohne Steuerzeichen) und zeigt ihn als Messwert.
@@ -149,7 +155,7 @@ Satz als Herkunft.
 | **Citrix Cloud Connector** | Dienste Agent System, WatchDog, Agent Discovery, AD Provider, Credential Provider, WebRelay, Message Broker, Remote Broker Provider (`XaXdCloudProxy`), STA, Config Synchronizer, High Availability (Local Host Cache), Remote HCL, Cloud Gateway, Monitor; VDA-Anmeldung auf Port 80 | `-arten dienst` |
 | **Citrix Provisioning** | Dienste Stream Service, SOAP Server, API, TFTP, PXE, Two-Stage Boot; SOAP-Port 54321 | `-arten dienst` |
 | **NetScaler** | über SNMP: CPU (80 %/95 %), Speicher (80 %/90 %), HA-Zustand, virtuelle Server down (ab 1 kritisch), Dienste down (Warnung ab 1), **kürzeste Restlaufzeit aller Zertifikate** (Warnung 30, kritisch 14 Tage), Zahl der Zertifikate; Zertifikat der Verwaltung | keine; SNMPv3 am Gerät ([Kapitel 6](06-snmp.md)) |
-| **LANCOM 3000** (ab 1.0.8) | über SNMP, für Switche der Serie GS-3000 mit LCOS SX 4.x: Temperatur 1 (80/90 °C), Temperatur 2 und 3 (60/70 °C), Lüfter (kritisch unter 300 RPM), CPU über 10 s (85 %/95 %), PoE-Leistung in W, PoE-Budget, PoE-Versorgung an, PoE-Ports im Fehler (Warnung ab 1), PoE-Ports mit Strom, ab 1.0.10 LLDP-Nachbarn (Warnung, wenn keiner mehr da ist; Schwelle auf die übliche Zahl setzen) und die Firmware-Version als Text. Die Schwellen der Temperaturen sind eine Vorbelegung: erst die eigenen Werte ansehen, dann anpassen | keine; SNMPv3 am Gerät ([Kapitel 6](06-snmp.md)) |
+| **LANCOM 3000** (ab 1.0.8) | über SNMP, für Switche der Serie GS-3000 mit LCOS SX 4.x: Temperatur 1 (80/90 °C), Temperatur 2 und 3 (60/70 °C), Lüfter (kritisch unter 300 RPM), CPU über 10 s (85 %/95 %), PoE-Leistung in W, PoE-Budget, PoE-Versorgung an, PoE-Ports im Fehler (Warnung ab 1), PoE-Ports mit Strom, ab 1.0.10 LLDP-Nachbarn (Warnung, wenn keiner mehr da ist; Schwelle auf die übliche Zahl setzen) und die Firmware-Version als Text, ab 1.0.11 „STP letzter Wechsel“ (Warnung in den ersten 10 Minuten nach einem Wechsel im Spanning Tree). Die Schwellen der Temperaturen sind eine Vorbelegung: erst die eigenen Werte ansehen, dann anpassen | keine; SNMPv3 am Gerät ([Kapitel 6](06-snmp.md)) |
 
 ![Swyx-Sensoren an einem Gerät](bilder/host-sensoren-swyx.webp)
 

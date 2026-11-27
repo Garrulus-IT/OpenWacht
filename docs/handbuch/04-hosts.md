@@ -77,6 +77,22 @@ Abhängigkeit in beide Richtungen stehen nur als Zahl darunter. Die Seite zeigt 
 
 ![Topologie](bilder/topologie.webp)
 
+**Netzbild (ab 1.0.11):** Über den Bäumen zeigt die Seite, welche Geräte miteinander verbunden sind. Das Bild entsteht
+von selbst aus den Nachbarn, die Geräte mit SNMP-Abfrage per LLDP melden; einzurichten ist nichts, LLDP muss nur an
+den Switches eingeschaltet sein.
+
+- Jedes Gerät steht als Karte mit seinem Zustand; ein Klick öffnet es unter Hosts. Das Gerät mit den meisten
+  Verbindungen steht oben, die anderen in Ebenen darunter.
+- Jede Linie ist eine gemeldete Verbindung, an beiden Enden steht der Port. Eine dicke Linie steht für mehrere
+  Verbindungen zwischen denselben Geräten (zum Beispiel ein Bündel).
+- Ein Nachbar wird einem Gerät zugeordnet, wenn sein LLDP-Name zum Namen des Geräts in OpenWacht passt oder zu dem
+  Namen, den das Gerät per SNMP von sich meldet. Groß- und Kleinschreibung und die Domäne zählen nicht
+  („SW-Keller.intern.example“ passt zu „sw-keller“); bei mehreren Treffern wird nichts zugeordnet.
+- Nachbarn ohne Gerät in OpenWacht (Access Points, Telefone, fremde Switches) stehen unter dem Bild je Gerät als graue
+  Marken mit dem Port, ohne Klick. Die Karte des Geräts nennt ihre Zahl.
+- Das Netzbild ersetzt die Abhängigkeiten nicht: Welche Alarme ruhen, wenn ein Gerät ausfällt, bestimmt weiter
+  „hängt ab von“.
+
 ## Zertifikate
 
 **Zertifikate** in der Seitenleiste listet alle Sensoren „TLS-Zertifikat“ im gewählten Bereich: Adresse, Gerät,

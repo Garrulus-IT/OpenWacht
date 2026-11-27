@@ -198,6 +198,46 @@ func numText(v float64) string {
 	return strings.Replace(strconv.FormatFloat(math.Round(v*1000)/1000, 'f', -1, 64), ".", ",", 1)
 }
 
+// OIDs, die eine Laufzeit in Hundertstelsekunden melden (TimeTicks).
+const (
+	oidHrSystemUptime = "1.3.6.1.2.1.25.1.1.0"
+	oidSysUpTime      = "1.3.6.1.2.1.1.3.0"
+)
+
+// durationScale (1.0.11): Faktor, mit dem der Wert eines Sensors zu Sekunden
+// wird, wenn er eine Dauer misst; 0 = keine Dauer. Eine Dauer ist ein Wert mit
+// der Einheit „s“ und, ohne Faktor und Einheit, die Laufzeit des Systems
+// (hrSystemUptime, sysUpTime). Die Schwellen bleiben in der Zahl des Sensors;
+// nur Anzeige und Meldung nennen Stunden, Minuten und Sekunden.
+func durationScale(sp checks.Spec) float64 {
+	switch {
+	case sp.Rate || sp.Aggregate != "" || sp.TextShow:
+		return 0
+	case sp.Unit == "s":
+		return 1
+	case sp.Unit == "" && sp.Factor == 0 && (sp.OID == oidHrSystemUptime || sp.OID == oidSysUpTime):
+		return 0.01
+	}
+	return 0
+}
+
+// dauerText: Sekunden als „26 Std. 14 Min. 5 Sek.“; unter einer Minute mit
+// Bruchteilen („0,5 Sek.“).
+func dauerText(sec float64) string {
+	if math.IsNaN(sec) || math.IsInf(sec, 0) || sec < 0 || sec > 1e15 {
+		return numText(sec) + " Sek."
+	}
+	if sec < 60 {
+		return numText(sec) + " Sek."
+	}
+	total := int64(math.Round(sec))
+	h, m, s := total/3600, (total%3600)/60, total%60
+	if h == 0 {
+		return fmt.Sprintf("%d Min. %d Sek.", m, s)
+	}
+	return fmt.Sprintf("%d Std. %d Min. %d Sek.", h, m, s)
+}
+
 // evalOID bewertet einen OID-Sensor. record=false: noch keine Aussage
 // möglich (OID nicht gelesen, Rate ohne vorigen Wert, Neustart des Geräts).
 func evalOID(sp checks.Spec, cur, prev *snmp.Snapshot, rebooted bool) (res checks.Result, record bool) {
@@ -281,6 +321,9 @@ func evalOID(sp checks.Spec, cur, prev *snmp.Snapshot, rebooted bool) (res check
 		metric = numText(rate) + unit + "/s"
 	} else if num != nil {
 		metric = numText(*num) + unit
+		if sc := durationScale(sp); sc != 0 {
+			metric = dauerText(*num * sc)
+		}
 	}
 	if utf := []rune(metric); len(utf) > 50 {
 		metric = string(utf[:50])
@@ -316,23 +359,37 @@ func evalOID(sp checks.Spec, cur, prev *snmp.Snapshot, rebooted bool) (res check
 	if num == nil {
 		return checks.Result{Status: checks.Unknown, Message: "Wert ist keine Zahl"}, true
 	}
+	if sc := durationScale(sp); sc != 0 {
+		// „Laufzeit“ nur für die Laufzeit des Systems, sonst allgemein „Dauer“
+		label := "Dauer"
+		if sp.OID == oidHrSystemUptime || sp.OID == oidSysUpTime {
+			label = "Laufzeit"
+		}
+		return judgeWith(sp, *num, metric, label, func(v float64) string { return dauerText(v * sc) }), true
+	}
 	return judgeThresholds(sp, *num, metric), true
 }
 
 // judgeThresholds: Schwellen „über“ und „unter“; ohne Schwellen nur Anzeige.
 func judgeThresholds(sp checks.Spec, x float64, metric string) checks.Result {
+	return judgeWith(sp, x, metric, "Wert", numText)
+}
+
+// judgeWith: wie judgeThresholds, mit eigenem Wort für den Wert und eigener
+// Schreibweise der Schwellen (z. B. eine Dauer).
+func judgeWith(sp checks.Spec, x float64, metric, label string, text func(float64) string) checks.Result {
 	if sp.WarnAbove == nil && sp.CritAbove == nil && sp.WarnBelow == nil && sp.CritBelow == nil {
 		return checks.Result{Status: checks.OK, Message: "Wert vorhanden", Metric: metric}
 	}
 	switch {
 	case sp.CritAbove != nil && x > *sp.CritAbove:
-		return checks.Result{Status: checks.Crit, Message: "Wert über " + numText(*sp.CritAbove) + " (kritisch)", Metric: metric}
+		return checks.Result{Status: checks.Crit, Message: label + " über " + text(*sp.CritAbove) + " (kritisch)", Metric: metric}
 	case sp.CritBelow != nil && x < *sp.CritBelow:
-		return checks.Result{Status: checks.Crit, Message: "Wert unter " + numText(*sp.CritBelow) + " (kritisch)", Metric: metric}
+		return checks.Result{Status: checks.Crit, Message: label + " unter " + text(*sp.CritBelow) + " (kritisch)", Metric: metric}
 	case sp.WarnAbove != nil && x > *sp.WarnAbove:
-		return checks.Result{Status: checks.Warn, Message: "Wert über " + numText(*sp.WarnAbove) + " (Warnung)", Metric: metric}
+		return checks.Result{Status: checks.Warn, Message: label + " über " + text(*sp.WarnAbove) + " (Warnung)", Metric: metric}
 	case sp.WarnBelow != nil && x < *sp.WarnBelow:
-		return checks.Result{Status: checks.Warn, Message: "Wert unter " + numText(*sp.WarnBelow) + " (Warnung)", Metric: metric}
+		return checks.Result{Status: checks.Warn, Message: label + " unter " + text(*sp.WarnBelow) + " (Warnung)", Metric: metric}
 	}
 	return checks.Result{Status: checks.OK, Message: "Wert im Rahmen", Metric: metric}
 }

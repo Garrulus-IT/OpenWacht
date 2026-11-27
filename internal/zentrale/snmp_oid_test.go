@@ -514,3 +514,42 @@ func TestEvalOIDTextAnzeigen(t *testing.T) {
 		t.Errorf("extraShow: %v", got)
 	}
 }
+
+// TestEvalOIDDauer (1.0.11): Laufzeiten stehen als Stunden, Minuten und
+// Sekunden da, die Schwelle in der Meldung ebenso; andere Werte bleiben Zahlen.
+func TestEvalOIDDauer(t *testing.T) {
+	now := time.Now()
+	f := func(v float64) *float64 { return &v }
+	const up = "1.3.6.1.2.1.25.1.1.0"
+	const o = "1.3.6.1.4.1.99.1.0"
+	ticks := func(v float64) *snmp.Snapshot { return snapAt(now, snmp.ExtraValue{OID: up, Number: f(v)}) }
+	for _, tc := range []struct {
+		name, spec string
+		cur        *snmp.Snapshot
+		status     string
+		in, metric string
+	}{
+		{"Laufzeit im Rahmen", `{"oid":"` + up + `","kritisch_ueber":9360000}`, ticks(4520500), checks.OK, "im Rahmen", "12 Std. 33 Min. 25 Sek."},
+		{"Neustart verpasst", `{"oid":"` + up + `","kritisch_ueber":9360000}`, ticks(9444500), checks.Crit, "Laufzeit über 26 Std. 0 Min. 0 Sek. (kritisch)",
+			"26 Std. 14 Min. 5 Sek."},
+		{"unter einer Stunde", `{"oid":"` + up + `"}`, ticks(75000), checks.OK, "vorhanden", "12 Min. 30 Sek."},
+		{"sysUpTime", `{"oid":"1.3.6.1.2.1.1.3.0"}`, snapAt(now, snmp.ExtraValue{OID: "1.3.6.1.2.1.1.3.0", Number: f(360000)}), checks.OK, "vorhanden",
+			"1 Std. 0 Min. 0 Sek."},
+		{"Einheit s", `{"oid":"` + o + `","einheit":"s","warnung_ueber":3600}`, snapAt(now, snmp.ExtraValue{OID: o, Number: f(7265)}), checks.Warn,
+			"Dauer über 1 Std. 0 Min. 0 Sek. (Warnung)", "2 Std. 1 Min. 5 Sek."},
+		{"Faktor und Einheit s", `{"oid":"` + up + `","faktor":0.01,"einheit":"s"}`, ticks(4520500), checks.OK, "vorhanden", "12 Std. 33 Min. 25 Sek."},
+		{"Sekundenbruchteil", `{"oid":"` + o + `","einheit":"s"}`, snapAt(now, snmp.ExtraValue{OID: o, Number: f(0.5)}), checks.OK, "vorhanden", "0,5 Sek."},
+		{"andere OID bleibt Zahl", `{"oid":"` + o + `","warnung_ueber":5}`, snapAt(now, snmp.ExtraValue{OID: o, Number: f(9444500)}), checks.Warn, "Wert über 5",
+			"9444500"},
+		{"Laufzeit mit eigener Einheit bleibt Zahl", `{"oid":"` + up + `","einheit":"ms"}`, ticks(100), checks.OK, "vorhanden", "100 ms"},
+	} {
+		sp, err := checks.Parse("snmp_oid", []byte(tc.spec))
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		res, record := evalOID(sp, tc.cur, nil, false)
+		if !record || res.Status != tc.status || !strings.Contains(res.Message, tc.in) || res.Metric != tc.metric {
+			t.Errorf("%s: record=%v %+v", tc.name, record, res)
+		}
+	}
+}

@@ -11,9 +11,10 @@
 // Zentrale liefert nur, was der Benutzer sehen darf.
 
 import { useMemo } from "react";
-import type { Geraet, Mandant, Sensor } from "./api";
+import type { Geraet, Mandant, Sensor, Snmp } from "./api";
 import { anzeigeText, rang, type Anzeige } from "./Checks";
 import type { Bereich } from "./bereich";
+import { Netzbild } from "./Netzbild";
 import { useQuelle } from "./quelle";
 import { Q } from "./Widgets";
 
@@ -126,6 +127,8 @@ function Kind({ k, onOeffnen }: { k: Knoten; onOeffnen: (id: string) => void }) 
 export function Topologie({ bereich, onOeffnen }: { bereich: Bereich; onOeffnen: (id: string) => void }) {
   const qg = useQuelle<{ geraete: Geraet[] }>(Q.geraete, 30_000);
   const qs = useQuelle<{ sensoren: Sensor[] }>(Q.sensoren, 30_000);
+  // Netzbild (1.0.11): LLDP-Nachbarn aus den SNMP-Abfragen; fehlen sie, bleibt es bei den Bäumen.
+  const qn = useQuelle<{ snmp: Snmp[] }>(Q.snmp, 60_000);
   const jeMandant = useMemo(() => {
     if (!qg.daten || !qs.daten) return null;
     const geraete = qg.daten.geraete.filter((g) => bereich.ids.has(g.mandant_id));
@@ -153,11 +156,30 @@ export function Topologie({ bereich, onOeffnen }: { bereich: Bereich; onOeffnen:
     );
   }
   const mitBaum = jeMandant.filter((x) => x.wurzeln.length > 0);
+  const imBereich = (qg.daten?.geraete ?? []).filter((g) => bereich.ids.has(g.mandant_id));
+  const quellen = (qn.daten?.snmp ?? []).filter((q) => bereich.ids.has(q.mandant_id));
+  const hatNetz = quellen.some((q) => (q.messwerte?.lldp?.length ?? 0) > 0);
   return (
     <section className="topologie" aria-labelledby="topo-titel">
       <h2 id="topo-titel" className="sr-only">
         Topologie
       </h2>
+      <h3 className="abschnitt">Netz</h3>
+      {hatNetz ? (
+        <>
+          <p className="klein topo-hinweis">
+            Das Netzbild zeigt, welche Geräte miteinander verbunden sind, so wie sie es per LLDP melden, mit den Ports an
+            beiden Enden. Eine dicke Linie steht für mehrere Verbindungen. Ein Klick öffnet das Gerät.
+          </p>
+          <Netzbild geraete={imBereich} quellen={quellen} sensoren={qs.daten?.sensoren ?? []} onOeffnen={onOeffnen} />
+        </>
+      ) : (
+        <p className="leer">
+          Noch keine Verbindungen. Das Netzbild entsteht von selbst, sobald Geräte mit SNMP-Abfrage ihre Nachbarn per LLDP
+          melden (Switches mit eingeschaltetem LLDP).
+        </p>
+      )}
+      <h3 className="abschnitt">Abhängigkeiten</h3>
       <p className="klein topo-hinweis">
         Die Bäume zeigen, welches Gerät von welchem abhängt (am Gerät unter „Bearbeiten“ → „hängt ab von“). Fällt ein Gerät
         aus, ruhen die Alarme der Geräte darunter. Die Linie zu einem Gerät trägt dessen Zustand; gestrichelt heißt: ruht,

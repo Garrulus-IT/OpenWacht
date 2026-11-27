@@ -349,7 +349,8 @@ var builtinSets = []vorlagenSatz{
 		[]satzEintrag{
 			// hrSystemUptime statt sysUpTime: sysUpTime springt schon beim Neustart des SNMP-Dienstes zurück.
 			{"Citrix VDA: Neustart verpasst (SNMP)", "snmp_oid", `{"oid":"1.3.6.1.2.1.25.1.1.0","kritisch_ueber":9360000}`,
-				"Laufzeit des Systems in Hundertstelsekunden; Fehler über 26 Stunden (9 360 000), an den Neustartplan anpassen", 300},
+				"Laufzeit des Systems, angezeigt in Stunden, Minuten und Sekunden; die Schwelle steht in Hundertstelsekunden: " +
+					"Fehler über 26 Stunden (9 360 000), an den Neustartplan anpassen", 300},
 			{"Citrix VDA: Ping", "ping", `{"host":"{adresse}","anzahl":5,"verlust_warnung":20,"verlust_kritisch":60}`,
 				"erreichbar, Paketverlust", 60},
 			{"Citrix VDA: ICA (Port 1494)", "tcp", `{"host":"{adresse}","port":1494}`, "ICA ohne Sitzungszuverlässigkeit", 300},
@@ -446,7 +447,7 @@ var builtinSets = []vorlagenSatz{
 		}),
 	// 1.0.8: LANCOM-Switche der Serie GS-3000 (gemessen an einem GS-3628XUP mit LCOS SX 4.30). Temperatur, Lüfter und CPU
 	// liefert diese Firmware als Text, deshalb „Zahl aus Text“.
-	newSet("satz-lancom-3000", "LANCOM 3000", "LANCOM-Switche der Serie GS-3000 mit LCOS SX 4.x über SNMPv3: Temperaturen, Lüfter, CPU, PoE, LLDP-Nachbarn und Firmware. "+
+	newSet("satz-lancom-3000", "LANCOM 3000", "LANCOM-Switche der Serie GS-3000 mit LCOS SX 4.x über SNMPv3: Temperaturen, Lüfter, CPU, PoE, LLDP-Nachbarn, Spanning Tree und Firmware. "+
 		"Die Schwellen der Temperaturen sind eine Vorbelegung; an die eigenen Geräte anpassen. Braucht eine SNMP-Abfrage am Gerät.",
 		[]satzEintrag{
 			{"LANCOM: Temperatur 1", "snmp_oid",
@@ -478,6 +479,10 @@ var builtinSets = []vorlagenSatz{
 				"Ports, die gerade ein Gerät versorgen (nur Anzeige)", 300},
 			{"LANCOM: Firmware", "snmp_oid", `{"oid":"1.3.6.1.4.1.2356.14.1.1.1.10.0","text_zeigen":true}`,
 				"lcsSystemInfoFirmwareVersion: zeigt die Version als Text (nur Anzeige)", 3600},
+			{"LANCOM: STP letzter Wechsel", "snmp_oid",
+				`{"oid":"1.3.6.1.2.1.17.2.3.0","faktor":0.01,"einheit":"s","warnung_unter":600}`,
+				"dot1dStpTimeSinceTopologyChange: Zeit seit dem letzten Wechsel im Spanning Tree; Warnung in den ersten " +
+					"10 Minuten danach. Häufige Wechsel deuten auf eine Schleife oder einen flatternden Link", 300},
 			{"LANCOM: LLDP-Nachbarn", "snmp_oid",
 				`{"oid":"1.0.8802.1.1.2.1.4.1.1.4","zusammenfassung":"anzahl","warnung_unter":1}`,
 				"lldpRemTable: Zahl der Nachbarn, die sich per LLDP melden; Warnung, wenn keiner mehr da ist. " +
