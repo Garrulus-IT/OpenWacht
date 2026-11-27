@@ -349,7 +349,8 @@ var builtinSets = []vorlagenSatz{
 		[]satzEintrag{
 			// hrSystemUptime statt sysUpTime: sysUpTime springt schon beim Neustart des SNMP-Dienstes zurück.
 			{"Citrix VDA: Neustart verpasst (SNMP)", "snmp_oid", `{"oid":"1.3.6.1.2.1.25.1.1.0","kritisch_ueber":9360000}`,
-				"Laufzeit des Systems in Hundertstelsekunden; Fehler über 26 Stunden (9 360 000), an den Neustartplan anpassen", 300},
+				"Laufzeit des Systems, angezeigt in Stunden, Minuten und Sekunden; die Schwelle steht in Hundertstelsekunden: " +
+					"Fehler über 26 Stunden (9 360 000), an den Neustartplan anpassen", 300},
 			{"Citrix VDA: Ping", "ping", `{"host":"{adresse}","anzahl":5,"verlust_warnung":20,"verlust_kritisch":60}`,
 				"erreichbar, Paketverlust", 60},
 			{"Citrix VDA: ICA (Port 1494)", "tcp", `{"host":"{adresse}","port":1494}`, "ICA ohne Sitzungszuverlässigkeit", 300},

@@ -89,6 +89,12 @@ als „100ms:52%, 1s:57%, 10s:50%“. Ab 1.0.8 liest ein SNMP-OID-Sensor daraus 
   „unbekannt“ („Zahl aus Text noch nicht gelesen“).
 - Geht nicht zusammen mit einer Tabellenspalte, einer Rate oder „Wert gleich Text“.
 
+**Laufzeiten (ab 1.0.11):** Misst ein SNMP-OID-Sensor eine Dauer, zeigt er sie als Stunden, Minuten und Sekunden
+(„26 Std. 14 Min. 5 Sek.“), und die Meldung nennt die Schwelle genauso. Als Dauer gelten die Laufzeit des Systems
+(`1.3.6.1.2.1.25.1.1.0` und `1.3.6.1.2.1.1.3.0`, vom Gerät in Hundertstelsekunden gemeldet) ohne Faktor und Einheit
+und jeder Sensor mit der Einheit „s“. Die Schwellen trägt man weiter in der Zahl des Sensors ein: bei der Laufzeit
+des Systems in Hundertstelsekunden (26 Stunden = 9 360 000), mit Faktor 0,01 und Einheit „s“ in Sekunden (93 600).
+
 **Text des Geräts anzeigen (ab 1.0.10):** Manche Werte sind Text und sollen als Text sichtbar sein, etwa die
 Firmware-Version. Mit dem Haken „Text des Geräts anzeigen“ am Sensor speichert die Zentrale den zuletzt gelesenen Text
 dieser einen OID (höchstens 50 Zeichen, ohne Steuerzeichen) und zeigt ihn als Messwert.
