@@ -147,8 +147,9 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
     checks: Check[];
     snmp: Snmp[];
     sensoren: Sensor[] | null;
-    prognose: Map<string, PlattenPrognose>;
   } | null>(null);
+  // Prognose der Platten: eigene Abfrage, damit die Liste nicht auf sie wartet.
+  const [prognose, setPrognose] = useState<Map<string, PlattenPrognose>>(new Map());
   const [intervall, setIntervall] = useState(60);
   const [zentrale, setZentrale] = useState("");
   const [netze, setNetze] = useState<string[]>([]);
@@ -168,7 +169,7 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
     try {
       // Ohne Filter liefert die Zentrale alles Sichtbare; hier auf den Bereich eingrenzen.
       const q = bereich.mehrere ? "" : `?mandant=${mandant.id}`;
-      const [g, gr, a, c, sn, se, pr] = await Promise.all([
+      const [g, gr, a, c, sn, se] = await Promise.all([
         api<{ geraete: Geraet[] }>("GET", `/api/v1/geraete${q}`),
         api<{ gruppen: Gruppe[] }>("GET", `/api/v1/gruppen${q}`),
         api<{ agents: Agent[]; intervall_sekunden: number; zentrale: string }>("GET", `/api/v1/agents${q}`),
@@ -176,8 +177,6 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
         api<{ snmp: Snmp[]; sammler: Sammler[] }>("GET", `/api/v1/snmp${q}`),
         // Sensoren für den Zustand der Geräte; scheitern sie, bleibt die alte Bewertung.
         api<{ sensoren: Sensor[] }>("GET", "/api/v1/sensoren").catch(() => null),
-        // Prognose der Platten; fehlt sie, bleibt die Anzeige ohne.
-        api<PrognoseAntwort>("GET", `/api/v1/prognose/platten${bereichFilter(bereich)}`).catch(() => null),
       ]);
       const drin = (x: { mandant_id: string }) => bereich.ids.has(x.mandant_id);
       setDaten({
@@ -187,7 +186,6 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
         checks: c.checks.filter(drin),
         snmp: sn.snmp.filter(drin),
         sensoren: se ? se.sensoren.filter(drin) : null,
-        prognose: prognoseNach(pr?.platten.filter(drin)),
       });
       setIntervall(a.intervall_sekunden);
       setZentrale(a.zentrale);
@@ -207,6 +205,25 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
     }, 15000);
     return () => clearInterval(t);
   }, [laden]);
+
+  // Die Prognose rechnet über 30 Tage Stundenwerte und ändert sich nur
+  // stündlich: getrennt laden und nur alle 5 Minuten erneuern. Fehlt sie,
+  // bleibt die Anzeige ohne.
+  useEffect(() => {
+    let aktiv = true;
+    const holen = async () => {
+      const pr = await api<PrognoseAntwort>("GET", `/api/v1/prognose/platten${bereichFilter(bereich)}`).catch(() => null);
+      if (aktiv && pr) setPrognose(prognoseNach(pr.platten.filter((x) => bereich.ids.has(x.mandant_id))));
+    };
+    void holen();
+    const t = setInterval(() => {
+      if (!document.hidden) void holen();
+    }, 300000);
+    return () => {
+      aktiv = false;
+      clearInterval(t);
+    };
+  }, [bereich]);
 
   const sichten: Sicht[] = (daten?.geraete ?? []).map((g) => {
     const agents = (daten?.agents ?? []).filter((a) => a.geraet_id === g.id);
@@ -386,7 +403,7 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
                   darfAdmin={rolleIn(bereich, s.g.mandant_id) === "admin"}
                   mandanten={[...bereich.nachId.values()]}
                   mandant={bereich.mehrere ? mandantName(bereich, s.g.mandant_id) : ""}
-                  prognose={daten.prognose}
+                  prognose={prognose}
                   onGeaendert={laden}
                   onOeffnen={onOeffnen}
                   melden={melden}
@@ -412,7 +429,7 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
               darfAdmin={rolleIn(bereich, gewaehlt.g.mandant_id) === "admin"}
               mandanten={[...bereich.nachId.values()]}
               mandant={bereich.mehrere ? mandantName(bereich, gewaehlt.g.mandant_id) : ""}
-              prognose={daten.prognose}
+              prognose={prognose}
               onGeaendert={laden}
               onOeffnen={onOeffnen}
               melden={melden}
