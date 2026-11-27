@@ -366,8 +366,19 @@ type CollectorDevice struct {
 	V3              *CollectorV3 `json:"v3,omitempty"`
 	// Eigene OIDs für Sensoren (Etappe 18b), nur lesend abgefragt
 	Extra []string `json:"eigene_oids,omitempty"`
+	// Zahl aus Text (1.0.8): Aufträge zu eigenen OIDs. Ein älterer Sammler
+	// kennt das Feld nicht und meldet dann nur den Hash des Texts.
+	ExtraText []CollectorTextNumber `json:"zahl_aus_text,omitempty"`
 	// Eigene Tabellenspalten (0.47.0): nur lesend, gemeldet werden Kennzahlen
 	Columns []string `json:"eigene_spalten,omitempty"`
+}
+
+// CollectorTextNumber: aus dem Text einer eigenen OID die N-te Zahl (ab 1)
+// lesen oder die erste hinter Nach; genau eins von beiden ist gesetzt.
+type CollectorTextNumber struct {
+	OID  string `json:"oid"`
+	N    int    `json:"n,omitempty"`
+	Nach string `json:"nach,omitempty"`
 }
 
 type CollectorV3 struct {

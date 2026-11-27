@@ -91,3 +91,68 @@ func TestEigeneValidate(t *testing.T) {
 		t.Error("33 OIDs angenommen")
 	}
 }
+
+// TestZahlAusText (1.0.8): Die Abfrage liest die gewünschten Zahlen aus dem
+// Text; gespeichert werden nur Hash und Zahlen.
+func TestZahlAusText(t *testing.T) {
+	const cpu, fan, temp = "1.3.6.1.4.1.2356.14.1.1.1.24.0", "1.3.6.1.4.1.2356.14.1.1.1.17.0", "1.3.6.1.4.1.2356.14.1.1.1.22.0"
+	a := snmptest.New(t, "c",
+		gosnmp.SnmpPDU{Name: cpu, Type: gosnmp.OctetString, Value: []byte("100ms:52%, 1s:57%, 10s:50%")},
+		gosnmp.SnmpPDU{Name: fan, Type: gosnmp.OctetString, Value: []byte("1500RPM")},
+		gosnmp.SnmpPDU{Name: temp, Type: gosnmp.OctetString, Value: []byte("none")})
+	cfg := Config{Version: V2c, Host: "127.0.0.1", Port: a.Port(), Community: "c", Extra: []string{cpu, fan, temp},
+		ExtraText: []TextZahl{{OID: cpu, N: 6}, {OID: cpu, Nach: "1s:"}, {OID: fan, N: 1}, {OID: temp, N: 1}}}
+	snap, err := loopbackClient().Poll(context.Background(), cfg, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snap.Extra) != 3 {
+		t.Fatalf("eigene: %+v", snap.Extra)
+	}
+	c, f, tm := snap.Extra[0], snap.Extra[1], snap.Extra[2]
+	if len(c.AusText) != 2 || *c.AusText[0].Zahl != 50 || c.AusText[1].Nach != "1s:" || *c.AusText[1].Zahl != 57 || c.Number != nil || c.TextHash == "" {
+		t.Errorf("CPU: %+v", c)
+	}
+	if len(f.AusText) != 1 || *f.AusText[0].Zahl != 1500 {
+		t.Errorf("Lüfter: %+v", f)
+	}
+	if len(tm.AusText) != 1 || tm.AusText[0].Zahl != nil {
+		t.Errorf("ohne Zahl: %+v", tm)
+	}
+	raw, _ := json.Marshal(snap)
+	for _, text := range []string{"RPM", "100ms", "none"} {
+		if strings.Contains(string(raw), text) {
+			t.Errorf("Text des Geräts im Snapshot: %q", text)
+		}
+	}
+	if err := validateExtra(snap.Extra); err != nil {
+		t.Errorf("eigener Snapshot abgelehnt: %v", err)
+	}
+
+	// Aufträge: nur zu eigenen OIDs, gültig und nicht doppelt
+	for name, list := range map[string][]TextZahl{
+		"fremde OID":    {{OID: "1.3.6.1.2.1.1.5.0", N: 1}},
+		"n und nach":    {{OID: cpu, N: 2, Nach: "x"}},
+		"ohne beides":   {{OID: cpu}},
+		"n zu groß":     {{OID: cpu, N: 17}},
+		"Steuerzeichen": {{OID: cpu, Nach: "a\x00"}},
+		"doppelt":       {{OID: cpu, N: 1}, {OID: cpu, N: 1}},
+	} {
+		if err := CheckExtraText(list, cfg.Extra); err == nil {
+			t.Errorf("%s: angenommen", name)
+		}
+	}
+	// Gemeldete Werte (vom Sammler): unplausible werden abgelehnt
+	h := TextHash("x")
+	z := 5.0
+	for name, e := range map[string]ExtraValue{
+		"ohne Text":  {OID: cpu, Number: &z, AusText: []TextWert{{N: 1, Zahl: &z}}},
+		"ungültig":   {OID: cpu, TextHash: h, AusText: []TextWert{{N: 0}}},
+		"doppelt":    {OID: cpu, TextHash: h, AusText: []TextWert{{N: 1}, {N: 1, Zahl: &z}}},
+		"fehlt+Zahl": {OID: cpu, Missing: true, AusText: []TextWert{{N: 1}}},
+	} {
+		if err := validateExtra([]ExtraValue{e}); err == nil {
+			t.Errorf("%s: angenommen", name)
+		}
+	}
+}

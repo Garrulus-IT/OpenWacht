@@ -216,6 +216,12 @@ export interface CheckZiel {
   zusammenfassung?: "summe" | "minimum" | "maximum" | "anzahl" | "anzahl_gleich" | "anzahl_ungleich";
   bezug?: string;
   vergleichswert?: number;
+  // 1.0.8, snmp_oid: Zahl aus einem Text des Geräts, Faktor und Einheit
+  zahl_aus_text?: "erste" | "nte" | "nach";
+  zahl_nr?: number;
+  zahl_nach?: string;
+  faktor?: number;
+  einheit?: string;
   // 1.0.5: automatische Windows-Dienste, die nicht zählen
   ausnahmen?: string[];
 }

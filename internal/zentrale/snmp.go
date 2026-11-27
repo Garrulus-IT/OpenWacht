@@ -816,7 +816,7 @@ func (s *Server) pollSNMP(ctx context.Context, c claimedSNMP) {
 			slog.Warn("SNMP-OID: Sensoren nicht lesbar", "quelle", c.id, "fehler", err)
 		} else {
 			oids = byID[c.id]
-			cfg.Extra, cfg.Columns = extraOIDs(oids), extraColumns(oids)
+			cfg.Extra, cfg.ExtraText, cfg.Columns = extraOIDs(oids), extraText(oids), extraColumns(oids)
 		}
 		snap, pollErr = s.snmpFor(c.tenant).Poll(ctx, cfg, prev)
 		if pollErr == nil && prev != nil && prev.Counters != nil && snap.Counters != nil {
