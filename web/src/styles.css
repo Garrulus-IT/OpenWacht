@@ -860,6 +860,9 @@ textarea:focus-visible {
 }
 
 .einschub {
+  /* Abstand zur klebenden Kopfleiste, wenn die Seite dorthin rollt (1.0.12) */
+  scroll-margin-top: calc(3.25rem + var(--a4));
+  scroll-margin-bottom: var(--a4);
   padding: var(--a4);
   background: var(--flaeche);
   border: 1px solid var(--linie);
@@ -5725,4 +5728,13 @@ td > .kenn-marke:first-child {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0 var(--a2);
+}
+
+/* Fehlermeldung oben im Inhalt klebt unter der Kopfleiste (1.0.12): Sie
+   erscheint nach einer Aktion auch dann im Blick, wenn man weit unten ist. */
+.inhalt > .meldung-fehler[role="alert"] {
+  position: sticky;
+  top: calc(3.25rem + var(--a2));
+  z-index: 15;
+  box-shadow: 0 4px 14px var(--schatten);
 }

@@ -9,6 +9,11 @@
   Gerät ([Kapitel 6](handbuch/06-snmp.md)).
 - **Verwaltungsadresse der Nachbarn.** Die SNMP-Abfrage liest zusätzlich die Adresse, die ein Nachbar per LLDP meldet
   (IPv4 bevorzugt, sonst IPv6). Über einen Sammler braucht das den Agent 1.0.12.
+- **Die Oberfläche führt nach einer Aktion.** Öffnet ein Knopf einen Bereich außerhalb des sichtbaren Teils (etwa
+  „Anwenden“ bei einer Vorlage oder einem Vorlagensatz, „Host hinzufügen“, „Bearbeiten“), rollt die Seite dorthin, und
+  das erste Feld hat den Fokus. Esc schließt den Bereich, danach steht der Blick wieder beim Knopf, der ihn geöffnet
+  hat; ebenso nach „Anlegen“ oder „Abbrechen“. Fehlermeldungen bleiben beim Rollen oben unter der Kopfleiste sichtbar.
+  Nur direkt nach einem Klick oder einer Taste; was durch Aktualisieren erscheint, bewegt nichts.
 - **API:** `POST /api/v1/mandanten/{id}/geraete` nimmt `abhaengig_von` an (Elterngerät im selben Mandanten).
 - **Vorlagensatz „LANCOM 3000“** ohne den Sensor „STP letzter Wechsel“ aus 1.0.11. Ein schon angelegter Sensor dieses
   Namens bleibt am Gerät; wer ihn nicht will, löscht ihn im Reiter „Sensoren“.
