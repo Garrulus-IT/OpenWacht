@@ -367,10 +367,13 @@ func (c *Client) Poll(ctx context.Context, cfg Config, prev *Snapshot) (_ *Snaps
 	if err := CheckExtraText(cfg.ExtraText, cfg.Extra); err != nil {
 		return nil, err
 	}
+	if err := CheckExtraShow(cfg.ExtraShow, cfg.Extra); err != nil {
+		return nil, err
+	}
 	if err := CheckExtraOIDs(cfg.Extra); err != nil {
 		part("Eigene OIDs", err)
 	} else {
-		part("Eigene OIDs", s.extra(snap, cfg.Extra, cfg.ExtraText))
+		part("Eigene OIDs", s.extra(snap, cfg.Extra, cfg.ExtraText, cfg.ExtraShow))
 	}
 	if err := CheckColumns(cfg.Columns); err != nil {
 		part("Eigene Spalten", err)

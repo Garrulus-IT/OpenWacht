@@ -31,8 +31,12 @@ Korrekturen und eine Ergänzung bei den Ausnahmen. Das Update bringt die Migrati
   an, der kritisch wird, sobald der Port keinen Strom mehr liefert. Die Zuordnung gilt für Geräte mit einer
   PoE-Gruppe, bei denen die Nummer des PoE-Ports dem Index der Schnittstelle entspricht; über einen Sammler braucht
   das den Agent 1.0.10.
-- **Vorlagensatz „LANCOM 3000“** zählt zusätzlich die LLDP-Nachbarn. Wer den Satz schon angewendet hat, wendet ihn
-  erneut an; vorhandene Sensoren bleiben.
+- **Text des Geräts anzeigen.** Ein SNMP-OID-Sensor kann den Text einer OID selbst als Messwert zeigen, etwa die
+  Firmware-Version. Das ist eine Ausnahme von der Regel, dass von Texten nur ein Prüfwert gespeichert wird: Sie gilt
+  nur für Sensoren, an denen jemand den Haken setzt, für den zuletzt gelesenen Text und höchstens 50 Zeichen
+  ([Kapitel 7](handbuch/07-sensoren-und-vorlagen.md)). Über einen Sammler braucht das den Agent 1.0.10.
+- **Vorlagensatz „LANCOM 3000“** zählt zusätzlich die LLDP-Nachbarn und zeigt die Firmware-Version. Wer den Satz schon
+  angewendet hat, wendet ihn erneut an; vorhandene Sensoren bleiben.
 - **Handbuch** nennt wieder die aktuelle Version, auch in den Beispielnamen der Pakete.
 
 ## 1.0.9

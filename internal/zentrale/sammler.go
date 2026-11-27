@@ -86,6 +86,10 @@ func collectorState(list []agentproto.CollectorDevice) string {
 		for _, t := range d.ExtraText {
 			fmt.Fprintf(h, "t|%s|%d|%q\n", t.OID, t.N, t.Nach)
 		}
+		// 1.0.10: ebenso nur mit Einträgen
+		for _, o := range d.ExtraShow {
+			fmt.Fprintf(h, "z|%s\n", o)
+		}
 	}
 	return hex.EncodeToString(h.Sum(nil))[:32]
 }
@@ -138,6 +142,7 @@ func (s *Server) handleCollectorDevices(w http.ResponseWriter, r *http.Request) 
 		for _, t := range extraText(oids[j.id]) {
 			dev.ExtraText = append(dev.ExtraText, agentproto.CollectorTextNumber{OID: t.OID, N: t.N, Nach: t.Nach})
 		}
+		dev.ExtraShow = extraShow(oids[j.id])
 		fail := ""
 		switch {
 		case j.secret == nil && j.version == snmp.V3:

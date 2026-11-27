@@ -156,3 +156,55 @@ func TestZahlAusText(t *testing.T) {
 		}
 	}
 }
+
+// Text anzeigen (1.0.10): Nur für OIDs auf der Liste meldet die Abfrage den
+// Text selbst, bereinigt und gekürzt; alle anderen behalten nur den Hash.
+func TestTextAnzeigen(t *testing.T) {
+	lang := strings.Repeat("x", 200)
+	f := snmptest.New(t, "c",
+		snmptest.Str("1.3.6.1.4.1.99.2.0", "4.30.0503SU11"),
+		snmptest.Str("1.3.6.1.4.1.99.3.0", "Normal geheim"),
+		snmptest.Str("1.3.6.1.4.1.99.4.0", lang),
+		snmptest.Num("1.3.6.1.4.1.99.5.0", 7),
+	)
+	c := loopbackClient()
+	oids := []string{"1.3.6.1.4.1.99.2.0", "1.3.6.1.4.1.99.3.0", "1.3.6.1.4.1.99.4.0", "1.3.6.1.4.1.99.5.0"}
+	show := []string{"1.3.6.1.4.1.99.2.0", "1.3.6.1.4.1.99.4.0", "1.3.6.1.4.1.99.5.0"}
+	snap, err := c.Poll(context.Background(), Config{Version: V2c, Host: "127.0.0.1", Port: f.Port(), Community: "c", Extra: oids, ExtraShow: show}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := snap.Extra
+	if e[0].Text != "4.30.0503SU11" || e[0].TextHash != TextHash("4.30.0503SU11") {
+		t.Errorf("Text: %+v", e[0])
+	}
+	if e[1].Text != "" || e[1].TextHash == "" {
+		t.Errorf("nicht verlangter Text gemeldet: %+v", e[1])
+	}
+	if len([]rune(e[2].Text)) != MaxShownText {
+		t.Errorf("langer Text: %d Zeichen", len([]rune(e[2].Text)))
+	}
+	if e[3].Text != "" || e[3].Number == nil {
+		t.Errorf("Zahl: %+v", e[3])
+	}
+	if err := roundtrip(t, snap).ValidateCollected(time.Now()); err != nil {
+		t.Errorf("ValidateCollected: %v", err)
+	}
+	// Ein Sammler darf keinen Text ohne Hash, keinen zu langen und keinen mit Steuerzeichen schicken.
+	for name, mut := range map[string]func(*ExtraValue){
+		"ohne Hash":     func(e *ExtraValue) { e.TextHash = "" },
+		"zu lang":       func(e *ExtraValue) { e.Text = strings.Repeat("x", MaxShownText+1) },
+		"Steuerzeichen": func(e *ExtraValue) { e.Text = "a\x00b" },
+	} {
+		bad := roundtrip(t, snap)
+		mut(&bad.Extra[0])
+		if bad.ValidateCollected(time.Now()) == nil {
+			t.Errorf("%s angenommen", name)
+		}
+	}
+	// Eine OID, die nicht unter den eigenen steht, ist ein Fehler der Anfrage.
+	if _, err := c.Poll(context.Background(), Config{Version: V2c, Host: "127.0.0.1", Port: f.Port(), Community: "c", Extra: oids,
+		ExtraShow: []string{"1.3.6.1.4.1.99.9.0"}}, nil); err == nil {
+		t.Error("fremde OID unter „Text anzeigen“ angenommen")
+	}
+}

@@ -222,6 +222,8 @@ export interface CheckZiel {
   zahl_nach?: string;
   faktor?: number;
   einheit?: string;
+  // 1.0.10, snmp_oid: den Text des Geräts selbst als Messwert anzeigen
+  text_zeigen?: boolean;
   // 1.0.5: automatische Windows-Dienste, die nicht zählen
   ausnahmen?: string[];
 }

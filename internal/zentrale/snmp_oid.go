@@ -74,6 +74,17 @@ func extraText(list []oidCheck) []snmp.TextZahl {
 	return out
 }
 
+// extraShow: eigene OIDs, deren Text ein Sensor anzeigen will (ohne Doppel, 1.0.10).
+func extraShow(list []oidCheck) []string {
+	var out []string
+	for _, c := range list {
+		if c.spec.TextShow && c.spec.Aggregate == "" && !slices.Contains(out, c.spec.OID) {
+			out = append(out, c.spec.OID)
+		}
+	}
+	return out
+}
+
 // textAuftrag: Auftrag zu einem Sensor mit „Zahl aus Text“.
 func textAuftrag(sp checks.Spec) snmp.TextZahl {
 	switch sp.TextNumber {
@@ -273,6 +284,16 @@ func evalOID(sp checks.Spec, cur, prev *snmp.Snapshot, rebooted bool) (res check
 	}
 	if utf := []rune(metric); len(utf) > 50 {
 		metric = string(utf[:50])
+	}
+	if sp.TextShow {
+		// Text anzeigen (1.0.10): der Text des Geräts ist der Messwert.
+		switch {
+		case e.Text != "":
+			metric = e.Text
+		case e.TextHash != "":
+			// gerade erst eingeschaltet (nächste Abfrage) oder der Sammler ist zu alt
+			return checks.Result{Status: checks.Unknown, Message: "Text noch nicht gelesen (ein Sammler braucht dafür den Agent ab 1.0.10)"}, true
+		}
 	}
 	if sp.Equals != nil {
 		ok := false

@@ -39,6 +39,27 @@ type ExtraValue struct {
 	// AusText (1.0.8): Zahlen, die auf Wunsch eines Sensors aus dem Text
 	// gelesen wurden. Der Text selbst wird weiterhin nie gespeichert.
 	AusText []TextWert `json:"aus_text,omitempty"`
+	// Text (1.0.10): der Text selbst, bereinigt und auf MaxShownText Zeichen
+	// gekürzt; nur für OIDs, an denen ein Sensor „Text anzeigen“ verlangt.
+	Text string `json:"text,omitempty"`
+}
+
+// MaxShownText: so viele Zeichen eines Texts werden höchstens gemeldet (wie
+// die Länge eines Messwerts in der Datenbank).
+const MaxShownText = 50
+
+// CheckExtraShow prüft die Liste „Text anzeigen“ (Zentrale und Sammler): jede
+// OID gehört zu den eigenen OIDs und steht nur einmal darin.
+func CheckExtraShow(show, oids []string) error {
+	if len(show) > MaxExtraOIDs {
+		return fmt.Errorf("Text anzeigen: höchstens %d", MaxExtraOIDs)
+	}
+	for i, o := range show {
+		if !slices.Contains(oids, o) || slices.Contains(show[:i], o) {
+			return errors.New("Text anzeigen: OID fehlt unter den eigenen OIDs oder ist doppelt")
+		}
+	}
+	return nil
 }
 
 // TextZahl: Auftrag, aus dem Text einer eigenen OID eine Zahl zu lesen: die
@@ -87,7 +108,7 @@ func TextHash(s string) string {
 	return hex.EncodeToString(h[:16])
 }
 
-func extraValue(oid string, v value, wanted []TextZahl) ExtraValue {
+func extraValue(oid string, v value, wanted []TextZahl, show []string) ExtraValue {
 	e := ExtraValue{OID: oid}
 	switch {
 	case v.missing():
@@ -105,6 +126,9 @@ func extraValue(oid string, v value, wanted []TextZahl) ExtraValue {
 			e.Number = &f
 		}
 		e.TextHash = TextHash(t)
+		if slices.Contains(show, oid) {
+			e.Text = cleanBytes([]byte(t), MaxShownText)
+		}
 		for _, w := range wanted {
 			if w.OID != oid {
 				continue
@@ -125,7 +149,7 @@ func extraValue(oid string, v value, wanted []TextZahl) ExtraValue {
 	return e
 }
 
-func (s *session) extra(snap *Snapshot, oids []string, wanted []TextZahl) error {
+func (s *session) extra(snap *Snapshot, oids []string, wanted []TextZahl, show []string) error {
 	if len(oids) == 0 {
 		return nil
 	}
@@ -139,7 +163,7 @@ func (s *session) extra(snap *Snapshot, oids []string, wanted []TextZahl) error 
 			snap.Extra = append(snap.Extra, ExtraValue{OID: o, Missing: true})
 			continue
 		}
-		snap.Extra = append(snap.Extra, extraValue(o, v, wanted))
+		snap.Extra = append(snap.Extra, extraValue(o, v, wanted, show))
 	}
 	return nil
 }
@@ -185,6 +209,14 @@ func validateExtra(list []ExtraValue) error {
 		if e.TextHash != "" {
 			if len(e.TextHash) != 32 || hex.EncodeToString(mustHex(e.TextHash)) != e.TextHash {
 				return fmt.Errorf("eigene[%d]: Text-Hash ungültig", i)
+			}
+		}
+		if e.Text != "" {
+			if e.TextHash == "" {
+				return fmt.Errorf("eigene[%d]: Text ohne Hash", i)
+			}
+			if err := checkClean(fmt.Sprintf("eigene[%d].text", i), e.Text, false); err != nil || utf8.RuneCountInString(e.Text) > MaxShownText {
+				return fmt.Errorf("eigene[%d]: Text ungültig", i)
 			}
 		}
 		if len(e.AusText) > MaxExtraText || len(e.AusText) > 0 && e.TextHash == "" {

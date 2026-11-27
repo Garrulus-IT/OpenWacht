@@ -132,6 +132,8 @@ var Typen = []Typ{
 		Feld{Schluessel: "faktor", Beschriftung: "Faktor", Art: FeldZahl, Hinweis: "leer = 1, z. B. 0,1"},
 		Feld{Schluessel: "einheit", Beschriftung: "Einheit", Art: FeldAuswahl,
 			Optionen: []string{"", "°C", "%", "W", "V", "A", "RPM", "MB", "GB", "s", "ms", "bit/s", "dBm"}},
+		// 1.0.10: Text des Geräts als Messwert (z. B. Firmware-Version)
+		Feld{Schluessel: "text_zeigen", Beschriftung: "Text des Geräts anzeigen", Art: FeldJaNein},
 		fGrenzen, fGleich)},
 	{Schluessel: "dienst", Name: "Dienst läuft", AmAgent: true, Felder: felder(
 		Feld{Schluessel: "name", Beschriftung: "Dienstname", Art: FeldText, Hinweis: "Windows-Dienst oder systemd-Unit"})},
