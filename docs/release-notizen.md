@@ -1,5 +1,18 @@
 # Release-Notizen OpenWacht
 
+## 1.0.12
+
+- **LLDP-Nachbarn ins Monitoring aufnehmen.** Im Bild der Ports (Einzelheiten eines Ports) und im Netzbild der Seite
+  Topologie lässt sich ein Nachbar, der noch kein Gerät in OpenWacht ist, per Klick aufnehmen: Name und Adresse kommen
+  aus LLDP, das neue Gerät landet in Mandant und Gruppe des Switches, auf Wunsch mit dem Switch als Elterngerät und
+  einem Ping-Sensor; danach öffnet es sich. Ist der Nachbar schon ein Gerät, öffnet ein Klick auf seinen Namen dieses
+  Gerät ([Kapitel 6](handbuch/06-snmp.md)).
+- **Verwaltungsadresse der Nachbarn.** Die SNMP-Abfrage liest zusätzlich die Adresse, die ein Nachbar per LLDP meldet
+  (IPv4 bevorzugt, sonst IPv6). Über einen Sammler braucht das den Agent 1.0.12.
+- **API:** `POST /api/v1/mandanten/{id}/geraete` nimmt `abhaengig_von` an (Elterngerät im selben Mandanten).
+- **Vorlagensatz „LANCOM 3000“** ohne den Sensor „STP letzter Wechsel“ aus 1.0.11. Ein schon angelegter Sensor dieses
+  Namens bleibt am Gerät; wer ihn nicht will, löscht ihn im Reiter „Sensoren“.
+
 ## 1.0.11
 
 - **Netzbild auf der Seite Topologie.** Über den Bäumen der Abhängigkeiten zeigt die Seite, welche Geräte miteinander
