@@ -252,15 +252,23 @@ func SonnenBeschriftung(name string, r0, r1, a0, a1 float64) *Beschriftung {
 // Desktop-App hebt sie an, damit nichts unter 9 px gesetzt wird).
 func SonnenBeschriftungIn(name string, r0, r1, a0, a1, minS, maxS float64) *Beschriftung {
 	const zeichen = 0.56
-	kuerzen := func(platz, s float64) string {
+	// Fehlen dem Namen nur wenige Zeichen, wird die Schrift um bis zu ein
+	// Fünftel kleiner, statt zu kürzen (1.0.7, wie im Web): „Garage Feuerwe…“
+	// spart gegenüber „Garage Feuerwehr“ keinen Platz.
+	const schrumpfen = 0.8
+	laenge := utf8.RuneCountInString(name)
+	kuerzen := func(platz, s float64) (string, float64) {
 		n := int(platz / (s * zeichen))
-		if n >= utf8.RuneCountInString(name) {
-			return name
+		if n >= laenge {
+			return name, s
+		}
+		if passend := platz / (float64(laenge) * zeichen); passend >= math.Max(minS, s*schrumpfen) {
+			return name, passend
 		}
 		if n < 3 {
-			return ""
+			return "", s
 		}
-		return strings.TrimSpace(string([]rune(name)[:n-1])) + "…"
+		return strings.TrimSpace(string([]rune(name)[:n-1])) + "…", s
 	}
 	dicke := r1 - r0
 	spanne := math.Min(a1-a0, math.Pi)
@@ -283,11 +291,13 @@ func SonnenBeschriftungIn(name string, r0, r1, a0, a1, minS, maxS float64) *Besc
 	}
 	// tangential (entlang des Bogens): Schrifthöhe durch die Ringdicke begrenzt
 	if s := math.Min(maxS, dicke*0.5); s >= minS {
-		nimm(&Beschriftung{false, kuerzen(bogen*0.88, s), s})
+		t, s := kuerzen(bogen*0.88, s)
+		nimm(&Beschriftung{false, t, s})
 	}
 	// radial: Schrifthöhe durch die Bogenbreite am Innenrand begrenzt
 	if s := math.Min(maxS, r0*spanne*0.8); s >= minS {
-		nimm(&Beschriftung{true, kuerzen(dicke*0.9, s), s})
+		t, s := kuerzen(dicke*0.9, s)
+		nimm(&Beschriftung{true, t, s})
 	}
 	return beste
 }

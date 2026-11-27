@@ -9,6 +9,10 @@
 - **Dashboard passt sich dem Fenster an:** Das Raster richtet sich nach seinem eigenen Platz (12, 6 oder 1 Spalte) statt
   nach festen Bildschirmbreiten. „⤢ An Fenster anpassen“ verteilt die Höhe des Fensters auf die Reihen, das Dashboard
   passt dann ohne Rollen auf den Bildschirm; die Wahl gilt je Browser.
+- **Sonnendiagramm und Wandanzeige kürzen Namen seltener:** Fehlen einem Namen nur wenige Zeichen, wird seine Schrift
+  um bis zu ein Fünftel kleiner und der Name bleibt ganz. Bisher stand dort etwa „Garage Feuerwe…“, obwohl die drei
+  Punkte so viel Platz brauchen wie die zwei gekürzten Buchstaben. Gilt im Web, auf der Wandanzeige und in der
+  Desktop-App.
 - Migration 0062 (läuft beim Update von selbst).
 
 ## 1.0.6

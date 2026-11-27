@@ -154,11 +154,18 @@ export interface Beschriftung {
   schrift: number;
 }
 
-function kuerzen(name: string, platz: number, schrift: number): string | null {
+// Fehlen dem Namen nur wenige Zeichen, wird die Schrift um bis zu ein Fünftel
+// kleiner, statt zu kürzen (1.0.7): „Garage Feuerwe…“ spart gegenüber „Garage
+// Feuerwehr“ keinen Platz, die drei Punkte sind so breit wie die zwei Buchstaben.
+const SCHRUMPFEN = 0.8;
+
+function kuerzen(name: string, platz: number, schrift: number, min: number): { text: string; schrift: number } | null {
   const n = Math.floor(platz / (schrift * ZEICHEN));
-  if (n >= name.length) return name;
+  if (n >= name.length) return { text: name, schrift };
+  const passend = platz / (name.length * ZEICHEN);
+  if (passend >= Math.max(min, schrift * SCHRUMPFEN)) return { text: name, schrift: passend };
   if (n < 3) return null;
-  return name.slice(0, n - 1).trimEnd() + "…";
+  return { text: name.slice(0, n - 1).trimEnd() + "…", schrift };
 }
 
 export function beschriftung(name: string, r0: number, r1: number, a0: number, a1: number, min = MIN_SCHRIFT): Beschriftung | null {
@@ -172,16 +179,16 @@ export function beschriftung(name: string, r0: number, r1: number, a0: number, a
   {
     const schrift = Math.min(MAX_SCHRIFT, dicke * 0.5);
     if (schrift >= min) {
-      const t = kuerzen(name, bogen * 0.88, schrift);
-      if (t) kandidaten.push({ art: "tangential", text: t, schrift });
+      const t = kuerzen(name, bogen * 0.88, schrift, min);
+      if (t) kandidaten.push({ art: "tangential", ...t });
     }
   }
   // radial: Schrifthöhe durch die Bogenbreite am Innenrand begrenzt
   {
     const schrift = Math.min(MAX_SCHRIFT, innenBogen * 0.8);
     if (schrift >= min) {
-      const t = kuerzen(name, dicke * 0.9, schrift);
-      if (t) kandidaten.push({ art: "radial", text: t, schrift });
+      const t = kuerzen(name, dicke * 0.9, schrift, min);
+      if (t) kandidaten.push({ art: "radial", ...t });
     }
   }
   // mehr sichtbare Zeichen gewinnt, bei Gleichstand die größere Schrift
@@ -208,6 +215,7 @@ export function Sonne(props: { baum: AnzeigeKnoten; neu: Set<string>; titel: str
   const wStil = segmentStil(wurzel.farbe);
 
   const [w0, w1] = ring(r, 0);
+  const mitteText = kuerzen(wurzel.name, LOCH * 1.8, 26, 26 * SCHRUMPFEN);
   return (
     <svg className="sonne" viewBox="-500 -500 1000 1000" role="img" aria-label={props.titel}>
       <title>{props.titel}</title>
@@ -229,8 +237,10 @@ export function Sonne(props: { baum: AnzeigeKnoten; neu: Set<string>; titel: str
           </text>
         </g>
       ) : (
-        <text className="sonne-mitte" x="0" y="0" textAnchor="middle" dominantBaseline="middle">
-          {kuerzen(wurzel.name, LOCH * 1.8, 26) ?? ""}
+        <text className="sonne-mitte" x="0" y="0" textAnchor="middle" dominantBaseline="middle"
+          style={mitteText && mitteText.schrift < 26 ? { fontSize: `${mitteText.schrift.toFixed(1)}px` } : undefined}
+        >
+          {mitteText?.text ?? ""}
         </text>
       )}
       {segmente.map((s, i) => {
