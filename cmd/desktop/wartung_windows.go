@@ -10,6 +10,7 @@ package main
 import (
 	"context"
 	"strings"
+	"unsafe"
 
 	"github.com/garrulus-it/openwacht/internal/desktop"
 )
@@ -303,7 +304,7 @@ func hoeheText(hdc uintptr, t string, font uintptr, w int32) int32 {
 // wartungScrollen: Bildlauf der Seite (Mausrad).
 func (f *fenster) wartungScrollen(d int32) {
 	var r rect
-	pGetClientRect.Call(uintptr(f.wartungF), ptr(&r))
+	pGetClientRect.Call(uintptr(f.wartungF), uintptr(unsafe.Pointer(&r)))
 	f.wartOff = max(0, min(f.wartOff+d, f.wartHoehe-r.Bottom))
 	pInvalidateRect.Call(uintptr(f.wartungF), 0, 0)
 }

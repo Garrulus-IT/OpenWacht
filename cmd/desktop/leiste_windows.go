@@ -10,6 +10,7 @@ package main
 
 import (
 	"strings"
+	"unsafe"
 
 	"github.com/garrulus-it/openwacht/internal/desktop"
 	"github.com/garrulus-it/openwacht/internal/version"
@@ -74,7 +75,7 @@ func (f *fenster) seitePfad() string {
 
 func (f *fenster) leisteScrollen(d int32) {
 	var r rect
-	pGetClientRect.Call(uintptr(f.leiste), ptr(&r))
+	pGetClientRect.Call(uintptr(f.leiste), uintptr(unsafe.Pointer(&r)))
 	f.leisteOff = max(min(f.leisteOff+d, f.leisteHoehe-r.Bottom), 0)
 	pInvalidateRect.Call(uintptr(f.leiste), 0, 0)
 }
@@ -308,7 +309,7 @@ func (a *app) leisteKlick(z ziel) {
 // leistePunkt: Bildschirmpunkt unter einem Feld der Leiste (für die Liste).
 func (a *app) leistePunkt(r rect) point {
 	p := point{r.Left, r.Bottom + a.f.s(4)}
-	pClientToScreen.Call(uintptr(a.f.leiste), ptr(&p))
+	pClientToScreen.Call(uintptr(a.f.leiste), uintptr(unsafe.Pointer(&p)))
 	return p
 }
 

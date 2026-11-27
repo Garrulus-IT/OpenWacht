@@ -26,6 +26,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/garrulus-it/openwacht/internal/desktop"
 )
@@ -246,7 +247,7 @@ func dashMalen(m *maler, daten any) {
 		zh = m.s(260)
 	} else if a.cfg.DashFenster && !dash.bearb {
 		var cr rect
-		pGetClientRect.Call(uintptr(f.seitenF), ptr(&cr))
+		pGetClientRect.Call(uintptr(f.seitenF), uintptr(unsafe.Pointer(&cr)))
 		frei := cr.Bottom - (m.y + f.seitenOff) - m.s(4)
 		zh = max(m.s(140), (frei-int32(reihen-1)*gap)/int32(reihen))
 	}
@@ -1326,7 +1327,7 @@ func dashKlick(z ziel, daten any) {
 			{text: "Höher", an: w.Hoehe < desktop.DashMaxHoehe}, {text: "Niedriger", an: w.Hoehe > 1},
 			{text: "Verdoppeln", an: len(l.Widgets) < desktop.DashMaxWidgets}, {text: "Entfernen", an: true}}
 		p := point{z.r.Left, z.r.Bottom + f.s(4)}
-		pClientToScreen.Call(uintptr(f.seitenF), ptr(&p))
+		pClientToScreen.Call(uintptr(f.seitenF), uintptr(unsafe.Pointer(&p)))
 		ws := append([]desktop.Widget{}, l.Widgets...)
 		titel := w.TitelVon(nil)
 		switch schwebend(f.hwnd, e, p, f.s(180), false) {

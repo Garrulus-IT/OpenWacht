@@ -14,7 +14,6 @@ package main
 
 import (
 	"syscall"
-	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
@@ -202,5 +201,3 @@ func setUTF16(dst []uint16, s string) {
 	}
 	copy(dst, u)
 }
-
-func ptr[T any](p *T) uintptr { return uintptr(unsafe.Pointer(p)) }

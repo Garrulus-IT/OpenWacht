@@ -8,6 +8,9 @@ Nur Korrekturen, keine neuen Funktionen.
   `uxtheme.dll` zuerst im Ordner der App: Eine gleichnamige Datei neben `openwacht-desktop.exe`, etwa im Ordner
   Downloads, wäre beim Start geladen worden. Die Datei gehört trotzdem in einen eigenen Ordner
   ([Kapitel 8](handbuch/08-alarme-und-wartung.md#desktop-app-für-windows-ab-104)).
+- **Desktop-App: Adressen erst im Aufruf an Windows übergeben.** An 20 Stellen ging die Adresse einer Variablen über
+  eine Hilfsfunktion als Zahl an Windows. Go hält die Variable dann nicht fest: Zog der Stack während des Aufrufs um,
+  schrieb Windows an die alte Stelle. Möglich waren seltene Abstürze oder eine verlorene Fensternachricht.
 
 ## 1.0.8
 
