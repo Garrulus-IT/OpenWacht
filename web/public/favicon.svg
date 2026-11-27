@@ -1,6 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="OpenWacht"><title>OpenWacht</title>
-<path d="M2 32 C14 12 50 12 62 32 C50 52 14 52 2 32 Z" fill="#102238" stroke="#45c3e6" stroke-width="3" stroke-linejoin="round"/>
-<circle cx="32" cy="32" r="11" fill="none" stroke="#45c3e6" stroke-width="3"/>
-<circle cx="32" cy="32" r="4.5" fill="#45c3e6"/>
-<path d="M32 32 L40.4 24.9" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="32" height="32" role="img" aria-label="OpenWacht">
+  <title>OpenWacht</title>
+  <rect width="64" height="64" rx="14" fill="#102238"/>
+  <g transform="translate(6.4 6.4) scale(0.8)"><path d="M2 32 C14 12 50 12 62 32 C50 52 14 52 2 32 Z" fill="#1d3a5c" stroke="#45c3e6" stroke-width="3" stroke-linejoin="round"/><circle cx="32" cy="32" r="11" fill="none" stroke="#45c3e6" stroke-width="3"/><circle cx="32" cy="32" r="4.5" fill="#45c3e6"/><path d="M32 32 L40.4 24.9" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/></g>
 </svg>
