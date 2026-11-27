@@ -1,5 +1,17 @@
 # Release-Notizen OpenWacht
 
+## 1.0.11
+
+- **Laufzeiten lesbar.** Ein SNMP-OID-Sensor, der eine Dauer misst, zeigt sie als Stunden, Minuten und Sekunden, etwa
+  „26 Std. 14 Min. 5 Sek.“ statt „9444500“; die Meldung nennt die Schwelle genauso („Laufzeit über 26 Std. 0 Min.
+  0 Sek.“). Das gilt für die Laufzeit des Systems (`hrSystemUptime`, `sysUpTime`), also auch für „Citrix VDA: Neustart
+  verpasst (SNMP)“, und für jeden Sensor mit der Einheit „s“. Vorhandene Sensoren zeigen es nach der nächsten Abfrage
+  von selbst; die Schwellen bleiben, wie sie eingetragen sind.
+- **Nachbar je Port.** Die SNMP-Abfrage liest die LLDP-Nachbarn eines Geräts. In den Einzelheiten eines Ports im Bild
+  der Ports steht unter „Nachbar (LLDP)“, welches Gerät an diesem Port hängt und an welchem seiner Ports, etwa
+  „sw-keller, Port GigabitEthernet 1/24“. Gelesen werden nur Name und Port des Nachbarn, je höchstens 64 Zeichen,
+  ohne Verlauf ([Kapitel 6](handbuch/06-snmp.md)). Über einen Sammler braucht das den Agent 1.0.11.
+
 ## 1.0.10
 
 Korrekturen und eine Ergänzung bei den Ausnahmen. Das Update bringt die Migration 0063 mit.
