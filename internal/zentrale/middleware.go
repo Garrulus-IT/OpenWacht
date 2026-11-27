@@ -149,7 +149,7 @@ func (s *Server) requireSession(allowWithoutMFA bool, next http.Handler) http.Ha
 			s.apiTokenSession(w, r, a, next)
 			return
 		}
-		c, err := r.Cookie(sessionCookie)
+		c, err := r.Cookie(s.ck(sessionCookie))
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "Nicht angemeldet.")
 			return
@@ -167,7 +167,7 @@ func (s *Server) requireSession(allowWithoutMFA bool, next http.Handler) http.Ha
 			`SELECT user_id::text, kind, totp_enabled FROM openwacht.session_get($1)`, th).
 			Scan(&sess.UserID, &kind, &sess.TOTPEnabled)
 		if err != nil || kind != "voll" {
-			clearCookie(w, sessionCookie)
+			s.clearCookie(w, sessionCookie)
 			writeError(w, http.StatusUnauthorized, "Nicht angemeldet.")
 			return
 		}
@@ -204,9 +204,9 @@ func isSafeMethod(m string) bool {
 
 func (s *Server) setCookie(w http.ResponseWriter, name, value string, maxAge time.Duration) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     name,
+		Name:     s.ck(name),
 		Value:    value,
-		Path:     "/",
+		Path:     s.cookiePath(),
 		MaxAge:   int(maxAge.Seconds()),
 		Secure:   true,
 		HttpOnly: true,
@@ -214,8 +214,8 @@ func (s *Server) setCookie(w http.ResponseWriter, name, value string, maxAge tim
 	})
 }
 
-func clearCookie(w http.ResponseWriter, name string) {
-	http.SetCookie(w, &http.Cookie{Name: name, Value: "", Path: "/", MaxAge: -1,
+func (s *Server) clearCookie(w http.ResponseWriter, name string) {
+	http.SetCookie(w, &http.Cookie{Name: s.ck(name), Value: "", Path: s.cookiePath(), MaxAge: -1,
 		Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode})
 }
 

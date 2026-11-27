@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { api } from "./api";
 import { bestaetigungFertig, CodeFeld } from "./Bestaetigung";
+import { mitBasis } from "./basis";
 
 // Einstellungen → Installation und HTTPS (Etappe 21a).
 
@@ -373,7 +374,7 @@ export function InstallationPanels(props: {
             </dl>
             {h.art === "eigene-ca" && (
               <p>
-                <a className="knopf knopf-klein" href="/openwacht-wurzel.crt" download>
+                <a className="knopf knopf-klein" href={mitBasis("/openwacht-wurzel.crt")} download>
                   Wurzelzertifikat laden
                 </a>
               </p>
@@ -537,7 +538,7 @@ function AuditPanel(props: {
       id="einst-audit"
       titel="Audit-Log"
       rechts={
-        <a className="knopf knopf-klein" href="/api/v1/audit/export?anzahl=5000" download="openwacht-audit.jsonl">
+        <a className="knopf knopf-klein" href={mitBasis("/api/v1/audit/export?anzahl=5000")} download="openwacht-audit.jsonl">
           Exportieren
         </a>
       }

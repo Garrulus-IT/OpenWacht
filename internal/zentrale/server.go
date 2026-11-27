@@ -248,6 +248,7 @@ func (c *Config) checkHostLimits() error {
 // Server ist die Zentrale.
 type Server struct {
 	cfg     Config
+	base    string // Basis-Pfad aus BaseURL, "" für die Wurzel (basis.go)
 	collect collectWindow // 1.0.1: Sammelfenster je Mail-/SMS-Kanal
 	pool    *pgxpool.Pool
 	key     []byte // Hauptschlüssel aus der Schlüsseldatei
@@ -314,6 +315,9 @@ func New(cfg Config, pool *pgxpool.Pool, key []byte) (*Server, error) {
 	if cfg.BaseURL == nil || (cfg.BaseURL.Scheme != "https" && cfg.BaseURL.Hostname() != "localhost" && cfg.BaseURL.Hostname() != "127.0.0.1") {
 		return nil, errors.New("BaseURL muss https sein (http nur für localhost)")
 	}
+	if cfg.BaseURL.RawQuery != "" || cfg.BaseURL.Fragment != "" || !validBasePath(basePath(cfg.BaseURL)) {
+		return nil, errors.New("BaseURL: Pfad nur aus Buchstaben, Ziffern, - und _ (z. B. https://firma.example/openwacht), ohne ? und #")
+	}
 	cfg.setDefaults()
 	if err := cfg.checkHostLimits(); err != nil {
 		return nil, err
@@ -326,6 +330,7 @@ func New(cfg Config, pool *pgxpool.Pool, key []byte) (*Server, error) {
 	}
 	s := &Server{
 		cfg:          cfg,
+		base:         basePath(cfg.BaseURL),
 		audit:        auditExporter{failSince: map[string]time.Time{}, failMsg: map[string]string{}},
 		pool:         pool,
 		key:          key,
@@ -610,8 +615,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "Unbekannter Endpunkt.")
 	})
-	mux.Handle("/", uiHandler(s.ui))
-	return s.securityHeaders(s.checkOrigin(mux))
+	mux.Handle("/", uiHandler(s.ui, s.base))
+	return s.stripBase(s.securityHeaders(s.checkOrigin(mux)))
 }
 
 // withUser führt fn in einer Transaktion mit gesetztem Benutzerkontext aus.

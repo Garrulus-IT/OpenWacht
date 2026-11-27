@@ -12,6 +12,7 @@ import { AntraegeListe, AntragFormular } from "./Antraege";
 import { verwaltungsListe, type Ort, type VerwaltungsReiter } from "./navigation";
 import { Dialog } from "./Startseite";
 import { TonFelder } from "./Ton";
+import { mitBasis } from "./basis";
 
 interface Props {
   ich: Ich;
@@ -172,10 +173,10 @@ function MandantAnsicht({ mandant, eltern, hauptAdmin, onGeaendert, onGeloescht,
           )}
           {admin && (
             <>
-              <a className="knopf" href={`/api/v1/mandanten/${mandant.id}/rezertifizierung?format=pdf`} download>
+              <a className="knopf" href={mitBasis(`/api/v1/mandanten/${mandant.id}/rezertifizierung?format=pdf`)} download>
                 Rezertifizierung (PDF)
               </a>
-              <a className="knopf" href={`/api/v1/mandanten/${mandant.id}/rezertifizierung?format=csv`} download>
+              <a className="knopf" href={mitBasis(`/api/v1/mandanten/${mandant.id}/rezertifizierung?format=csv`)} download>
                 Rezertifizierung (CSV)
               </a>
             </>
@@ -715,7 +716,7 @@ function AnzeigenListe({ bereich, melden }: { bereich: Bereich; melden: (e: unkn
             {liste.map((a) => (
               <tr key={a.id}>
                 <td>
-                  <a href={`/anzeige/vorschau?id=${a.id}`} target="_blank" rel="noopener noreferrer" title="Vorschau in einem neuen Tab">
+                  <a href={mitBasis(`/anzeige/vorschau?id=${a.id}`)} target="_blank" rel="noopener noreferrer" title="Vorschau in einem neuen Tab">
                     {a.name}
                   </a>
                 </td>

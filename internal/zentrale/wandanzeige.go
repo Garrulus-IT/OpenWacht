@@ -148,7 +148,7 @@ func (s *Server) handleDisplayCreate(w http.ResponseWriter, r *http.Request) {
 			return 0, nil, err
 		}
 		// Den Link gibt es nur in dieser Antwort.
-		link := s.cfg.BaseURL.Scheme + "://" + s.cfg.BaseURL.Host + "/anzeige#" + raw
+		link := s.cfg.BaseURL.Scheme + "://" + s.cfg.BaseURL.Host + s.base + "/anzeige#" + raw
 		return http.StatusCreated, map[string]any{"id": id, "link": link}, nil
 	})
 }
@@ -192,7 +192,7 @@ func (s *Server) handleDisplayNewLink(w http.ResponseWriter, r *http.Request) {
 		if err := audit(ctx, tx, &tenant, "anzeige.neuer_link", map[string]any{"id": id, "name": name}); err != nil {
 			return 0, nil, err
 		}
-		link := s.cfg.BaseURL.Scheme + "://" + s.cfg.BaseURL.Host + "/anzeige#" + raw
+		link := s.cfg.BaseURL.Scheme + "://" + s.cfg.BaseURL.Host + s.base + "/anzeige#" + raw
 		return http.StatusOK, map[string]any{"id": id, "name": name, "link": link}, nil
 	})
 }
@@ -285,7 +285,7 @@ func (s *Server) handleDisplayLogin(w http.ResponseWriter, r *http.Request) {
 // requireDisplay lässt nur Anfragen mit gültigem Anzeige-Cookie durch.
 func (s *Server) requireDisplay(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c, err := r.Cookie(displayCookie)
+		c, err := r.Cookie(s.ck(displayCookie))
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "Diese Anzeige ist nicht angemeldet. Bitte den Anzeige-Link öffnen.")
 			return
@@ -297,7 +297,7 @@ func (s *Server) requireDisplay(next http.Handler) http.Handler {
 		}
 		if d == nil {
 			if status == http.StatusUnauthorized {
-				clearCookie(w, displayCookie)
+				s.clearCookie(w, displayCookie)
 			}
 			writeError(w, status, msg)
 			return

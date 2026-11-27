@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, type AnzeigeDaten, type AnzeigeKennfarbe, type AnzeigeKnoten, type AnzeigeStatus } from "./api";
 import { segmentStil, Sonne, statusText, zerlegen } from "./Sonne";
 import { spielen, tonFreigeben, tonFrei, tonFuer } from "./Ton";
+import { mitBasis } from "./basis";
 
 const TAKT_MS = 30_000;
 // Ohne frische Daten so lange gilt die Anzeige als veraltet.
@@ -301,7 +302,7 @@ export function Wandanzeige({ vorschau }: { vorschau?: string } = {}) {
       const schluessel = vorschau !== undefined ? "" : window.location.hash.replace(/^#/, "");
       if (schluessel) {
         // Schlüssel sofort aus Adresszeile und Verlauf entfernen.
-        window.history.replaceState(null, "", adresseMitAnsicht("/anzeige", ansichtAusAdresse()));
+        window.history.replaceState(null, "", adresseMitAnsicht(mitBasis("/anzeige"), ansichtAusAdresse()));
         try {
           await api("POST", "/api/v1/anzeige/anmelden", { schluessel });
         } catch (e) {

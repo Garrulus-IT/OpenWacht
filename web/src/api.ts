@@ -8,6 +8,7 @@
 // localStorage.
 
 import type { Kennfarbe } from "./kennfarbe";
+import { mitBasis } from "./basis";
 export type { Kennfarbe };
 
 let csrfToken = "";
@@ -32,7 +33,7 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
   if (method !== "GET" && csrfToken) headers["X-CSRF-Token"] = csrfToken;
   let res: Response;
   try {
-    res = await fetch(path, {
+    res = await fetch(mitBasis(path), {
       method,
       headers,
       body: extra ? extra.raw : body === undefined ? undefined : JSON.stringify(body),

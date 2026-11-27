@@ -70,7 +70,7 @@ func (s *Server) ssoOpen(v string) (ssoState, bool) {
 
 func (s *Server) ssoRedirect() string {
 	u := *s.cfg.BaseURL
-	u.Path, u.RawQuery, u.Fragment = ssoPath, "", ""
+	u.Path, u.RawQuery, u.Fragment = s.base+ssoPath, "", ""
 	return u.String()
 }
 
@@ -135,7 +135,7 @@ func (s *Server) handleSSOStart(w http.ResponseWriter, r *http.Request) {
 	}
 	st := ssoState{Dir: d.ID, State: oidc.Random(24), Nonce: oidc.Random(24), Verifier: oidc.Random(48),
 		Expires: s.now().Add(10 * time.Minute).Unix()}
-	http.SetCookie(w, &http.Cookie{Name: ssoCookie, Value: s.ssoSeal(st), Path: "/", MaxAge: 600,
+	http.SetCookie(w, &http.Cookie{Name: s.ck(ssoCookie), Value: s.ssoSeal(st), Path: s.cookiePath(), MaxAge: 600,
 		Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 	writeJSON(w, http.StatusOK, map[string]any{"weiterleitung": c.AuthURL(ep, s.ssoRedirect(), st.State, st.Nonce, st.Verifier, email)})
 }
@@ -152,14 +152,14 @@ func (s *Server) handleSSOReturn(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, target, http.StatusSeeOther)
 	}
 	clear := func() {
-		http.SetCookie(w, &http.Cookie{Name: ssoCookie, Value: "", Path: "/", MaxAge: -1, Secure: true, HttpOnly: true,
+		http.SetCookie(w, &http.Cookie{Name: s.ck(ssoCookie), Value: "", Path: s.cookiePath(), MaxAge: -1, Secure: true, HttpOnly: true,
 			SameSite: http.SameSiteLaxMode})
 	}
 	if !s.limiter.allow(s.clientIP(r), s.now()) {
 		back("zu-viele")
 		return
 	}
-	c, err := r.Cookie(ssoCookie)
+	c, err := r.Cookie(s.ck(ssoCookie))
 	if err != nil {
 		back("abgelaufen")
 		return

@@ -16,6 +16,7 @@
 // die API prüft ohnehin jede Anfrage selbst.
 
 import { useCallback, useEffect, useState } from "react";
+import { mitBasis, ohneBasis } from "./basis";
 
 export type Reiter =
   "dashboard" | "hosts" | "topologie" | "zertifikate" | "alarme" | "berichte" | "vorlagen" | "snmpprofile" | "anzeigen" | "wartung" | "verwaltung" | "einstellungen";
@@ -122,7 +123,7 @@ export const alarmListe: { id: AlarmReiter; text: string }[] = [
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export function lesen(loc: { pathname: string; search: string }): Ort {
-  const teile = loc.pathname.split("/").filter(Boolean);
+  const teile = ohneBasis(loc.pathname).split("/").filter(Boolean);
   const erstes = teile[0] ?? "";
   let reiter: Reiter = "dashboard";
   let unter: VerwaltungsReiter = "mandanten";
@@ -194,7 +195,7 @@ export function useOrt() {
 
   // Alte oder unvollständige Adressen auf die heutige Form bringen.
   useEffect(() => {
-    const ziel = adresse(lesen(window.location));
+    const ziel = mitBasis(adresse(lesen(window.location)));
     if (ziel !== hier()) window.history.replaceState(null, "", ziel + window.location.hash);
   }, []);
 
@@ -212,7 +213,7 @@ export function useOrt() {
     if (!("geraet" in aenderung) && (neu.reiter !== alt.reiter || (alt.mandant !== "" && neu.mandant !== alt.mandant))) neu.geraet = "";
     if (!("geraetReiter" in aenderung) && neu.geraet !== alt.geraet) neu.geraetReiter = "uebersicht";
     if (!neu.geraet) neu.geraetReiter = "uebersicht";
-    const ziel = adresse(neu);
+    const ziel = mitBasis(adresse(neu));
     if (ziel !== hier()) {
       if (ersetzen) window.history.replaceState(null, "", ziel);
       else window.history.pushState(null, "", ziel);

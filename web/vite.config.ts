@@ -8,6 +8,8 @@ import react from "@vitejs/plugin-react";
 // alte Builds räumt tools/build vorher weg.
 export default defineConfig({
   plugins: [react()],
+  // Relativ bauen: Der Server setzt den Basis-Pfad in index.html ein (basis.go).
+  base: "./",
   build: {
     outDir: "../internal/webui/dist",
     emptyOutDir: false,
