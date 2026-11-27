@@ -13,6 +13,7 @@ package main
 // Downloads), zuerst.
 
 import (
+	"strings"
 	"syscall"
 
 	"golang.org/x/sys/windows"
@@ -187,14 +188,23 @@ type credential struct {
 	UserName       *uint16
 }
 
+// utf16 liefert nie nil: Enthält s ein Nullzeichen (aus der Datenbank kommt
+// keines), endet der Text dort, statt dass Windows einen leeren Zeiger bekommt.
 func utf16(s string) *uint16 {
-	p, _ := syscall.UTF16PtrFromString(s)
+	p, _ := syscall.UTF16PtrFromString(bisNull(s))
 	return p
+}
+
+func bisNull(s string) string {
+	if i := strings.IndexByte(s, 0); i >= 0 {
+		return s[:i]
+	}
+	return s
 }
 
 // setUTF16 kopiert s gekürzt in ein festes Feld (mit abschließender 0).
 func setUTF16(dst []uint16, s string) {
-	u, _ := syscall.UTF16FromString(s)
+	u, _ := syscall.UTF16FromString(bisNull(s))
 	if len(u) > len(dst) {
 		u = u[:len(dst)]
 		u[len(u)-1] = 0

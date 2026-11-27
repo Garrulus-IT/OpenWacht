@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -365,6 +366,9 @@ func (a *app) blase(titel, text string, art uint32) {
 }
 
 func (a *app) oeffnen(pfad string) {
+	if !strings.HasPrefix(pfad, "/") {
+		return // nur Seiten der eingestellten Zentrale
+	}
 	a.mu.Lock()
 	url := a.client.Zentrale + pfad
 	a.mu.Unlock()

@@ -188,6 +188,12 @@ func (c Client) AnfrageDatei(ctx context.Context, methode, pfad string, daten []
 }
 
 func (c Client) roh(ctx context.Context, method, pfad string, daten []byte, kopf map[string]string, out any) error {
+	// Der Pfad hängt unmittelbar an der Adresse. Ohne führenden Schrägstrich
+	// könnte daraus ein anderer Host werden („https://zentrale@anderer/…“),
+	// und Token oder Sitzung gingen dorthin.
+	if !strings.HasPrefix(pfad, "/") {
+		return errors.New("Pfad muss mit / beginnen")
+	}
 	var rd io.Reader
 	if daten != nil {
 		rd = bytes.NewReader(daten)

@@ -11,6 +11,9 @@ Nur Korrekturen, keine neuen Funktionen.
 - **Desktop-App: Adressen erst im Aufruf an Windows übergeben.** An 20 Stellen ging die Adresse einer Variablen über
   eine Hilfsfunktion als Zahl an Windows. Go hält die Variable dann nicht fest: Zog der Stack während des Aufrufs um,
   schrieb Windows an die alte Stelle. Möglich waren seltene Abstürze oder eine verlorene Fensternachricht.
+- **Desktop-App: Pfade und Texte abgesichert.** Anfragen und „Im Browser öffnen“ nehmen nur Pfade an, die mit `/`
+  beginnen; so wird aus Adresse und Pfad nie ein anderer Host. Ein Nullzeichen in einem Text beendet ihn, statt dass
+  Windows einen leeren Zeiger bekommt.
 
 ## 1.0.8
 
