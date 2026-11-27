@@ -413,6 +413,8 @@ export interface Sensor {
   gegenstand: string;
   status: SensorStatus;
   meldung: string;
+  // zuletzt gelesener Wert eines Checks („1500 RPM“, „12 ms“), falls es einen gibt
+  messwert?: string;
   seit: string | null;
   alarm: Alarm | null;
   wartung: Wartung | null;
@@ -821,4 +823,11 @@ export interface TrapZustand {
   anzahl: number;
   bis: string | null;
   kennfarbe?: Kennfarbe | null;
+}
+
+// meldungMitWert: Meldung eines Sensors, davor der gelesene Wert, wenn es
+// einen gibt („1500 RPM · Wert im Rahmen“).
+export function meldungMitWert(s: { meldung?: string | null; messwert?: string | null }): string {
+  const m = s.meldung ?? "";
+  return s.messwert ? (m ? `${s.messwert} · ${m}` : s.messwert) : m;
 }

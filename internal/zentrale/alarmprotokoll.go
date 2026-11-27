@@ -392,13 +392,16 @@ type sensorOut struct {
 	MandantID  string `json:"mandant_id"`
 	GeraetID   string `json:"geraet_id"`
 	// Name des Geräts
-	Host       string     `json:"host,omitempty"`
-	Name       string     `json:"name"`
-	Gegenstand string     `json:"gegenstand"`
-	Status     string     `json:"status"` // ok | warn | crit | unknown | pause | neu
-	Meldung    string     `json:"meldung"`
-	Seit       *time.Time `json:"seit"`
-	Alarm      *alarmOut  `json:"alarm"`
+	Host       string `json:"host,omitempty"`
+	Name       string `json:"name"`
+	Gegenstand string `json:"gegenstand"`
+	Status     string `json:"status"` // ok | warn | crit | unknown | pause | neu
+	Meldung    string `json:"meldung"`
+	// Messwert: der zuletzt gelesene Wert eines Checks als Text („1500 RPM“,
+	// „12 ms“); fehlt bei Hosts und Quellen, deren Meldung den Wert nennt
+	Messwert string     `json:"messwert,omitempty"`
+	Seit     *time.Time `json:"seit"`
+	Alarm    *alarmOut  `json:"alarm"`
 	// Wartung des Checks bzw. Hosts, falls eine läuft. Status bleibt der
 	// gemessene Zustand; die Oberfläche zeigt den Sensor unter „Wartung“.
 	Wartung *wartungOut `json:"wartung"`
@@ -464,7 +467,7 @@ func (s *Server) collectSensors(ctx context.Context, tx pgx.Tx) ([]sensorOut, er
 	}
 	out := []sensorOut{}
 	rows, err = tx.Query(ctx, `SELECT c.id::text, c.tenant_id::text, c.device_id::text, d.name, c.name, c.enabled, c.status,
-				coalesce(c.message, ''), c.since, openwacht.kennfarbe_json(c.kennfarbe_id)
+				coalesce(c.message, ''), c.since, openwacht.kennfarbe_json(c.kennfarbe_id), coalesce(c.metric, '')
 			FROM openwacht.checks c JOIN openwacht.devices d ON d.id = c.device_id ORDER BY lower(d.name), lower(c.name)`)
 	if err != nil {
 		return nil, err
@@ -474,8 +477,9 @@ func (s *Server) collectSensors(ctx context.Context, tx pgx.Tx) ([]sensorOut, er
 		var enabled bool
 		var status *string
 		var kenn []byte
+		var metric string
 		if err := rows.Scan(&sn.QuelleID, &sn.MandantID, &sn.GeraetID, &sn.Host, &sn.Name, &enabled, &status, &sn.Meldung,
-			&sn.Seit, &kenn); err != nil {
+			&sn.Seit, &kenn, &metric); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -488,7 +492,7 @@ func (s *Server) collectSensors(ctx context.Context, tx pgx.Tx) ([]sensorOut, er
 		case status == nil:
 			sn.Status, sn.Meldung = "neu", "noch nicht geprüft"
 		default:
-			sn.Status = *status
+			sn.Status, sn.Messwert = *status, metric
 		}
 		sn.Alarm = open[sn.Schluessel]
 		if enabled {

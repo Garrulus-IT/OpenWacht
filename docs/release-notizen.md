@@ -16,6 +16,11 @@ Korrekturen und eine Ergänzung bei den Ausnahmen. Das Update bringt die Migrati
   lässt er sich nicht, weil das Gerät ihn weiter meldet; unter der Tabelle steht deshalb „Entfernte Werte“ mit
   Begründung und „Wieder überwachen“. Rechte wie beim Ausnehmen, im Audit-Log als `sensor.entfernt`
   ([Kapitel 19](handbuch/19-anbindungen.md)).
+- **Sensoren zeigen den gelesenen Wert.** Ein Sensor mit Schwellen meldete in den Listen nur „Wert im Rahmen“, der Wert
+  selbst stand allein in den Einzelheiten. Jetzt steht er vor der Meldung, etwa „1500 RPM · Wert im Rahmen“ oder
+  „12 ms · erreichbar“: am Gerät unter „Sensoren, letzte 24 Stunden“, im Reiter „Sensoren“, auf der Seite „Alarme“ und
+  in den Widgets des Dashboards. Die API nennt ihn unter `/api/v1/sensoren` als `messwert`. Die Desktop-App zeigt ihn
+  noch nicht.
 - **Handbuch** nennt wieder die aktuelle Version, auch in den Beispielnamen der Pakete.
 
 ## 1.0.9

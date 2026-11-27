@@ -6,7 +6,7 @@
 // Alles im gewählten Bereich.
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { api, type Alarm, type Alarmkanal, type Sensor, type Wartung } from "./api";
+import { api, meldungMitWert, type Alarm, type Alarmkanal, type Sensor, type Wartung } from "./api";
 import { darfPflegen, mandantName, type Bereich } from "./bereich";
 import { vor } from "./zeit";
 import { alarmListe, type AlarmReiter, type Ort } from "./navigation";
@@ -310,7 +310,7 @@ function AlarmeDaten({ bereich, unter, melden, gehe }: Props) {
                 <span className="klein">
                   <span className="sr-only">{statusText[s.status]}: </span>
                   {bereich.mehrere && <span className="mandant-marke">{mandantName(bereich, s.mandant_id)}</span>}
-                  {s.meldung}
+                  {meldungMitWert(s)}
                   {s.seit && s.status !== "ok" ? ` · ${vor(s.seit, d.jetzt)}` : ""}
                   {s.alarm?.bestaetigt_am ? " · bestätigt" : ""}
                   {s.wartung && s.status !== "pause" ? ` · Wartung ${wartungBis(s.wartung)}` : ""}

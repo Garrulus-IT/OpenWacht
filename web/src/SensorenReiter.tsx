@@ -6,7 +6,7 @@
 // auf einmal entfernen; Pausieren unter „Übersicht“.
 
 import { useEffect, useState, type CSSProperties } from "react";
-import { api, type Agent, type Check, type Geraet, type KennfarbeEintrag, type Sensor, type Vorlage, type VorlagenSatz } from "./api";
+import { api, meldungMitWert, type Agent, type Check, type Geraet, type KennfarbeEintrag, type Sensor, type Vorlage, type VorlagenSatz } from "./api";
 import { KennMarke, kennStil, type Kennfarbe } from "./kennfarbe";
 import { anzeige, anzeigeText, CheckFormular, istAgentArt, typText, zielText } from "./Checks";
 
@@ -560,7 +560,7 @@ export function SensorenReiter(props: {
                   </td>
                   <td>
                     <span className={`signal signal-${a}${kennStil(sn?.kennfarbe, a).className}`} style={kennStil(sn?.kennfarbe, a).style} aria-hidden="true" />{" "}
-                    {c.veraltet ? "kein Ergebnis vom Agent" : a === "neu" || a === "pause" ? anzeigeText[a] : c.meldung}
+                    {c.veraltet ? "kein Ergebnis vom Agent" : a === "neu" || a === "pause" ? anzeigeText[a] : meldungMitWert(c)}
                   </td>
                   <td>
                     <KennfarbeWahl

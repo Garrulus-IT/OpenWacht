@@ -2074,6 +2074,10 @@
           "meldung": {
             "type": "string"
           },
+          "messwert": {
+            "type": "string",
+            "description": "Zuletzt gelesener Wert eines Checks als Text, z. B. „1500 RPM“ oder „12 ms“; fehlt, wenn es keinen gibt."
+          },
           "seit": {
             "type": [
               "string",
