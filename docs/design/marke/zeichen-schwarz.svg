@@ -1,7 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="OpenWacht"><title>OpenWacht einfarbig</title>
-<path d="M2 32 C14 12 50 12 62 32 C50 52 14 52 2 32 Z" fill="#000000"/>
-<circle cx="32" cy="32" r="16.5" fill="none" stroke="#ffffff" stroke-width="2.2"/>
-<circle cx="32" cy="32" r="10" fill="none" stroke="#ffffff" stroke-width="2.2"/>
-<circle cx="32" cy="32" r="3.5" fill="#ffffff"/>
-<path d="M32 32 L44.6 21.4" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256" role="img" aria-label="OpenWacht">
+  <title>OpenWacht</title>
+  <path d="M2 32 C14 12 50 12 62 32 C50 52 14 52 2 32 Z" fill="#000000"/>
+  <circle cx="32" cy="32" r="7" fill="none" stroke="#ffffff" stroke-width="1.8"/>
+  <circle cx="32" cy="32" r="12" fill="none" stroke="#ffffff" stroke-width="1.8" opacity=".8"/>
+  <circle cx="32" cy="32" r="16.5" fill="none" stroke="#ffffff" stroke-width="1.8"/>
+  <path d="M32 32 L44.64 21.39 A16.5 16.5 0 0 0 37.64 16.50 Z" fill="#ffffff" opacity="0.42"/>
+  <path d="M32 32 L37.64 16.50 A16.5 16.5 0 0 0 29.13 15.75 Z" fill="#ffffff" opacity="0.22"/>
+  <path d="M32 32 L29.13 15.75 A16.5 16.5 0 0 0 21.39 19.36 Z" fill="#ffffff" opacity="0.1"/>
+  <path d="M32 32 L44.64 21.39" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="2.6" fill="#ffffff"/>
+  <path d="M2 32 C14 12 50 12 62 32 C50 52 14 52 2 32 Z" fill="none" stroke="#000000" stroke-width="1.6"/>
 </svg>

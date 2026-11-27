@@ -5,7 +5,7 @@ selbst betrieben. Freie Software unter der GNU AGPL v3 (siehe [Lizenz](#lizenz))
 
 ![Hosts mit Gruppen, Zuständen und Messwerten](docs/bilder/hosts.png)
 
-**Stand:** 1.0.4. Handbuch: [`docs/handbuch/`](docs/handbuch/README.md), Änderungen: [`docs/release-notizen.md`](docs/release-notizen.md).
+**Stand:** 1.0.4. Handbuch: [`docs/handbuch/`](docs/handbuch/README.md) (English: [`docs/handbook/`](docs/handbook/README.md)), Änderungen: [`docs/release-notizen.md`](docs/release-notizen.md).
 Jeder Build legt neben `SHA256SUMS` eine Software-Stückliste (CycloneDX) ab; für Kunden ohne Internet gibt es ein
 Offline-Installationspaket (`deploy/offline/`, Handbuch Kapitel 14).
 
@@ -33,6 +33,7 @@ Offline-Installationspaket (`deploy/offline/`, Handbuch Kapitel 14).
 | `internal/citrix` | Citrix Monitor Service (OData v4) per NTLM, nur lesend; Attrappe `internal/citrix/citrixtest` für Tests |
 | `deploy/offline` | Offline-Installationspaket bauen (`paket-bauen.sh`) und beim Kunden installieren (`installieren.sh`) |
 | `docs/handbuch` | Handbuch mit Bildschirmfotos |
+| `docs/handbook` | English handbook (same chapters, pictures from `docs/handbuch/bilder`) |
 | `deploy/linux` | systemd-Units (auch im Binary und im Debian-Paket), Hinweise zu PostgreSQL, Caddy (nur noch für ntfy) und ntfy |
 | `tools/simagent` | simuliert Agents für Entwicklung und Tests (echtes Protokoll, erfundene Werte; nicht für den Betrieb) |
 
