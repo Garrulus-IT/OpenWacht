@@ -6,7 +6,7 @@
 // das Gerät es meldet, ob er per PoE Strom liefert. Ein Klick wählt den Port;
 // die Einzelheiten zeigt die aufrufende Ansicht.
 
-import type { SnmpPoePort, SnmpSchnittstelle } from "./api";
+import type { SnmpLldpNachbar, SnmpPoePort, SnmpSchnittstelle } from "./api";
 
 // ifType der physischen Ports: Ethernet, Fast Ethernet (alt), Gigabit (alt)
 const physisch = new Set([6, 62, 69, 117]);
@@ -32,6 +32,11 @@ export function poeNachIndex(poe: SnmpPoePort[] | undefined) {
   if (!poe || poe.length === 0 || poe.some((p) => p.gruppe !== poe[0]!.gruppe)) return m;
   for (const p of poe) m.set(p.port, p);
   return m;
+}
+
+// nachbarText: „sw-keller, Port GigabitEthernet 1/24“
+export function nachbarText(n: SnmpLldpNachbar) {
+  return [n.name, n.port ? `Port ${n.port}` : ""].filter(Boolean).join(", ");
 }
 
 export const poeText: Record<number, string> = {
@@ -61,6 +66,8 @@ const zustandText: Record<PortZustand, string> = {
 export function PortBild(props: {
   ifs: SnmpSchnittstelle[];
   poe: SnmpPoePort[] | undefined;
+  // LLDP-Nachbarn (1.0.11), nur für den Hinweis am Port
+  lldp?: SnmpLldpNachbar[];
   ueberwacht: string[];
   gewaehlt: number | null;
   // Name des Geräts für das Schild links
@@ -96,7 +103,8 @@ export function PortBild(props: {
                 const p = poe.get(i.index);
                 const strom = p?.status === 3;
                 const poeFehler = p?.status === 4 || p?.status === 6;
-                const text = `Port ${nr}, ${i.name}${i.alias ? ` (${i.alias})` : ""}: ${zustandText[z]}${p ? `, PoE ${poeText[p.status] ?? "unbekannt"}` : ""}`;
+                const nachbarn = (props.lldp ?? []).filter((n) => n.index === i.index);
+                const text = `Port ${nr}, ${i.name}${i.alias ? ` (${i.alias})` : ""}: ${zustandText[z]}${p ? `, PoE ${poeText[p.status] ?? "unbekannt"}` : ""}${nachbarn.length > 0 ? `, Nachbar ${nachbarn.map(nachbarText).join("; ")}` : ""}`;
                 return (
                   <button
                     key={i.index}

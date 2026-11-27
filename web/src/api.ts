@@ -449,6 +449,13 @@ export interface SnmpPoePort {
   status: number;
 }
 
+// LLDP-Nachbar (1.0.11) an der Schnittstelle mit diesem ifIndex: Name und Port des Nachbarn
+export interface SnmpLldpNachbar {
+  index: number;
+  name?: string;
+  port?: string;
+}
+
 export interface SnmpMesswerte {
   erfasst: string;
   system: { beschreibung: string; name: string; standort: string; objekt_id: string; laufzeit_s: number };
@@ -457,6 +464,7 @@ export interface SnmpMesswerte {
   platten: { einhaengepunkt: string; gesamt: number; frei: number }[];
   schnittstellen: SnmpSchnittstelle[];
   poe?: SnmpPoePort[];
+  lldp?: SnmpLldpNachbar[];
   synology?: {
     modell: string;
     version: string;

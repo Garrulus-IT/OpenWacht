@@ -23,7 +23,7 @@ import { SnmpVerlauf } from "./Verlauf";
 import { prognoseSchluessel, PrognoseZeile, type PlattenPrognose } from "./Prognose";
 import { SparkReihen, type SparkDaten } from "./Sparkline";
 import { ReihenVerlauf } from "./Verlauf";
-import { PortBild, poeNachIndex, poeText, portNummer } from "./PortBild";
+import { PortBild, nachbarText, poeNachIndex, poeText, portNummer } from "./PortBild";
 import { bitrate, laufzeit, Pegel, prozent } from "./Pegel";
 import { bytes, vor } from "./zeit";
 import { TrapTeil } from "./Traps";
@@ -387,6 +387,7 @@ export function SnmpTeil(props: {
         <PortBild
           ifs={m.schnittstellen}
           poe={m.poe}
+          lldp={m.lldp}
           ueberwacht={aktuell}
           gewaehlt={portWahl}
           name={m.system.name || props.g.name}
@@ -403,6 +404,7 @@ export function SnmpTeil(props: {
           if (!i) return null;
           const nr = portNummer(m.schnittstellen, i.index);
           const p = poeNachIndex(m.poe).get(i.index);
+          const nachbarn = (m.lldp ?? []).filter((n) => n.index === i.index);
           const poeSensor = async () => {
             if (!p) return;
             setPoeArbeitet(true);
@@ -440,6 +442,17 @@ export function SnmpTeil(props: {
                 </dd>
                 <dt>Neue Fehler</dt>
                 <dd>{i.fehler_neu ?? "–"}</dd>
+                <dt>Nachbar (LLDP)</dt>
+                <dd>
+                  {nachbarn.length === 0
+                    ? "keiner gemeldet"
+                    : nachbarn.map((n, k) => (
+                        <span key={k}>
+                          {k > 0 ? "; " : ""}
+                          {nachbarText(n)}
+                        </span>
+                      ))}
+                </dd>
                 {p && (
                   <>
                     <dt>PoE</dt>

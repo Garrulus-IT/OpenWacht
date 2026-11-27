@@ -43,6 +43,8 @@ type Snapshot struct {
 	// PoE (1.0.10): Zustand der PoE-Ports für das Bild der Ports; leer bei
 	// Geräten ohne POWER-ETHERNET-MIB
 	PoE []PoEPort `json:"poe,omitempty"`
+	// LLDP (1.0.11): Nachbarn je Schnittstelle, für die Einzelheiten eines Ports
+	LLDP []LLDPNeighbor `json:"lldp,omitempty"`
 }
 
 // PoEPort: eine Zeile aus pethPsePortTable (RFC 3621). Status ist
@@ -383,6 +385,9 @@ func (c *Client) Poll(ctx context.Context, cfg Config, prev *Snapshot) (_ *Snaps
 	// zuletzt, damit das Bild der Ports den Sensoren keine Anfragen wegnimmt
 	if ctx.Err() == nil {
 		s.poe(snap)
+	}
+	if ctx.Err() == nil {
+		s.lldp(snap)
 	}
 	if ctx.Err() != nil {
 		snap.Partial = append(snap.Partial, "Zeitgrenze")

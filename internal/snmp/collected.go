@@ -143,6 +143,9 @@ func (s *Snapshot) ValidateCollected(now time.Time) error {
 			return fmt.Errorf("poe[%d]: unplausibel", i)
 		}
 	}
+	if err := validateLLDP(s.LLDP); err != nil {
+		return err
+	}
 	for i, it := range s.Interfaces {
 		f := fmt.Sprintf("schnittstellen[%d]", i)
 		if it.Index < 0 || i > 0 && it.Index < s.Interfaces[i-1].Index {
