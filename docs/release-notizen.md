@@ -1,5 +1,14 @@
 # Release-Notizen OpenWacht
 
+## 1.0.9
+
+Nur Korrekturen, keine neuen Funktionen.
+
+- **Desktop-App lädt Windows-DLLs nur noch aus dem Systemordner.** Bisher suchte Windows `msimg32.dll`, `dwmapi.dll` und
+  `uxtheme.dll` zuerst im Ordner der App: Eine gleichnamige Datei neben `openwacht-desktop.exe`, etwa im Ordner
+  Downloads, wäre beim Start geladen worden. Die Datei gehört trotzdem in einen eigenen Ordner
+  ([Kapitel 8](handbuch/08-alarme-und-wartung.md#desktop-app-für-windows-ab-104)).
+
 ## 1.0.8
 
 - **Zahl aus Text:** Ein SNMP-OID-Sensor liest eine Zahl aus einem Text des Geräts: die erste, die n-te oder die Zahl

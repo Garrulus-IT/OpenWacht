@@ -3,20 +3,27 @@
 package main
 
 // Win32-Aufrufe für Infobereich, Menü, Symbol, Anmeldeinformationen und
-// Registry, nur mit syscall (CONTRIBUTING: keine neue Abhängigkeit). Die
+// Registry, ohne Abhängigkeit über die schon vorhandenen hinaus. Die
 // Strukturen folgen den C-Definitionen; Go legt sie mit derselben
 // Ausrichtung ab (amd64 und arm64).
+//
+// DLLs von Windows lädt die App nur aus dem Systemordner
+// (windows.NewLazySystemDLL), nie über den Suchpfad: Sonst lüde Windows eine
+// gleichnamige Datei, die neben openwacht-desktop.exe liegt (z. B. im Ordner
+// Downloads), zuerst.
 
 import (
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
 var (
-	user32   = syscall.NewLazyDLL("user32.dll")
-	shell32  = syscall.NewLazyDLL("shell32.dll")
-	kernel32 = syscall.NewLazyDLL("kernel32.dll")
-	advapi32 = syscall.NewLazyDLL("advapi32.dll")
+	user32   = windows.NewLazySystemDLL("user32.dll")
+	shell32  = windows.NewLazySystemDLL("shell32.dll")
+	kernel32 = windows.NewLazySystemDLL("kernel32.dll")
+	advapi32 = windows.NewLazySystemDLL("advapi32.dll")
 
 	pRegisterClassExW         = user32.NewProc("RegisterClassExW")
 	pCreateWindowExW          = user32.NewProc("CreateWindowExW")

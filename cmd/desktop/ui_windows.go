@@ -9,12 +9,17 @@ package main
 import (
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
 var (
+	// comctl32 löst Windows über das Manifest der App auf (Version 6 aus
+	// WinSxS); das geschieht vor jeder Suche in Ordnern. Deshalb hier ohne
+	// Zwang zum Systemordner, dort läge Version 5.
 	comctl32 = syscall.NewLazyDLL("comctl32.dll")
-	gdi32    = syscall.NewLazyDLL("gdi32.dll")
-	uxtheme  = syscall.NewLazyDLL("uxtheme.dll")
+	gdi32    = windows.NewLazySystemDLL("gdi32.dll")
+	uxtheme  = windows.NewLazySystemDLL("uxtheme.dll")
 
 	pInitCommonControlsEx  = comctl32.NewProc("InitCommonControlsEx")
 	pImageListCreate       = comctl32.NewProc("ImageList_Create")
