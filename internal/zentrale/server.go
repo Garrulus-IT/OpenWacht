@@ -534,6 +534,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("PUT /api/v1/sensoren/herkunft-kennfarbe", protected(s.handleOriginKennfarbe))
 	mux.Handle("POST /api/v1/sensoren/ausnehmen", protected(s.handleSensorExclude))
 	mux.Handle("POST /api/v1/sensoren/einbeziehen", protected(s.handleSensorInclude))
+	mux.Handle("GET /api/v1/snmp/{id}/entfernt", protected(s.handleSensorHiddenList))
 
 	mux.Handle("GET /api/v1/snmp", protected(s.handleSNMPList))
 	mux.Handle("GET /api/v1/snmp-profile", protected(s.handleSNMPProfileList))

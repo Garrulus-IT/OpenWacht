@@ -34,6 +34,7 @@ var openAPINichtBeschrieben = map[string]string{
 	"/api/v1/geraete/{id}/schwellen":          "Formular der Oberfläche",
 	"/api/v1/alarm-kanaele":                   "Verwaltung (Alarmwege)",
 	"/api/v1/snmp-profile":                    "Verwaltung, für Leser immer leer",
+	"/api/v1/snmp/{id}/entfernt":              "Liste der Oberfläche am Gerät (entfernte Werte)",
 	"/api/v1/anzeigen":                        "Verwaltung (Wandanzeigen)",
 	"/api/v1/agent-updates":                   "Verwaltung (Agent-Updates)",
 	"/api/v1/agent-updates/automatik":         "Verwaltung (Agent-Updates)",

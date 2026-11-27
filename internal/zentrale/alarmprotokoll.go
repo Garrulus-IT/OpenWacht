@@ -624,6 +624,10 @@ func (s *Server) snmpSensors(ctx context.Context, tx pgx.Tx, open map[string]*al
 	if err != nil {
 		return nil, err
 	}
+	hidden, err := snmpHidden(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
 	// Begründungen nur, wo der Benutzer sie lesen darf (RLS; Anzeigen nie)
 	reasons, err := tx.Query(ctx, `SELECT snmp_id::text, subject, reason FROM openwacht.snmp_exclusions`)
 	if err != nil {
@@ -732,6 +736,9 @@ func (s *Server) snmpSensors(ctx context.Context, tx pgx.Tx, open map[string]*al
 				sn.Status, sn.Meldung = alarm.Unknown, "Messwerte veraltet"
 			} else if f.Status == alarm.OK && strings.HasSuffix(f.Message, "wird nicht mehr gemeldet oder überwacht") {
 				continue
+			}
+			if hidden[q.id][f.Subject] && f.Subject != alarm.SubjectSilent {
+				continue // entfernt (0063): keine Zeile, zurück über die Liste am Gerät
 			}
 			if reason, ok := q.excluded[f.Subject]; ok && f.Subject != alarm.SubjectSilent {
 				// ausgenommen: grau wie pausiert, mit Begründung
