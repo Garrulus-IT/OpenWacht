@@ -23,7 +23,7 @@ import { SnmpVerlauf } from "./Verlauf";
 import { prognoseSchluessel, PrognoseZeile, type PlattenPrognose } from "./Prognose";
 import { SparkReihen, type SparkDaten } from "./Sparkline";
 import { ReihenVerlauf } from "./Verlauf";
-import { PortBild, nachbarText, poeNachIndex, poeText, portNummer } from "./PortBild";
+import { PortBild, langsam, nachbarText, poeNachIndex, poeText, portNummer } from "./PortBild";
 import { bitrate, laufzeit, Pegel, prozent } from "./Pegel";
 import { bytes, vor } from "./zeit";
 import { TrapTeil } from "./Traps";
@@ -434,8 +434,19 @@ export function SnmpTeil(props: {
                 <dd className={i.status !== "up" && aktuell.includes(i.name) ? "text-crit" : undefined}>
                   {i.admin_an ? ifStatusText[i.status] : "abgeschaltet"}
                 </dd>
+                {i.seit_s !== undefined && (
+                  <>
+                    <dt>Seit</dt>
+                    <dd>
+                      {i.status === "up" ? "verbunden" : "in diesem Zustand"} seit {laufzeit(i.seit_s)}
+                    </dd>
+                  </>
+                )}
                 <dt>Geschwindigkeit</dt>
-                <dd>{geschwindigkeit(i.geschwindigkeit_bps)}</dd>
+                <dd>
+                  {geschwindigkeit(i.geschwindigkeit_bps)}
+                  {langsam(i) ? " (unter 1 Gbit/s: Kabel oder Gegenstelle prüfen, falls das Gerät mehr kann)" : ""}
+                </dd>
                 <dt>Verkehr</dt>
                 <dd>
                   ein {i.ein_bps !== null ? bitrate(i.ein_bps) : "–"}, aus {i.aus_bps !== null ? bitrate(i.aus_bps) : "–"}

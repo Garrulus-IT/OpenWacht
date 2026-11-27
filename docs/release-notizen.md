@@ -2,6 +2,14 @@
 
 ## 1.0.11
 
+- **Netzbild auf der Seite Topologie.** Über den Bäumen der Abhängigkeiten zeigt die Seite, welche Geräte miteinander
+  verbunden sind, so wie sie es per LLDP melden: Geräte als Karten mit Zustand, Linien mit den Ports an beiden Enden,
+  dicke Linien für mehrere Verbindungen. Ein Klick öffnet das Gerät. Nachbarn ohne Gerät in OpenWacht stehen grau
+  darunter. Einzurichten ist nichts ([Kapitel 4](handbuch/04-hosts.md#topologie)).
+- **Bild der Ports:** Ports mit weniger als 1 Gbit/s tragen ein Dreieck als Hinweis; die Einzelheiten nennen, seit
+  wann ein Port verbunden oder getrennt ist.
+- **Vorlagensatz „LANCOM 3000“** mit dem Sensor „STP letzter Wechsel“. Wer den Satz schon angewendet hat, wendet ihn
+  erneut an.
 - **Laufzeiten lesbar.** Ein SNMP-OID-Sensor, der eine Dauer misst, zeigt sie als Stunden, Minuten und Sekunden, etwa
   „26 Std. 14 Min. 5 Sek.“ statt „9444500“; die Meldung nennt die Schwelle genauso („Laufzeit über 26 Std. 0 Min.
   0 Sek.“). Das gilt für die Laufzeit des Systems (`hrSystemUptime`, `sysUpTime`), also auch für „Citrix VDA: Neustart

@@ -536,7 +536,7 @@ func TestEvalOIDDauer(t *testing.T) {
 		{"sysUpTime", `{"oid":"1.3.6.1.2.1.1.3.0"}`, snapAt(now, snmp.ExtraValue{OID: "1.3.6.1.2.1.1.3.0", Number: f(360000)}), checks.OK, "vorhanden",
 			"1 Std. 0 Min. 0 Sek."},
 		{"Einheit s", `{"oid":"` + o + `","einheit":"s","warnung_ueber":3600}`, snapAt(now, snmp.ExtraValue{OID: o, Number: f(7265)}), checks.Warn,
-			"Laufzeit über 1 Std. 0 Min. 0 Sek. (Warnung)", "2 Std. 1 Min. 5 Sek."},
+			"Dauer über 1 Std. 0 Min. 0 Sek. (Warnung)", "2 Std. 1 Min. 5 Sek."},
 		{"Faktor und Einheit s", `{"oid":"` + up + `","faktor":0.01,"einheit":"s"}`, ticks(4520500), checks.OK, "vorhanden", "12 Std. 33 Min. 25 Sek."},
 		{"Sekundenbruchteil", `{"oid":"` + o + `","einheit":"s"}`, snapAt(now, snmp.ExtraValue{OID: o, Number: f(0.5)}), checks.OK, "vorhanden", "0,5 Sek."},
 		{"andere OID bleibt Zahl", `{"oid":"` + o + `","warnung_ueber":5}`, snapAt(now, snmp.ExtraValue{OID: o, Number: f(9444500)}), checks.Warn, "Wert über 5",

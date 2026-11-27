@@ -77,3 +77,39 @@ func TestLLDPNachbarn(t *testing.T) {
 		t.Errorf("ohne LLDP: %v %+v", err, snap)
 	}
 }
+
+// Seit wann (1.0.11): sysUpTime minus ifLastChange in Sekunden; ohne die
+// Spalte oder mit einem Wert nach der Laufzeit fehlt die Angabe.
+func TestSchnittstelleSeit(t *testing.T) {
+	ticks := func(oid string, v uint32) gosnmp.SnmpPDU {
+		return gosnmp.SnmpPDU{Name: oid, Type: gosnmp.TimeTicks, Value: v}
+	}
+	f := snmptest.New(t, "c",
+		ticks("1.3.6.1.2.1.1.3.0", 1_000_000),
+		snmptest.Str(oidIfDescr+".1", "Port 1"), snmptest.Str(oidIfDescr+".2", "Port 2"), snmptest.Str(oidIfDescr+".3", "Port 3"),
+		ticks(oidIfLastChange+".1", 400_000), ticks(oidIfLastChange+".2", 2_000_000),
+	)
+	c := loopbackClient()
+	snap, err := c.Poll(context.Background(), Config{Version: V2c, Host: "127.0.0.1", Port: f.Port(), Community: "c"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snap.Interfaces) != 3 {
+		t.Fatalf("%+v", snap.Interfaces)
+	}
+	if s := snap.Interfaces[0].SinceS; s == nil || *s != 6000 {
+		t.Errorf("Port 1: %v", s)
+	}
+	if snap.Interfaces[1].SinceS != nil || snap.Interfaces[2].SinceS != nil {
+		t.Errorf("Port 2 und 3: %v %v", snap.Interfaces[1].SinceS, snap.Interfaces[2].SinceS)
+	}
+	if err := roundtrip(t, snap).ValidateCollected(time.Now()); err != nil {
+		t.Errorf("ValidateCollected: %v", err)
+	}
+	bad := roundtrip(t, snap)
+	zuViel := uint64(1 << 40)
+	bad.Interfaces[0].SinceS = &zuViel
+	if bad.ValidateCollected(time.Now()) == nil {
+		t.Error("unplausible Dauer angenommen")
+	}
+}

@@ -5335,6 +5335,10 @@ td > .kenn-marke:first-child {
   background: var(--f-krit);
 }
 
+.geraet-front .signal-warn {
+  background: var(--f-poe);
+}
+
 .geraet-front .signal-pause {
   background: var(--nacht-leise);
 }
@@ -5399,4 +5403,80 @@ td > .kenn-marke:first-child {
 
 .port-einzel {
   margin-top: var(--a2);
+}
+
+/* Netzbild (1.0.11): Geräte als Knoten, LLDP-Verbindungen als Linien. */
+.netzbild {
+  margin-bottom: var(--a4);
+}
+
+.netzbild-rahmen {
+  padding: var(--a4);
+  overflow-x: auto;
+  background: var(--zart);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+}
+
+.netzbild-flaeche {
+  position: relative;
+  margin: 0 auto;
+}
+
+.netzbild-linien {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.netzbild-linie {
+  stroke: var(--leise);
+  stroke-width: 1.5;
+}
+
+.netzbild-linie-mehrfach {
+  stroke-width: 4;
+}
+
+.netzbild-port {
+  fill: var(--tinte);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  paint-order: stroke;
+  stroke: var(--zart);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
+.netzbild-knoten {
+  position: absolute;
+  box-shadow: 0 1px 2px var(--schatten);
+}
+
+.netzbild-fremde {
+  margin-top: var(--a2);
+}
+
+.netzbild-fremde-geraet {
+  margin-top: var(--a2);
+}
+
+.netzbild-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a1);
+  margin: var(--a1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.netzbild-chip {
+  padding: 0.1rem var(--a2);
+  color: var(--leise);
+  font-size: var(--s-1);
+  background: var(--zart);
+  border: 1px dashed var(--linie);
+  border-radius: var(--r);
 }

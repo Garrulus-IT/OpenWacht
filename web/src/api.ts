@@ -440,6 +440,8 @@ export interface SnmpSchnittstelle {
   ein_bps: number | null;
   aus_bps: number | null;
   fehler_neu: number | null;
+  // 1.0.11: Sekunden seit dem letzten Wechsel des Zustands, falls das Gerät es meldet
+  seit_s?: number;
 }
 
 // PoE-Port (1.0.10): Zeile aus pethPsePortTable; status 1 aus, 2 sucht, 3 liefert Strom, 4/6 Fehler, 5 Test

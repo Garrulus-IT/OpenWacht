@@ -7,6 +7,7 @@
 // die Einzelheiten zeigt die aufrufende Ansicht.
 
 import type { SnmpLldpNachbar, SnmpPoePort, SnmpSchnittstelle } from "./api";
+import { bitrate } from "./Pegel";
 
 // ifType der physischen Ports: Ethernet, Fast Ethernet (alt), Gigabit (alt)
 const physisch = new Set([6, 62, 69, 117]);
@@ -47,6 +48,12 @@ export const poeText: Record<number, string> = {
   5: "Test",
   6: "Fehler",
 };
+
+// langsam (1.0.11): verbunden, aber mit weniger als 1 Gbit/s ausgehandelt.
+// Das ist ein Hinweis, kein Alarm: Drucker und Telefone können oft nur 100 Mbit/s.
+export function langsam(i: SnmpSchnittstelle) {
+  return i.admin_an && i.status === "up" && i.geschwindigkeit_bps > 0 && i.geschwindigkeit_bps < 1e9;
+}
 
 export type PortZustand = "ok" | "crit" | "aus" | "frei";
 
@@ -104,7 +111,8 @@ export function PortBild(props: {
                 const strom = p?.status === 3;
                 const poeFehler = p?.status === 4 || p?.status === 6;
                 const nachbarn = (props.lldp ?? []).filter((n) => n.index === i.index);
-                const text = `Port ${nr}, ${i.name}${i.alias ? ` (${i.alias})` : ""}: ${zustandText[z]}${p ? `, PoE ${poeText[p.status] ?? "unbekannt"}` : ""}${nachbarn.length > 0 ? `, Nachbar ${nachbarn.map(nachbarText).join("; ")}` : ""}`;
+                const lahm = langsam(i);
+                const text = `Port ${nr}, ${i.name}${i.alias ? ` (${i.alias})` : ""}: ${zustandText[z]}${lahm ? `, langsam (${bitrate(i.geschwindigkeit_bps)})` : ""}${p ? `, PoE ${poeText[p.status] ?? "unbekannt"}` : ""}${nachbarn.length > 0 ? `, Nachbar ${nachbarn.map(nachbarText).join("; ")}` : ""}`;
                 return (
                   <button
                     key={i.index}
@@ -117,7 +125,7 @@ export function PortBild(props: {
                   >
                     <span className="port-nr">{nr}</span>
                     <span className="port-buchse" aria-hidden="true">
-                      <span className={`signal signal-${z === "ok" ? "ok" : z === "crit" ? "crit" : z === "aus" ? "pause" : "leer"}`} />
+                      <span className={`signal signal-${lahm ? "warn" : z === "ok" ? "ok" : z === "crit" ? "crit" : z === "aus" ? "pause" : "leer"}`} />
                       <span className={`port-poe${poeFehler ? " port-poe-fehler" : ""}`}>{strom ? "PoE" : poeFehler ? "PoE!" : ""}</span>
                     </span>
                   </button>
@@ -128,7 +136,8 @@ export function PortBild(props: {
         </div>
       </div>
       <p className="klein portbild-legende">
-        <span className="signal signal-ok" aria-hidden="true" /> verbunden · <span className="signal signal-leer" aria-hidden="true" /> nicht
+        <span className="signal signal-ok" aria-hidden="true" /> verbunden · <span className="signal signal-warn" aria-hidden="true" /> verbunden
+        unter 1 Gbit/s · <span className="signal signal-leer" aria-hidden="true" /> nicht
         verbunden · <span className="signal signal-crit" aria-hidden="true" /> nicht verbunden und überwacht ·{" "}
         <span className="signal signal-pause" aria-hidden="true" /> abgeschaltet
         {poe.size > 0 ? " · PoE: liefert Strom" : ""}. Die Nummer zählt die physischen Ports in der Reihenfolge des Geräts.

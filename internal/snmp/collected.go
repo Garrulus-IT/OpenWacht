@@ -163,6 +163,9 @@ func (s *Snapshot) ValidateCollected(now time.Time) error {
 		if !it.HC && (it.InOctets > math.MaxUint32 || it.OutOctets > math.MaxUint32) {
 			return errors.New(f + ": 32-Bit-Zähler zu groß")
 		}
+		if it.SinceS != nil && *it.SinceS > math.MaxUint32/100 {
+			return errors.New(f + ".seit_s: unplausibel")
+		}
 	}
 	if y := s.Synology; y != nil {
 		if err := checkClean("synology.modell", y.Model, true); err != nil {

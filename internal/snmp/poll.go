@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gosnmp/gosnmp"
+
 	"github.com/garrulus-it/openwacht/internal/safe"
 )
 
@@ -135,6 +137,9 @@ type Interface struct {
 	OutBps    *float64 `json:"aus_bps"`
 	// neue Fehler seit der letzten Abfrage
 	NewErrors *uint64 `json:"fehler_neu"`
+	// SinceS (1.0.11): Sekunden seit dem letzten Wechsel des Zustands
+	// (sysUpTime minus ifLastChange); fehlt, wenn das Gerät es nicht meldet
+	SinceS *uint64 `json:"seit_s,omitempty"`
 }
 
 type Synology struct {
@@ -218,6 +223,7 @@ const (
 	oidIfHCOutOctets = "1.3.6.1.2.1.31.1.1.1.10"
 	oidIfHighSpeed   = "1.3.6.1.2.1.31.1.1.1.15"
 	oidIfAlias       = "1.3.6.1.2.1.31.1.1.1.18"
+	oidIfLastChange  = "1.3.6.1.2.1.2.2.1.9"
 
 	oidHrStorageType  = "1.3.6.1.2.1.25.2.3.1.2"
 	oidHrStorageDescr = "1.3.6.1.2.1.25.2.3.1.3"
@@ -440,6 +446,8 @@ func (s *session) interfaces(snap *Snapshot) error {
 		}
 		cols[o] = m
 	}
+	// Seit wann (1.0.11): freiwillig, ein Fehler hier kostet nicht die Schnittstellen.
+	lastChange, _, _ := s.column(oidIfLastChange, MaxInterfaces)
 	for _, idx := range order {
 		n, err := strconv.Atoi(idx)
 		if err != nil || n < 0 {
@@ -477,6 +485,12 @@ func (s *session) interfaces(snap *Snapshot) error {
 		}
 		it.InErrors, _ = cols[oidIfInErrors][idx].uint()
 		it.OutErrors, _ = cols[oidIfOutErrors][idx].uint()
+		if v, ok := lastChange[idx]; ok && v.pdu.Type == gosnmp.TimeTicks {
+			if lc, ok := v.uint(); ok && lc <= uint64(snap.System.UptimeTicks) {
+				since := (uint64(snap.System.UptimeTicks) - lc) / 100
+				it.SinceS = &since
+			}
+		}
 		snap.Interfaces = append(snap.Interfaces, it)
 	}
 	sort.Slice(snap.Interfaces, func(i, j int) bool { return snap.Interfaces[i].Index < snap.Interfaces[j].Index })

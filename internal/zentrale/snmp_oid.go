@@ -360,7 +360,12 @@ func evalOID(sp checks.Spec, cur, prev *snmp.Snapshot, rebooted bool) (res check
 		return checks.Result{Status: checks.Unknown, Message: "Wert ist keine Zahl"}, true
 	}
 	if sc := durationScale(sp); sc != 0 {
-		return judgeWith(sp, *num, metric, "Laufzeit", func(v float64) string { return dauerText(v * sc) }), true
+		// „Laufzeit“ nur für die Laufzeit des Systems, sonst allgemein „Dauer“
+		label := "Dauer"
+		if sp.OID == oidHrSystemUptime || sp.OID == oidSysUpTime {
+			label = "Laufzeit"
+		}
+		return judgeWith(sp, *num, metric, label, func(v float64) string { return dauerText(v * sc) }), true
 	}
 	return judgeThresholds(sp, *num, metric), true
 }
