@@ -115,8 +115,9 @@ nicht. „Als eigene“ macht aus einer eingebauten Vorlage eine eigene zum Anpa
 
 ## Vorlagensätze
 
-Ein **Vorlagensatz** legt mehrere Sensoren für eine Anwendung auf einmal an. Eingebaut sind fünfzehn Sätze, vierzehn für
-Windows-Server und einer für den NetScaler; jeder Sensor heißt „Satz: …“ und merkt sich den Satz als Herkunft.
+Ein **Vorlagensatz** legt mehrere Sensoren für eine Anwendung auf einmal an. Eingebaut sind sechzehn Sätze: vierzehn für
+Windows-Server, einer für den NetScaler und einer für LANCOM-Switche. Jeder Sensor heißt „Satz: …“ und merkt sich den
+Satz als Herkunft.
 
 ![Vorlagensätze](bilder/sensor-vorlagensaetze.webp)
 
@@ -137,6 +138,7 @@ Windows-Server und einer für den NetScaler; jeder Sensor heißt „Satz: …“
 | **Citrix Cloud Connector** | Dienste Agent System, WatchDog, Agent Discovery, AD Provider, Credential Provider, WebRelay, Message Broker, Remote Broker Provider (`XaXdCloudProxy`), STA, Config Synchronizer, High Availability (Local Host Cache), Remote HCL, Cloud Gateway, Monitor; VDA-Anmeldung auf Port 80 | `-arten dienst` |
 | **Citrix Provisioning** | Dienste Stream Service, SOAP Server, API, TFTP, PXE, Two-Stage Boot; SOAP-Port 54321 | `-arten dienst` |
 | **NetScaler** | über SNMP: CPU (80 %/95 %), Speicher (80 %/90 %), HA-Zustand, virtuelle Server down (ab 1 kritisch), Dienste down (Warnung ab 1), **kürzeste Restlaufzeit aller Zertifikate** (Warnung 30, kritisch 14 Tage), Zahl der Zertifikate; Zertifikat der Verwaltung | keine; SNMPv3 am Gerät ([Kapitel 6](06-snmp.md)) |
+| **LANCOM 3000** (ab 1.0.8) | über SNMP, für Switche der Serie GS-3000 mit LCOS SX 4.x: Temperatur 1 (80/90 °C), Temperatur 2 und 3 (60/70 °C), Lüfter (kritisch unter 300 RPM), CPU über 10 s (85 %/95 %), PoE-Leistung in W, PoE-Budget, PoE-Versorgung an, PoE-Ports im Fehler (Warnung ab 1), PoE-Ports mit Strom. Die Schwellen der Temperaturen sind eine Vorbelegung: erst die eigenen Werte ansehen, dann anpassen | keine; SNMPv3 am Gerät ([Kapitel 6](06-snmp.md)) |
 
 ![Swyx-Sensoren an einem Gerät](bilder/host-sensoren-swyx.webp)
 

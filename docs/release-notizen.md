@@ -8,6 +8,8 @@
   ([Kapitel 7](handbuch/07-sensoren-und-vorlagen.md#zahl-aus-text-faktor-und-einheit)).
 - **Faktor und Einheit** für SNMP-OID-Sensoren, auch für Spalten: „810“ in Zehntel-Watt wird mit Faktor 0,1 und Einheit W
   zu „81 W“; Schwellen gelten auf den umgerechneten Wert.
+- **Vorlagensatz „LANCOM 3000“** für Switche der Serie GS-3000 mit LCOS SX 4.x: Temperaturen, Lüfter, CPU und PoE über
+  SNMPv3, gemessen an einem GS-3628XUP.
 
 ## 1.0.7
 

@@ -16,7 +16,7 @@ import (
 // Jeder Sensor eines eingebauten Satzes ist ein gültiges Vorlagenziel.
 func TestVorlagensaetzeGueltig(t *testing.T) {
 	seen := map[string]bool{}
-	if len(builtinSets) != 15 {
+	if len(builtinSets) != 16 {
 		t.Fatalf("Sätze: %d", len(builtinSets))
 	}
 	for _, set := range builtinSets {
