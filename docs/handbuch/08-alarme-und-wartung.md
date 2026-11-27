@@ -80,15 +80,20 @@ Farben, Schriften (D-DIN, JetBrains Mono) und Zustandsformen.
   (wie System, Hell, Dunkel) und **Abmelden**. Mandant, Schalter und Darstellung merkt sich die App.
 - **Kopf** mit Brotkrumen („Dashboard › web01“), Knöpfen der Seite („Host hinzufügen“, „Im Browser öffnen“) und der
   **Suche** (Strg+K oder Strg+F; filtert die Sensoren nach Gerät, Sensor und Meldung).
-- **Dashboard:** links das **Sonnendiagramm** wie das Widget im Web, dauerhaft sichtbar: innen der Mandant, nach außen
-  Untermandanten, Gruppen und Geräte, jedes Gerät gleich breit, mit Problem tritt es hervor, Namen entlang des Bogens
-  bzw. des Strahls. Rechts daneben die **Übersicht** wie bei der Wandanzeige: Geräte je Zustand als Kacheln und
-  „Aktuell“ mit den Geräten, die ein Problem haben. Ein Klick auf ein **Gerät** (in der Sonne oder unter „Aktuell“)
-  öffnet daneben seine **Sensoren**; die Sonne bleibt stehen, × oder Esc schließt wieder. Ein Klick auf eine Gruppe
-  zeigt sie als Sonne, ein Klick in die Mitte geht eine Ebene zurück. **Kennfarben** gelten wie in der Wandanzeige:
-  Ein Gerät mit Warnung, Kritisch oder Bestätigt steht in der Kennfarbe seines Sensors, bestätigt abgedunkelt; bei
-  gleicher Schwere gewinnt der Zustand ohne Kennfarbe („Rot gewinnt immer“). Unter „Aktuell“ steht der Name der
-  Kennfarbe vor dem Pfad, in der Sensorliste trägt die Zustandsform die Kennfarbe; die Form selbst bleibt.
+- **Dashboard** (ab 1.0.7 wie im Web): dasselbe Layout deines Kontos im selben Raster, mit allen Widgets, deinen
+  **Seiten** als Reiter und **„An Fenster anpassen“** (verteilt die Höhe des Fensters auf die Reihen; gilt je Rechner).
+  Was du im Browser anpasst, steht auch in der App, und umgekehrt. **„Anpassen“** schaltet ins Bearbeiten: „+ Widget“,
+  „+ Seite“, „Seite umbenennen“, „Seite löschen“, „Standard wiederherstellen“; an jedem Widget öffnet **„Ändern“** ein
+  Menü mit Einstellungen (Titel, Breite, Höhe, Seite, Mandant, Inhalt), Nach vorn/hinten, Breiter/Schmaler,
+  Höher/Niedriger, Verdoppeln und Entfernen. Drei Unterschiede zum Web: Die Größe stellst du über das Menü ein, nicht
+  durch Ziehen an der Ecke; Listen in einem Widget rollen nicht, sondern nennen den Rest („… und 3 weitere“), ein
+  höheres Widget zeigt mehr; und mit einem **API-Token** gibt es kein Layout des Kontos, die App zeigt dann das
+  Standard-Layout ohne „Anpassen“. Ein Klick auf ein **Gerät** (im Sonnendiagramm oder in einer Liste) öffnet es wie
+  bisher: links die große **Sonne**, daneben seine **Sensoren**; × oder Esc schließt wieder. In dieser Ansicht zeigt ein
+  Klick auf eine Gruppe sie als Sonne, ein Klick in die Mitte geht eine Ebene zurück. **Kennfarben** gelten wie in der
+  Wandanzeige: Ein Gerät mit Warnung, Kritisch oder Bestätigt steht in der Kennfarbe seines Sensors, bestätigt
+  abgedunkelt; bei gleicher Schwere gewinnt der Zustand ohne Kennfarbe („Rot gewinnt immer“). In Listen trägt die Zustandsform die Kennfarbe; die Form
+  selbst bleibt.
 - **Hosts:** links der Baum (Mandant, Untermandanten, Gruppen, Geräte) mit der Form des schlimmsten Zustands und den
   Zahlen der kritischen, gewarnten und unbekannten Sensoren, rechts das Gewählte.
 - **Alarme:** alle Sensoren mit Warnung, Kritisch oder Unbekannt im gewählten Mandanten, schlimmste zuerst.

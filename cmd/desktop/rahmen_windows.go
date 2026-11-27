@@ -17,8 +17,8 @@ import (
 
 // fenster: Zustand der Oberfläche (nur im Oberflächen-Thread benutzt).
 type fenster struct {
-	hwnd, leiste, kopfleiste, suche, hinweisF                    syscall.Handle
-	befehle, baum, kopf, listKopf, liste, details, sonne, uebers syscall.Handle
+	hwnd, leiste, kopfleiste, suche, hinweisF            syscall.Handle
+	befehle, baum, kopf, listKopf, liste, details, sonne syscall.Handle
 
 	seite     int
 	mandant   string // gewählter Mandant (Wurzel des Bereichs)
@@ -66,9 +66,6 @@ type fenster struct {
 	leisteZiele []ziel
 	leisteUeber int
 
-	uebZiele []ziel
-	uebUeber int
-
 	wartungF  syscall.Handle // Seite Wartung
 	wartZiele []ziel
 	wartUeber int
@@ -80,11 +77,17 @@ type fenster struct {
 	seitenUeber int
 	seitenOff   int32
 	seitenHoehe int32
+	uhrMinute   int
+	klickX      int32 // Punkt des letzten Klicks in seitenF (Sonne im Dashboard)
+	klickY      int32
 
 	meldung     string // kurze Rückmeldung oben im Inhalt
 	meldungZeit time.Time
 	sucheRahmen rect
 }
+
+// uhrTimer: Zeitgeber des Hauptfensters für die Uhr im Dashboard.
+const uhrTimer = 1
 
 // ziel: Klickfläche in einer selbst gezeichneten Fläche.
 type ziel struct {
@@ -103,7 +106,7 @@ func (a *app) fensterAnlegen() (*fenster, error) {
 	themaSetzen(a.dunkel())
 	inst, _, _ := pGetModuleHandleW.Call(0)
 	cursor, _, _ := pLoadCursorW.Call(0, idcArrow)
-	f := &fenster{dpi: 96, sortSp: -1, items: map[string]uintptr{}, ueber: -1, kopfUeber: -1, leisteUeber: -1, uebUeber: -1, wartUeber: -1, seitenUeber: -1,
+	f := &fenster{dpi: 96, sortSp: -1, items: map[string]uintptr{}, ueber: -1, kopfUeber: -1, leisteUeber: -1, wartUeber: -1, seitenUeber: -1,
 		mandant: a.cfg.Mandant, mitUnter: !a.cfg.OhneUnter}
 	for _, k := range []struct {
 		name string
@@ -136,7 +139,6 @@ func (a *app) fensterAnlegen() (*fenster, error) {
 	platzhalter(f.suche, "Suchen", false)
 	f.hinweisF = flaeche(idHinweis)
 	f.sonne = flaeche(idSonne)
-	f.uebers = flaeche(idUebersicht)
 	f.wartungF = flaeche(idWartung)
 	f.seitenF = flaeche(idSeite)
 
@@ -154,6 +156,7 @@ func (a *app) fensterAnlegen() (*fenster, error) {
 
 	f.knoepfeAnlegen()
 	f.dpiAnwenden()
+	pSetTimer.Call(uintptr(f.hwnd), uhrTimer, 5000, 0)
 	f.themaAnwenden()
 	pSetWindowPos.Call(h, 0, 0, 0, uintptr(f.s(1360)), uintptr(f.s(860)), swpNoMove|swpNoZOrder|swpNoActivate)
 	return f, nil
@@ -299,10 +302,6 @@ func (f *fenster) anordnen() {
 		sw := max(min(cw*48/100, ch+f.s(32)), f.s(360))
 		karte(f.sonne, x, y, sw, ch)
 		detail = rect{x + sw + gap, y, x + cw, y + ch}
-	case dash:
-		ub := min(f.s(uebB), cw/3)
-		karte(f.sonne, x, y, cw-ub-gap, ch)
-		karte(f.uebers, x+cw-ub, y, ub, ch)
 	case f.seite == seiteHosts:
 		bb := min(f.s(baumB), cw/3)
 		karte(f.baum, x, y, bb, ch)
@@ -315,9 +314,8 @@ func (f *fenster) anordnen() {
 		detail = rect{x, y, x + cw, y + ch}
 	}
 	zeigen(f.wartungF, f.seite == seiteWartung)
-	zeigen(f.seitenF, seiten[f.seite] != nil)
-	zeigen(f.sonne, dash)
-	zeigen(f.uebers, dash && !hostOffen)
+	zeigen(f.seitenF, seiten[f.seite] != nil && !hostOffen)
+	zeigen(f.sonne, hostOffen)
 	zeigen(f.baum, f.seite == seiteHosts)
 	mitDetail := detail.Right > detail.Left
 	for _, d := range []syscall.Handle{f.kopf, f.befehle, f.listKopf, f.liste, f.details} {
@@ -405,7 +403,6 @@ func (a *app) aktualisieren(immer bool) {
 	f.anordnen()
 	a.auswahlZeigen(immer)
 	pInvalidateRect.Call(uintptr(f.leiste), 0, 0)
-	pInvalidateRect.Call(uintptr(f.uebers), 0, 0)
 	pInvalidateRect.Call(uintptr(f.wartungF), 0, 0)
 	if immer && seiten[f.seite] != nil {
 		a.seiteNeu(f.seite)
@@ -618,8 +615,6 @@ func flaecheProc(hwnd, m, wp, lp uintptr) uintptr {
 				a.detailsMalen(hdc, r)
 			case f.sonne:
 				a.sonneMalen(hdc, r)
-			case f.uebers:
-				a.uebersichtMalen(hdc, r)
 			case f.wartungF:
 				a.wartungMalen(hdc, r)
 			case f.seitenF:
@@ -684,8 +679,6 @@ func flaecheProc(hwnd, m, wp, lp uintptr) uintptr {
 			neuUeber(&f.kopfUeber, knopfBei(f.kopfKnoepfe, x, y))
 		case f.leiste:
 			neuUeber(&f.leisteUeber, zielBei(f.leisteZiele, x, y))
-		case f.uebers:
-			neuUeber(&f.uebUeber, zielBei(f.uebZiele, x, y))
 		case f.wartungF:
 			neuUeber(&f.wartUeber, zielBei(f.wartZiele, x, y))
 		case f.seitenF:
@@ -702,8 +695,6 @@ func flaecheProc(hwnd, m, wp, lp uintptr) uintptr {
 			f.kopfUeber = -1
 		case f.leiste:
 			f.leisteUeber = -1
-		case f.uebers:
-			f.uebUeber = -1
 		case f.wartungF:
 			f.wartUeber = -1
 		case f.seitenF:
@@ -748,16 +739,13 @@ func flaecheProc(hwnd, m, wp, lp uintptr) uintptr {
 			if i := zielBei(f.leisteZiele, x, y); i >= 0 {
 				a.leisteKlick(f.leisteZiele[i])
 			}
-		case f.uebers:
-			if i := zielBei(f.uebZiele, x, y); i >= 0 {
-				a.geraetOeffnen(f.uebZiele[i].wert)
-			}
 		case f.wartungF:
 			if i := zielBei(f.wartZiele, x, y); i >= 0 {
 				a.wartungKlick(f.wartZiele[i])
 			}
 		case f.seitenF:
 			if i := zielBei(f.seitenZiele, x, y); i >= 0 {
+				f.klickX, f.klickY = x, y
 				a.seiteKlick(f.seitenZiele[i])
 			}
 		}
@@ -772,8 +760,6 @@ func (f *fenster) klickbar(h syscall.Handle, x, y int32) bool {
 	switch h {
 	case f.leiste:
 		return zielBei(f.leisteZiele, x, y) >= 0
-	case f.uebers:
-		return zielBei(f.uebZiele, x, y) >= 0
 	case f.wartungF:
 		return zielBei(f.wartZiele, x, y) >= 0
 	case f.seitenF:
@@ -815,6 +801,15 @@ func fensterProc(hwnd, m, wp, lp uintptr) uintptr {
 		return r
 	}
 	switch uint32(m) {
+	case wmTimer:
+		// Uhr im Dashboard: einmal je Minute neu zeichnen
+		if min := time.Now().Minute(); wp == uhrTimer && min != f.uhrMinute {
+			f.uhrMinute = min
+			if f.seite == seiteDashboard && f.dashHost == "" {
+				pInvalidateRect.Call(uintptr(f.seitenF), 0, 0)
+			}
+		}
+		return 0
 	case wmSize:
 		f.anordnen()
 		return 0

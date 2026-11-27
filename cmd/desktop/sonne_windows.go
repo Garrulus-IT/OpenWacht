@@ -87,7 +87,7 @@ func (a *app) sonneMalen(hdc uintptr, r rect) {
 		if f.sonnenBild.h != 0 {
 			pDeleteObject.Call(f.sonnenBild.h)
 		}
-		f.sonnenBild = f.sonneRendern(hdc, w, n)
+		f.sonnenBild = f.sonneRendern(hdc, w, f.sonnenSeg, f.sonnenRing, n)
 		f.sonnenSig, f.sonnenWurz = sig, w
 	}
 	mem, _, _ := pCreateCompatibleDC.Call(hdc)
@@ -108,12 +108,12 @@ func (a *app) sonneMalen(hdc uintptr, r rect) {
 }
 
 // sonneRendern: Flächen, Namen und Mitte einmal in ein Bild (n×n) zeichnen.
-func (f *fenster) sonneRendern(hdc uintptr, w *desktop.Knoten, n int32) bmp {
+func (f *fenster) sonneRendern(hdc uintptr, w *desktop.Knoten, seg []desktop.Segment, ring []float64, n int32) bmp {
 	mem, _, _ := pCreateCompatibleDC.Call(hdc)
 	bm, _, _ := pCreateCompatibleBmp.Call(hdc, uintptr(n), uintptr(n))
 	alt, _, _ := pSelectObject.Call(mem, bm)
 	fuellen(mem, rect{0, 0, n, n}, th.f.Flaeche)
-	flaechen := bitmapAus(desktop.SonnenBild(f.sonnenSeg, f.sonnenRing, desktop.SonnenStatus(w), w.Kenn, int(n), th.f.Flaeche))
+	flaechen := bitmapAus(desktop.SonnenBild(seg, ring, desktop.SonnenStatus(w), w.Kenn, int(n), th.f.Flaeche))
 	alpha(mem, flaechen, 0, 0)
 	pDeleteObject.Call(flaechen.h)
 	k := float64(n) / 1000
@@ -121,7 +121,7 @@ func (f *fenster) sonneRendern(hdc uintptr, w *desktop.Knoten, n int32) bmp {
 	pSetBkMode.Call(mem, transparent)
 	// Schrift wie im Web 6,5 bis 19 Einheiten, aber nie unter 8 px
 	minS := math.Max(6.5, float64(f.s(8))/k)
-	for _, s := range f.sonnenSeg {
+	for _, s := range seg {
 		b := desktop.SonnenBeschriftungIn(s.Knoten.Name, s.R0, s.R1, s.A0, s.A1, minS, 19)
 		if b == nil {
 			continue

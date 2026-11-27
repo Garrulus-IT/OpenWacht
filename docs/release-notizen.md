@@ -9,6 +9,10 @@
 - **Dashboard passt sich dem Fenster an:** Das Raster richtet sich nach seinem eigenen Platz (12, 6 oder 1 Spalte) statt
   nach festen Bildschirmbreiten. „⤢ An Fenster anpassen“ verteilt die Höhe des Fensters auf die Reihen, das Dashboard
   passt dann ohne Rollen auf den Bildschirm; die Wahl gilt je Browser.
+- **Desktop-App mit demselben Dashboard:** Die App zeigt das Layout deines Kontos mit allen Widgets, Seiten und „An
+  Fenster anpassen“ und lässt es bearbeiten (Menü „Ändern“ am Widget). Sie ersetzt die feste Ansicht aus Sonne und
+  Übersicht; ein Klick auf ein Gerät öffnet weiter die Sonne mit den Sensoren daneben. Mit API-Token zeigt sie das
+  Standard-Layout ([Kapitel 8](handbuch/08-alarme-und-wartung.md)).
 - **Sonnendiagramm und Wandanzeige kürzen Namen seltener:** Fehlen einem Namen nur wenige Zeichen, wird seine Schrift
   um bis zu ein Fünftel kleiner und der Name bleibt ganz. Bisher stand dort etwa „Garage Feuerwe…“, obwohl die drei
   Punkte so viel Platz brauchen wie die zwei gekürzten Buchstaben. Gilt im Web, auf der Wandanzeige und in der

@@ -90,7 +90,6 @@ const (
 	kopfleiste = 52  // .kopf: 3.25rem
 	befehlH    = 56
 	baumB      = 340
-	uebB       = 400
 	kopfH      = 64
 	zeileH     = 32
 	detailMin  = 120

@@ -557,6 +557,7 @@ func (a *app) neuAngemeldet(cfg desktop.Config, sitzung *desktop.Sitzung) {
 	}
 	a.cfg = cfg
 	a.sitzungWeg.Store(false)
+	dashVergessen() // das Layout gehört zum Konto
 	a.mu.Lock()
 	a.client = c
 	a.letzte, a.melden = nil, nil

@@ -40,6 +40,10 @@ type Config struct {
 	// (Sitzung nur im Speicher), sonst API-Token aus der Anmeldeinformationsverwaltung.
 	Anmeldung string `json:"anmeldung,omitempty"`
 	Email     string `json:"email,omitempty"` // zuletzt angemeldet (kein Geheimnis)
+	// Dashboard (1.0.7): zuletzt gezeigte Seite und „An Fenster anpassen“.
+	// Beides gilt je Rechner, nicht je Konto.
+	DashSeite   int  `json:"dash_seite,omitempty"`
+	DashFenster bool `json:"dash_fenster,omitempty"`
 }
 
 // MitKonto: Anmeldung wie im Browser statt API-Token.
