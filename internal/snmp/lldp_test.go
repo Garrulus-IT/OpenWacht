@@ -37,6 +37,12 @@ func TestLLDPNachbarn(t *testing.T) {
 		snmptest.Str(oidLldpRemPortDesc+".0.7.1", strings.Repeat("x", 200)),
 		// Portnummer 99: keine Schnittstelle, fällt weg
 		snmptest.Str(oidLldpRemSysName+".0.99.1", "verloren"),
+		// Verwaltungsadressen (1.0.12): Port 1 mit IPv6 und IPv4 (IPv4 gewinnt),
+		// Port 2 nur IPv6 ohne vorangestellte Länge, Port 7 mit unbekannter Art
+		snmptest.Num(oidLldpRemManAddrIfSubtype+".0.1.1.2.16.254.128.0.0.0.0.0.0.0.0.0.0.0.0.0.1", 2),
+		snmptest.Num(oidLldpRemManAddrIfSubtype+".0.1.1.1.4.10.20.0.7", 2),
+		snmptest.Num(oidLldpRemManAddrIfSubtype+".0.2.1.2.32.1.13.184.0.0.0.0.0.0.0.0.0.0.0.42", 2),
+		snmptest.Num(oidLldpRemManAddrIfSubtype+".0.7.1.6.6.0.160.87.1.2.255", 2),
 	)
 	c := loopbackClient()
 	for _, v := range []string{V1, V2c} {
@@ -47,13 +53,13 @@ func TestLLDPNachbarn(t *testing.T) {
 		if len(snap.LLDP) != 3 || len(snap.Partial) != 0 {
 			t.Fatalf("v%s: %+v, teilweise %v", v, snap.LLDP, snap.Partial)
 		}
-		if n := snap.LLDP[0]; n != (LLDPNeighbor{Index: 1, Name: "sw-keller", Port: "GigabitEthernet 1/24"}) {
+		if n := snap.LLDP[0]; n != (LLDPNeighbor{Index: 1, Name: "sw-keller", Port: "GigabitEthernet 1/24", Adresse: "10.20.0.7"}) {
 			t.Errorf("v%s Port 1: %+v", v, n)
 		}
-		if n := snap.LLDP[1]; n != (LLDPNeighbor{Index: 2, Name: "ap-flur", Port: "00:a0:57:01:02:ff"}) {
+		if n := snap.LLDP[1]; n != (LLDPNeighbor{Index: 2, Name: "ap-flur", Port: "00:a0:57:01:02:ff", Adresse: "2001:db8::2a"}) {
 			t.Errorf("v%s Port 2: %+v", v, n)
 		}
-		if n := snap.LLDP[2]; n.Index != 10 || n.Name != "core-01" || len(n.Port) != MaxLLDPText {
+		if n := snap.LLDP[2]; n.Index != 10 || n.Name != "core-01" || len(n.Port) != MaxLLDPText || n.Adresse != "" {
 			t.Errorf("v%s Uplink: %+v", v, n)
 		}
 		if err := roundtrip(t, snap).ValidateCollected(time.Now()); err != nil {
@@ -63,6 +69,13 @@ func TestLLDPNachbarn(t *testing.T) {
 		bad.LLDP[0].Name = strings.Repeat("x", MaxLLDPText+1)
 		if bad.ValidateCollected(time.Now()) == nil {
 			t.Error("zu langer Name angenommen")
+		}
+		for _, a := range []string{"10.20.0.07", "fe80::1%eth0", "keine", "10.20.0.7 "} {
+			bad = roundtrip(t, snap)
+			bad.LLDP[0].Adresse = a
+			if bad.ValidateCollected(time.Now()) == nil {
+				t.Errorf("Adresse %q angenommen", a)
+			}
 		}
 		bad = roundtrip(t, snap)
 		bad.LLDP[0].Name, bad.LLDP[0].Port = "", ""

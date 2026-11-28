@@ -4,7 +4,7 @@
 // Sensorart mit Vorbelegung. Anwenden legt je Gerät eine Kopie an (einmalig,
 // auch für eine ganze Gruppe); Änderungen an der Vorlage ändern keine Sensoren.
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { api, type CheckTyp, type CheckZiel, type Geraet, type Gruppe, type Vorlage, type VorlagenSatz } from "./api";
 import { darfPflegen, mandantName, type Bereich } from "./bereich";
 import { CheckFormular, typText, zielText } from "./Checks";
@@ -537,11 +537,16 @@ function Anwenden(props: {
   v: Vorlage | VorlagenSatz;
   geraete: Geraet[];
   gruppen: Gruppe[];
-  bereich: Bereich;
+  bereich?: Bereich;
+  // feste Ziele (1.0.12): am Gerät oder für mehrere markierte Geräte; ohne Auswahl
+  feste?: Geraet[];
+  // oberhalb der Felder, z. B. die Wahl der Vorlage
+  kopf?: ReactNode;
   onFertig: () => void;
   melden: (e: unknown) => void;
 }) {
   const { v } = props;
+  const feste = props.feste;
   const [ziel, setZiel] = useState<"geraete" | "gruppe">("geraete");
   const [wahl, setWahl] = useState<Set<string>>(new Set());
   const [gruppe, setGruppe] = useState("");
@@ -566,7 +571,11 @@ function Anwenden(props: {
     setSendet(true);
     setFehler("");
     try {
-      const body = ziel === "gruppe" ? { ...auswahl, gruppe_id: gruppe, mit_untergruppen: unter } : { ...auswahl, geraete: [...wahl] };
+      const body = feste
+        ? { ...auswahl, geraete: feste.map((g) => g.id) }
+        : ziel === "gruppe"
+          ? { ...auswahl, gruppe_id: gruppe, mit_untergruppen: unter }
+          : { ...auswahl, geraete: [...wahl] };
       setErgebnis(await api("POST", "/api/v1/sensor-vorlagen/anwenden", body));
     } catch (err) {
       setFehler(err instanceof Error ? err.message : String(err));
@@ -577,7 +586,8 @@ function Anwenden(props: {
   return (
     <div className="einschub">
       <form className="formular formular-flach" onSubmit={absenden}>
-        <h3 className="einschub-titel">„{v.name}“ anwenden</h3>
+        <h3 className="einschub-titel">{feste ? "Vorlage anwenden" : `„${v.name}“ anwenden`}</h3>
+        {props.kopf}
         <p className="hinweis formular-voll">
           {satz ? `Legt je Gerät ${sensoren.length} Sensoren an. ` : `Legt je Gerät einen Sensor „${v.name}“ an. `}
           {sensoren.some((x) => x.braucht_adresse) ? "Geräte ohne Adresse werden dabei übersprungen. " : ""}
@@ -586,6 +596,12 @@ function Anwenden(props: {
             : ""}
           {sensoren.some((x) => x.typ === "snmp_oid") ? "SNMP-Sensoren nur bei Geräten mit SNMP-Abfrage. " : ""}
         </p>
+        {feste ? (
+          <p className="klein formular-voll">
+            Für {feste.length === 1 ? `„${feste[0]!.name}“` : `${feste.length} markierte Geräte: ${feste.map((g) => g.name).slice(0, 6).join(", ")}${feste.length > 6 ? " …" : ""}`}
+          </p>
+        ) : (
+        <>
         <fieldset className="formular-voll wahl-gruppe">
           <legend className="sr-only">Ziel</legend>
           <label className="haken">
@@ -631,7 +647,7 @@ function Anwenden(props: {
                   .map(({ g, p }) => (
                     <option key={g.id} value={g.id}>
                       {p}
-                      {props.bereich.mehrere ? ` (${mandantName(props.bereich, g.mandant_id)})` : ""}
+                      {props.bereich?.mehrere ? ` (${mandantName(props.bereich, g.mandant_id)})` : ""}
                     </option>
                   ))}
               </select>
@@ -642,6 +658,8 @@ function Anwenden(props: {
             </label>
             <p className="klein formular-voll">Gilt einmalig für die Geräte, die jetzt in der Gruppe sind.</p>
           </>
+        )}
+        </>
         )}
         {fehler && (
           <p className="meldung meldung-fehler formular-voll" role="alert">
@@ -668,7 +686,7 @@ function Anwenden(props: {
         )}
         <div className="aktionen">
           {!ergebnis && (
-            <button className="knopf knopf-haupt" disabled={sendet || (ziel === "geraete" ? wahl.size === 0 : !gruppe)}>
+            <button className="knopf knopf-haupt" disabled={sendet || (feste ? feste.length === 0 : ziel === "geraete" ? wahl.size === 0 : !gruppe)}>
               Anlegen
             </button>
           )}
@@ -678,5 +696,87 @@ function Anwenden(props: {
         </div>
       </form>
     </div>
+  );
+}
+
+// AnwendenAuf (1.0.12): Vorlage oder Vorlagensatz für feste Geräte wählen und
+// anwenden, ohne Umweg über die Seite Sensor-Vorlagen. Am Gerät (Reiter
+// „Sensoren“) und für mehrere markierte Geräte in Hosts.
+export function AnwendenAuf(props: { geraete: Geraet[]; nurSaetze?: boolean; onFertig: () => void; melden: (e: unknown) => void }) {
+  const { liste } = useVorlagen(true, props.melden);
+  const [wahl, setWahl] = useState("");
+  const saetze = [...(liste?.eigene_saetze ?? []), ...(liste?.saetze ?? [])];
+  const vorlagen = props.nurSaetze ? [] : [...(liste?.eigene ?? []), ...(liste?.eingebaut ?? [])];
+  const gewaehlt: Vorlage | VorlagenSatz | undefined = wahl.startsWith("satz:")
+    ? saetze.find((s) => s.id === wahl.slice(5))
+    : vorlagen.find((v) => v.id === wahl.slice(8));
+  const sortiert = <T extends { name: string }>(l: T[]) => l.slice().sort((a, b) => a.name.localeCompare(b.name, "de"));
+  const auswahl = (
+    <label className="feld formular-voll">
+      <span>{props.nurSaetze ? "Vorlagensatz" : "Vorlage oder Vorlagensatz"}</span>
+      <select value={wahl} onChange={(e) => setWahl(e.target.value)} autoFocus={wahl === ""}>
+        <option value="">{liste ? "Bitte wählen" : "Lädt …"}</option>
+        {(liste?.eigene_saetze?.length ?? 0) > 0 && (
+          <optgroup label="Eigene Vorlagensätze">
+            {sortiert(liste!.eigene_saetze!).map((s) => (
+              <option key={s.id} value={`satz:${s.id}`}>
+                {s.name} · {s.sensoren.length} Sensoren
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {(liste?.saetze?.length ?? 0) > 0 && (
+          <optgroup label="Vorlagensätze">
+            {sortiert(liste!.saetze!).map((s) => (
+              <option key={s.id} value={`satz:${s.id}`}>
+                {s.name} · {s.sensoren.length} Sensoren
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {!props.nurSaetze && (liste?.eigene.length ?? 0) > 0 && (
+          <optgroup label="Eigene Vorlagen">
+            {sortiert(liste!.eigene).map((v) => (
+              <option key={v.id} value={`vorlage:${v.id}`}>
+                {v.name}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {!props.nurSaetze && (liste?.eingebaut.length ?? 0) > 0 && (
+          <optgroup label="Vorlagen">
+            {sortiert(liste!.eingebaut).map((v) => (
+              <option key={v.id} value={`vorlage:${v.id}`}>
+                {v.name}
+              </option>
+            ))}
+          </optgroup>
+        )}
+      </select>
+    </label>
+  );
+  if (!gewaehlt) {
+    return (
+      <div className="einschub">
+        <div className="formular formular-flach">
+          <h3 className="einschub-titel">{props.nurSaetze ? "Vorlagensatz anwenden" : "Vorlage anwenden"}</h3>
+          {auswahl}
+          <p className="klein formular-voll">
+            {props.geraete.length === 1
+              ? `Für „${props.geraete[0]!.name}“.`
+              : `Für ${props.geraete.length} markierte Geräte.`}{" "}
+            Ein Vorlagensatz legt mehrere Sensoren auf einmal an, z. B. alles für einen LANCOM-Switch.
+          </p>
+          <div className="aktionen">
+            <button type="button" className="knopf" onClick={props.onFertig}>
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <Anwenden key={wahl} v={gewaehlt} geraete={props.geraete} gruppen={[]} feste={props.geraete} kopf={auswahl} onFertig={props.onFertig} melden={props.melden} />
   );
 }

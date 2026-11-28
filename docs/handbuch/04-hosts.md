@@ -9,7 +9,14 @@ Ein Klick öffnet das Gerät mit den Reitern „Übersicht“ (Werte, Verlauf, G
 Sensoren, Mandanten und Seiten, die du sehen darfst, unabhängig vom gewählten Mandanten. Mehrere Wörter grenzen ein
 („db platte“). Treffer am Anfang des Namens stehen vorn, bei gleicher Güte die schlimmsten Zustände. Pfeiltasten wählen,
 Enter öffnet: ein Gerät mit seiner Übersicht, ein Sensor das Gerät mit dem Reiter „Sensoren“, ein Mandant wechselt den
-Mandanten.
+Mandanten. Ohne Suchbegriff stehen ab 1.0.12 oben bis zu fünf **zuletzt geöffnete Geräte** (gemerkt nur in diesem Browser,
+nur die IDs), darunter die Seiten.
+
+**Bedienung (ab 1.0.12):** Öffnet ein Knopf ein Formular außerhalb des sichtbaren Teils (etwa „Anwenden“ bei einem
+Vorlagensatz), rollt die Seite dorthin, und das erste Feld hat den Fokus. **Esc** schließt das Formular, danach steht der
+Blick wieder beim Knopf. Nach einer Aktion erscheint unten kurz eine Bestätigung („Sensor angelegt“, „12 Sensoren
+angelegt“). Wer eine Seite verlässt, während ein Formular Eingaben enthält, die noch nicht abgeschickt sind, wird vorher
+gefragt; das gilt auch beim Schließen des Browserfensters.
 
 ![Schnellsuche](bilder/schnellsuche.webp)
 
@@ -30,6 +37,18 @@ Weitere Quellen im Aktionsmenü eines Geräts (nur Admins): **Proxmox**, **vCent
 **XenServer/XCP-ng** und für kleine Standorte ein **Router von AVM** (TR-064). Einrichtung, Rechte und Alarme jeder
 Quelle stehen in [Kapitel 19](19-anbindungen.md). Je Gerät gibt es eine dieser Abfragequellen. Läuft auf einem Proxmox-Host auch
 ein Agent, sind das zwei Geräte (z. B. `pve-01` mit Agent und `pve-01 (Proxmox)`).
+
+## Mehrere Geräte bearbeiten
+
+**Mehrere bearbeiten** (ab 1.0.12, für Operatoren und Admins) zeigt die Geräte als Kacheln zum Markieren, mit Filter
+nach Name, Adresse oder Gruppe und „alle“. Die Leiste unten wirkt auf alle markierten Geräte:
+
+- **Vorlage anwenden …:** eine Vorlage oder einen Vorlagensatz für alle markierten anlegen; das Ergebnis nennt, was
+  übersprungen wurde (z. B. SNMP-Sensoren bei Geräten ohne SNMP).
+- **Wartung …:** Wartung mit Dauer und Grund setzen; **Wartung beenden** für alle markierten in Wartung.
+- **Gruppe …:** einer Gruppe zuordnen oder aus ihr nehmen; geht nur für Geräte eines Mandanten.
+
+Jede Aktion läuft je Gerät mit deinen Rechten. Was scheitert, steht danach mit Grund da; der Rest ist erledigt.
 
 ## Gruppen
 
@@ -89,7 +108,9 @@ den Switches eingeschaltet sein.
   Namen, den das Gerät per SNMP von sich meldet. Groß- und Kleinschreibung und die Domäne zählen nicht
   („SW-Keller.intern.example“ passt zu „sw-keller“); bei mehreren Treffern wird nichts zugeordnet.
 - Nachbarn ohne Gerät in OpenWacht (Access Points, Telefone, fremde Switches) stehen unter dem Bild je Gerät als graue
-  Marken mit dem Port, ohne Klick. Die Karte des Geräts nennt ihre Zahl.
+  Marken mit dem Port. Die Karte des Geräts nennt ihre Zahl. Ab 1.0.12 öffnet ein Klick auf eine Marke (mit „+“) das
+  Formular „Ins Monitoring aufnehmen“ wie im Bild der Ports ([Kapitel 6](06-snmp.md)); Leser sehen die Marken ohne
+  Klick.
 - Das Netzbild ersetzt die Abhängigkeiten nicht: Welche Alarme ruhen, wenn ein Gerät ausfällt, bestimmt weiter
   „hängt ab von“.
 

@@ -7,9 +7,11 @@ export const zahl = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 })
 export function laufzeit(sek: number) {
   const t = Math.floor(sek / 86400);
   const h = Math.floor((sek % 86400) / 3600);
-  if (t > 0) return `${t} ${t === 1 ? "Tag" : "Tage"}, ${h} Std.`;
+  if (t > 0) return h > 0 ? `${t} ${t === 1 ? "Tag" : "Tage"}, ${h} Std.` : `${t} ${t === 1 ? "Tag" : "Tage"}`;
   const m = Math.floor((sek % 3600) / 60);
-  return `${h} Std., ${m} Min.`;
+  // ohne „0 Std.“ vorweg (1.0.12)
+  if (h === 0) return m > 0 ? `${m} Min.` : "unter 1 Min.";
+  return m > 0 ? `${h} Std., ${m} Min.` : `${h} Std.`;
 }
 
 export function prozent(belegt: number, gesamt: number) {

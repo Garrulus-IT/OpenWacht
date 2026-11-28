@@ -5,10 +5,13 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { Wandanzeige } from "./Wandanzeige";
 import { Einrichtung } from "./Einrichtung";
+import { fuehrungEinschalten } from "./fuehrung";
 import "./tokens.css";
 import "./styles.css";
 
 const root = document.getElementById("app");
+// Führung nach Aktionen (1.0.12), nicht auf der Wandanzeige
+if (root && !window.location.pathname.startsWith("/anzeige")) fuehrungEinschalten();
 if (root) {
   createRoot(root).render(
     <StrictMode>

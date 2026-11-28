@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { api, type Agent, type AgentToken, type Check, type Geraet, type Gruppe, type Mandant, type Messwerte, type Sammler, type Sensor, type Snmp } from "./api";
 import { GruppeAuswahl, GruppenOrdnen, kinder, nachId, pfad } from "./Gruppen";
+import { Mehrfach } from "./Mehrfach";
 import { HostVerlauf } from "./Verlauf";
 import { GeraetSensoren, useSparklines } from "./Sparkline";
 import { SensorenReiter } from "./SensorenReiter";
@@ -157,6 +158,8 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
   const [jetzt, setJetzt] = useState(Date.now());
   const [hinzufuegen, setHinzufuegen] = useState<"" | "host" | "mehrere" | "import">("");
   const [ordnen, setOrdnen] = useState(false);
+  // mehrere Geräte zusammen bearbeiten (1.0.12)
+  const [mehrfach, setMehrfach] = useState(false);
   const [regeln, setRegeln] = useState(false);
   // aufgeklappte Gruppen (ab Werk alle zu, 1.0.6), im Browser gemerkt (nur Gruppen-IDs, kein Geheimnis)
   const [auf, setAufState] = useState<Set<string>>(gemerktAuf);
@@ -275,12 +278,17 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
             {!probleme && !inWartung ? ", alle OK" : ""}
           </p>
         )}
-        {!hinzufuegen && !ordnen && !regeln && (darf || daten?.snmp.some((q) => q.traps)) && (
+        {!hinzufuegen && !ordnen && !mehrfach && !regeln && (darf || daten?.snmp.some((q) => q.traps)) && (
           <span className="kopf-knoepfe">
             {(daten?.snmp.some((q) => q.version !== "pve" && q.version !== "tr064" && q.version !== "vcenter" && q.version !== "ontap" && q.version !== "xapi" && q.version !== "citrix") ||
               rolleIn(bereich, mandant.id) === "admin") && (
               <button className="knopf" onClick={() => setRegeln(true)}>
                 Trap-Regeln
+              </button>
+            )}
+            {darf && sichten.length > 1 && (
+              <button className="knopf" onClick={() => setMehrfach(true)}>
+                Mehrere bearbeiten
               </button>
             )}
             {darf && sichten.length > 0 && (
@@ -294,7 +302,7 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
               </button>
             )}
             {darf && (
-              <button className="knopf" onClick={() => setHinzufuegen("host")}>
+              <button className="knopf knopf-haupt" onClick={() => setHinzufuegen("host")}>
                 Host hinzufügen
               </button>
             )}
@@ -365,6 +373,15 @@ export function Hosts({ bereich, geraet, ansicht, onOeffnen, onAnsicht, onKrume,
                 : "In diesem Mandanten gibt es noch keine Hosts."}
           </p>
         )
+      ) : mehrfach ? (
+        <Mehrfach
+          geraete={sichten.map((s) => ({ g: s.g, signal: `signal-${s.stand === "leer" ? "pause" : s.stand}` }))}
+          gruppen={daten.gruppen}
+          bereich={bereich}
+          onGeaendert={laden}
+          onFertig={() => setMehrfach(false)}
+          melden={melden}
+        />
       ) : ordnen ? (
         <GruppenOrdnen
           bereich={bereich}
@@ -887,6 +904,7 @@ function GeraetZeile(props: {
             g={g}
             darfAdmin={props.darfAdmin}
             darfPflegen={props.darf}
+            onOeffnen={props.onOeffnen}
             jetzt={jetzt}
             prognose={props.prognose}
             spark={spark}
