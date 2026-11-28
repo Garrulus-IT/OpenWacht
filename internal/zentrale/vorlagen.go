@@ -484,6 +484,77 @@ var builtinSets = []vorlagenSatz{
 				"lldpRemTable: Zahl der Nachbarn, die sich per LLDP melden; Warnung, wenn keiner mehr da ist. " +
 					"Die Schwelle auf die übliche Zahl des Geräts setzen, dann fällt ein fehlender Uplink auf", 300},
 		}),
+	// 1.0.13: Aruba-Switche mit ArubaOS-Switch (früher ProCurve): 2530, 2930 und das
+	// Chassis 5400R. OIDs aus HP-ICF-CHASSIS, NETSWITCH-, STATISTICS- und POWERSUPPLY-MIB
+	// (Stand 28.11.2026), noch nicht an einem Gerät gemessen: „prüfen“.
+	newSet("satz-aruba-2530", "Aruba 2530", "Aruba-Switche der Serie 2530 mit ArubaOS-Switch über SNMP: CPU, Speicher, "+
+		"Zustand von Lüfter und Netzteil, PoE, LLDP-Nachbarn und Firmware. Die 2530 hat keinen Temperaturfühler. "+
+		"Braucht eine SNMP-Abfrage am Gerät. OIDs nach Doku, am Gerät prüfen.",
+		arubaGemeinsam()),
+	newSet("satz-aruba-2930", "Aruba 2930", "Aruba-Switche der Serie 2930F/2930M mit ArubaOS-Switch über SNMP: CPU, Speicher, "+
+		"Temperatur, Zustand von Lüftern und Netzteilen, PoE, LLDP-Nachbarn und Firmware; auch als Stack. "+
+		"Braucht eine SNMP-Abfrage am Gerät. OIDs nach Doku, am Gerät prüfen.",
+		append(arubaGemeinsam(), arubaTemperatur())),
+	newSet("satz-aruba-5400r", "Aruba 5400R", "Aruba-Chassis 5406R/5412R zl2 mit ArubaOS-Switch über SNMP: CPU, Speicher, "+
+		"Temperatur, Netzteile, Lüfter, PoE aller Karten, LLDP-Nachbarn und Firmware. Das Portbild zeigt jede Karte (Slot A bis F) als eigene Zeile. "+
+		"Braucht eine SNMP-Abfrage am Gerät. OIDs nach Doku, am Gerät prüfen.",
+		append(arubaGemeinsam(), arubaTemperatur(),
+			satzEintrag{"Aruba: Netzteile mit Strom", "snmp_oid",
+				`{"oid":"1.3.6.1.4.1.11.2.14.11.5.1.55.1.1.1.2","zusammenfassung":"anzahl_gleich","vergleichswert":3,"kritisch_unter":2}`,
+				"hpicfPsState 3 = psPowered; kritisch, wenn weniger als zwei Netzteile Strom liefern. " +
+					"Die Schwelle auf die Zahl der eingebauten Netzteile setzen", 300},
+			satzEintrag{"Aruba: Netzteil ausgefallen", "snmp_oid",
+				`{"oid":"1.3.6.1.4.1.11.2.14.11.5.1.55.1.1.1.2","zusammenfassung":"anzahl_gleich","vergleichswert":4,"kritisch_ueber":0}`,
+				"hpicfPsState 4 = psFailed, gezählt über alle Schächte", 300},
+		)),
+}
+
+// arubaGemeinsam: Sensoren, die alle Aruba-Switche mit ArubaOS-Switch liefern (1.0.13).
+func arubaGemeinsam() []satzEintrag {
+	return []satzEintrag{
+		{"Aruba: CPU", "snmp_oid",
+			`{"oid":"1.3.6.1.4.1.11.2.14.11.5.1.9.6.1.0","einheit":"%","warnung_ueber":85,"kritisch_ueber":95}`,
+			"hpSwitchCpuStat: Auslastung der CPU in Prozent", 60},
+		{"Aruba: Speicher frei", "snmp_oid",
+			`{"oid":"1.3.6.1.4.1.11.2.14.11.5.1.1.2.1.1.1.6.1","faktor":0.000001,"einheit":"MB"}`,
+			"hpLocalMemFreeBytes: freier Arbeitsspeicher (nur Anzeige); eine Schwelle nach dem üblichen Wert des Geräts setzen", 300},
+		{"Aruba: Hardware gestört", "snmp_oid",
+			`{"oid":"1.3.6.1.4.1.11.2.14.11.1.2.6.1.4","zusammenfassung":"anzahl_gleich","vergleichswert":2,"kritisch_ueber":0}`,
+			"hpicfSensorStatus 2 = bad: Lüfter, Netzteil oder Übertemperatur, gezählt über alle Fühler", 300},
+		{"Aruba: Hardware mit Warnung", "snmp_oid",
+			`{"oid":"1.3.6.1.4.1.11.2.14.11.1.2.6.1.4","zusammenfassung":"anzahl_gleich","vergleichswert":3,"warnung_ueber":0}`,
+			"hpicfSensorStatus 3 = warning", 300},
+		{"Aruba: PoE-Leistung", "snmp_oid",
+			`{"oid":"1.3.6.1.2.1.105.1.3.1.1.4","zusammenfassung":"summe","einheit":"W"}`,
+			"pethMainPseConsumptionPower: abgegebene PoE-Leistung aller Gruppen (Karten, Stack-Mitglieder); nur Anzeige. " +
+				"Bei Modellen ohne PoE löschen", 300},
+		{"Aruba: PoE-Budget", "snmp_oid",
+			`{"oid":"1.3.6.1.2.1.105.1.3.1.1.2","zusammenfassung":"summe","einheit":"W"}`,
+			"pethMainPsePower: verfügbare PoE-Leistung aller Gruppen (nur Anzeige)", 3600},
+		{"Aruba: PoE-Versorgung gestört", "snmp_oid",
+			`{"oid":"1.3.6.1.2.1.105.1.3.1.1.3","zusammenfassung":"anzahl_ungleich","vergleichswert":1,"warnung_ueber":0}`,
+			"pethMainPseOperStatus: Gruppen, die nicht „an“ (1) sind", 300},
+		{"Aruba: PoE-Ports im Fehler", "snmp_oid",
+			`{"oid":"1.3.6.1.2.1.105.1.1.1.6","zusammenfassung":"anzahl_gleich","vergleichswert":4,"warnung_ueber":0}`,
+			"pethPsePortDetectionStatus 4 = fault, gezählt über alle Ports", 300},
+		{"Aruba: PoE-Ports mit Strom", "snmp_oid",
+			`{"oid":"1.3.6.1.2.1.105.1.1.1.6","zusammenfassung":"anzahl_gleich","vergleichswert":3}`,
+			"Ports, die gerade ein Gerät versorgen (nur Anzeige)", 300},
+		{"Aruba: Firmware", "snmp_oid", `{"oid":"1.3.6.1.4.1.11.2.14.11.5.1.1.3.0","text_zeigen":true}`,
+			"hpSwitchOsVersion: zeigt die Version als Text, z. B. WC.16.11.0012 (nur Anzeige)", 3600},
+		{"Aruba: LLDP-Nachbarn", "snmp_oid",
+			`{"oid":"1.0.8802.1.1.2.1.4.1.1.4","zusammenfassung":"anzahl","warnung_unter":1}`,
+			"lldpRemTable: Zahl der Nachbarn, die sich per LLDP melden; Warnung, wenn keiner mehr da ist. " +
+				"Die Schwelle auf die übliche Zahl des Geräts setzen, dann fällt ein fehlender Uplink auf", 300},
+	}
+}
+
+// arubaTemperatur: Temperatur des Gehäuses (2930, 5400R; die 2530 hat keinen Fühler).
+// Das Gerät liefert Text wie „29C“, deshalb „Zahl aus Text“; bei einem Stack Mitglied 1.
+func arubaTemperatur() satzEintrag {
+	return satzEintrag{"Aruba: Temperatur", "snmp_oid",
+		`{"oid":"1.3.6.1.4.1.11.2.14.11.1.2.8.1.1.3.0","zahl_aus_text":"erste","einheit":"°C","warnung_ueber":50,"kritisch_ueber":60}`,
+		"hpSystemAirCurrentTemp; Vorbelegung, an die eigenen Geräte anpassen", 300}
 }
 
 func builtinSet(id string) (vorlagenSatz, bool) {

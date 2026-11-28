@@ -23,7 +23,7 @@ import { SnmpVerlauf } from "./Verlauf";
 import { prognoseSchluessel, PrognoseZeile, type PlattenPrognose } from "./Prognose";
 import { SparkReihen, type SparkDaten } from "./Sparkline";
 import { ReihenVerlauf } from "./Verlauf";
-import { PortBild, langsam, nachbarText, poeNachIndex, poeText, portNummer } from "./PortBild";
+import { PortBild, langsam, nachbarText, poeText, poeZuordnung, portBezeichnung } from "./PortBild";
 import { Aufnehmen } from "./Aufnehmen";
 import { finder } from "./Netzbild";
 import { useQuelle } from "./quelle";
@@ -415,8 +415,8 @@ export function SnmpTeil(props: {
         (() => {
           const i = m.schnittstellen.find((x) => x.index === portWahl);
           if (!i) return null;
-          const nr = portNummer(m.schnittstellen, i.index);
-          const p = poeNachIndex(m.poe).get(i.index);
+          const nr = portBezeichnung(m.schnittstellen, i.index);
+          const p = poeZuordnung(m.schnittstellen, m.poe).get(i.index);
           const nachbarn = (m.lldp ?? []).filter((n) => n.index === i.index);
           const poeSensor = async () => {
             if (!p) return;
@@ -439,7 +439,7 @@ export function SnmpTeil(props: {
           return (
             <div className="einschub port-einzel" role="region" aria-label={`Port ${nr}`}>
               <h4 className="einschub-titel">
-                Port {nr}: {i.name}
+                Port {nr}{nr !== i.name.trim() ? `: ${i.name}` : ""}
                 {i.alias ? ` (${i.alias})` : ""}
               </h4>
               <dl className="eckdaten">

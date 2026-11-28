@@ -19,6 +19,13 @@ Einzelheiten. Jeder Port zeigt seinen Zustand als Form und Farbe: verbunden, nic
 überwacht (rot), abgeschaltet (gestrichelt). Ein Klick auf einen Port zeigt darunter Status, Geschwindigkeit, Verkehr
 mit Verlauf und neue Fehler, und dort lässt sich der Port als überwacht markieren.
 
+**Karten und Stacks (ab 1.0.13):** Heißen die Ports wie bei einem Chassis mit Karten (Aruba 5400R: „A1“ bis „F24“)
+oder wie bei einem Stack („1/1“, „2/1“ …), zeigt das Bild jede Karte oder jedes Mitglied als eigene Zeile mit dem
+Buchstaben oder der Nummer links und der Zahl der verbundenen Ports. Die Nummer am Port zählt dann auf der Karte; die
+Einzelheiten nennen den Port mit vollem Namen („Port C7“). Ein freier Slot zwischen zwei bestückten erscheint als
+Blende „kein Modul gemeldet“. PoE ordnet das Bild auch bei mehreren PoE-Gruppen zu: Gruppe 1 ist Slot A oder
+Mitglied 1, Gruppe 2 Slot B oder Mitglied 2 und so weiter.
+
 **PoE je Port:** Meldet das Gerät die POWER-ETHERNET-MIB, steht am Port „PoE“, wenn er Strom liefert, und „PoE!“ bei
 einem PoE-Fehler. In den Einzelheiten legt „PoE-Sensor für diesen Port anlegen“ einen Sensor an, der kritisch wird,
 sobald der Port keinen Strom mehr liefert, etwa für Access Points oder Kameras. OpenWacht ordnet den PoE-Port n der

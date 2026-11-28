@@ -1,7 +1,15 @@
 # Release-Notizen OpenWacht
 
-## Unveröffentlicht
+## 1.0.13
 
+- **Vorlagensätze für Aruba:** „Aruba 2530“, „Aruba 2930“ und „Aruba 5400R“ für Switche mit ArubaOS-Switch über SNMP:
+  CPU, freier Speicher, Zustand von Lüftern, Netzteilen und Temperatur, PoE über alle Karten oder Stack-Mitglieder,
+  LLDP-Nachbarn und Firmware; 2930 und 5400R mit Temperatur, 5400R mit Netzteilen
+  ([Kapitel 7](handbuch/07-sensoren-und-vorlagen.md)). Die OIDs stammen aus der Doku von HPE; bitte an den eigenen
+  Geräten prüfen.
+- **Bild der Ports für Chassis und Stacks:** Ein Chassis mit Karten (5400R, Slots A bis F) und ein Stack (2930) zeigen
+  jede Karte oder jedes Mitglied als eigene Zeile; die Ports heißen wie am Gerät („C7“, „2/14“), ein freier Slot
+  erscheint als Blende. PoE erscheint im Bild jetzt auch bei mehreren PoE-Gruppen ([Kapitel 6](handbuch/06-snmp.md)).
 - **Bauergebnis je Betriebssystem in einem Ordner.** `tools/build` legt die Dateien nach `dist/linux`, `dist/windows`,
   `dist/darwin` und `dist/freebsd`, jeder Ordner mit eigener `SHA256SUMS` (Dateinamen ohne Pfad, wie bisher) und
   eigener Stückliste. Signiert wird je Ordner; `authenticode.ps1` nimmt `dist\windows`, `paket-bauen.sh` findet
@@ -9,7 +17,6 @@
 - **Windows-Agent mit Programmsymbol** (wie die Desktop-App).
 - **Bau unter Windows:** `web/src/widgets.ts` heißt `widgetModell.ts`; neben `Widgets.tsx` brach der Bau der
   Oberfläche unter Windows ab.
-
 - **Alarmdurchlauf ohne zweite Verbindung.** Der Durchlauf las die Platten-Prognose und die sammelnden Kanäle über eine
   zweite Verbindung aus dem Pool, während er die erste in seiner Transaktion hielt. Bei kleinem oder ausgelastetem Pool
   wartete er dabei auf sich selbst (die Prognose brach nach 30 Sekunden ab). Die Prognose wird jetzt vor der Transaktion
@@ -18,6 +25,9 @@
   Basis-URL bestimmt ihn. Cookies gelten dann nur für diesen Pfad.
 - **Klick-Demo als echtes Programm** (`demo/`, siehe `demo/LIESMICH.md`): die Zentrale als WebAssembly mit PostgreSQL
   (PGlite) im Browser, Agents und Gegenstellen simuliert.
+- **Windows-Download:** Der Fingerabdruck des Code-Signing-Zertifikats (Certum, gültig bis 28.11.2027) steht in
+  `internal/update/authenticode.txt`; Agent, Desktop-App und MSI sind ab dieser Version signiert
+  ([Kapitel 15](handbuch/15-signieren-und-verteilen.md)).
 
 ## 1.0.12
 
