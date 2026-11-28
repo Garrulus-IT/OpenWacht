@@ -8,7 +8,15 @@ click opens the device with the tabs “Übersicht” (overview: values, history
 **Quick search** (from 1.0.6): **Ctrl+K** (⌘K on the Mac) or “Suchen” at the top right opens a search field over all
 devices, sensors, tenants and pages you may see, independent of the chosen tenant. Several words narrow down (“db
 platte”). Hits at the start of the name come first, with equal quality the worst states. Arrow keys select, Enter opens:
-a device with its overview, a sensor opens the device with the tab “Sensoren”, a tenant switches the tenant.
+a device with its overview, a sensor opens the device with the tab “Sensoren”, a tenant switches the tenant. Without a
+search term, from 1.0.12 up to five **recently opened devices** are at the top (remembered only in this browser, only the
+IDs), with the pages below.
+
+**Operation (from 1.0.12):** If a button opens a form outside the visible part (for example “Anwenden” (apply) for a
+template set), the page scrolls there and the first field has the focus. **Esc** closes the form, after which the focus is
+back on the button. After an action, a short confirmation appears at the bottom (“Sensor angelegt”, “12 Sensoren
+angelegt”). Anyone leaving a page while a form contains input that has not been submitted is asked first; this also
+applies when closing the browser window.
 
 ![Quick search](../handbuch/bilder/schnellsuche.webp)
 
@@ -30,6 +38,19 @@ Further sources in a device’s action menu (admins only): **Proxmox**, **vCente
 **XenServer/XCP-ng** and, for small sites, a **router from AVM** (TR-064). Setup, rights and alerts of each source are
 described in [chapter 19](19-anbindungen.md). There is one of these polling sources per device. If an agent also runs
 on a Proxmox host, these are two devices (for example `pve-01` with agent and `pve-01 (Proxmox)`).
+
+## Editing several devices
+
+**Mehrere bearbeiten** (edit several; from 1.0.12, for operators and admins) shows the devices as tiles to mark, with a
+filter by name, address or group and “alle” (all). The bar at the bottom acts on all marked devices:
+
+- **Vorlage anwenden …** (apply template): create a template or template set for all marked devices; the result states
+  what was skipped (for example SNMP sensors for devices without SNMP).
+- **Wartung …** (maintenance): set maintenance with duration and reason; **Wartung beenden** (end maintenance) for all
+  marked devices in maintenance.
+- **Gruppe …** (group): assign to a group or remove from it; only works for devices of one tenant.
+
+Each action runs per device with your rights. Whatever fails is listed afterwards with the reason; the rest is done.
 
 ## Groups
 
@@ -77,6 +98,24 @@ unknown or not yet checked. A click opens the device. Devices without dependenci
 number below. The page only shows what you also see under Hosts.
 
 ![Topology](../handbuch/bilder/topologie.webp)
+
+**Network picture (from 1.0.11):** Above the trees, the page shows which devices are connected to each other. The
+picture builds itself from the neighbours that devices with SNMP polling report via LLDP; there is nothing to set up,
+LLDP only has to be switched on at the switches.
+
+- Every device appears as a card with its state; a click opens it under Hosts. The device with the most connections is
+  at the top, the others in levels below it.
+- Every line is a reported connection, with the port at both ends. A thick line stands for several connections between
+  the same devices (for example a bundle).
+- A neighbour is assigned to a device if its LLDP name matches the device's name in OpenWacht or the name the device
+  reports about itself via SNMP. Case and domain do not count (“SW-Keller.intern.example” matches “sw-keller”); with
+  several matches nothing is assigned.
+- Neighbours without a device in OpenWacht (access points, phones, other switches) appear below the picture per device
+  as grey tags with the port. The device's card shows their number. From 1.0.12 a click on a tag (with “+”) opens the
+  form “Ins Monitoring aufnehmen” (add to monitoring) as in the port picture ([chapter 6](06-snmp.md)); readers see the
+  tags without a click.
+- The network picture does not replace the dependencies: which alerts rest when a device fails is still decided by
+  “depends on”.
 
 ## Certificates
 
