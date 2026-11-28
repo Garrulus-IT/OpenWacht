@@ -144,6 +144,8 @@ type Config struct {
 	// Origins: weitere erlaubte Ursprünge neben BaseURL (alle Namen der
 	// Zentrale, z. B. https://10.10.0.5), Form "https://host[:port]".
 	Origins []string
+	// Simulation: nur Klick-Demo, ersetzt Abfragen über das Netz (simulation.go).
+	Simulation Simulation
 	// Restart: Zentrale neu starten lassen (systemd startet sie wieder), z. B.
 	// nach einer neuen Adresse; nil = nicht möglich (ohne systemd).
 	Restart func()
@@ -248,7 +250,7 @@ func (c *Config) checkHostLimits() error {
 // Server ist die Zentrale.
 type Server struct {
 	cfg     Config
-	base    string // Basis-Pfad aus BaseURL, "" für die Wurzel (basis.go)
+	base    string        // Basis-Pfad aus BaseURL, "" für die Wurzel (basis.go)
 	collect collectWindow // 1.0.1: Sammelfenster je Mail-/SMS-Kanal
 	pool    *pgxpool.Pool
 	key     []byte // Hauptschlüssel aus der Schlüsseldatei

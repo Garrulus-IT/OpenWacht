@@ -777,6 +777,8 @@ func (s *Server) pollSNMP(ctx context.Context, c claimedSNMP) {
 	// counterReset: sysUpTime kleiner, Zähler der eigenen OIDs ungültig
 	rebooted, counterReset := false, false
 	switch {
+	case s.cfg.Simulation != nil:
+		snap, pollErr = s.cfg.Simulation.Poll(ctx, c.id, c.version, c.host)
 	case c.secret == nil && c.version == versionPVE:
 		pollErr = errors.New("kein API-Token gespeichert, bitte neu eingeben")
 	case c.secret == nil && (c.version == versionTR064 || c.version == versionVCenter || c.version == versionONTAP || c.version == versionXAPI || c.version == versionCitrix):

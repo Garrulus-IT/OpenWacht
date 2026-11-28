@@ -1,0 +1,91 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Leiste der Klick-Demo. Nach dem Corporate Design (docs/design, tokens.css):
+   Kopf in Nacht, Akzent Signal-Cyan, D-DIN, Skala 13/16 px, Abstände im
+   4-px-Raster, Radius 3 px. Die Werte hinter den Variablen gelten nur, falls
+   eine Seite tokens.css nicht lädt. */
+#oc-demo {
+  background: var(--nacht, #102238);
+  color: var(--nacht-tinte, #e4edf6);
+  font-family: var(--schrift, "D-DIN", system-ui, sans-serif);
+  font-size: var(--s-1, 0.8125rem);
+  line-height: 1.4;
+  padding: var(--a2, 0.5rem) var(--a4, 1rem);
+  border-bottom: 3px solid #45c3e6;
+}
+#oc-demo .oc-demo-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a2, 0.5rem) var(--a4, 1rem);
+  align-items: center;
+}
+#oc-demo .oc-demo-marke {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--a2, 0.5rem);
+  font-size: var(--s0, 1rem);
+}
+#oc-demo .oc-demo-zeichen {
+  width: 24px;
+  height: 24px;
+  display: inline-block;
+  background: url(favicon.svg) center / contain no-repeat;
+}
+#oc-demo .oc-demo-leise {
+  color: var(--nacht-leise, #8ea3ba);
+}
+#oc-demo a {
+  color: #86d9f0;
+}
+#oc-demo button {
+  font: inherit;
+  color: var(--nacht-tinte, #e4edf6);
+  background: transparent;
+  border: 1px solid var(--nacht-leise, #8ea3ba);
+  border-radius: var(--r, 3px);
+  padding: 0 var(--a2, 0.5rem);
+  min-height: 1.75rem;
+  cursor: pointer;
+}
+#oc-demo button.oc-demo-voll {
+  background: #45c3e6;
+  border-color: #45c3e6;
+  color: #04161e;
+}
+#oc-demo button:hover {
+  border-color: #45c3e6;
+}
+#oc-demo button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+#oc-demo button:focus-visible,
+#oc-demo a:focus-visible {
+  outline: 2px solid #45c3e6;
+  outline-offset: 2px;
+}
+#oc-demo code {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  background: #1b3150;
+  color: var(--nacht-tinte, #e4edf6);
+  padding: 0 var(--a1, 0.25rem);
+  border-radius: var(--r, 3px);
+}
+#oc-demo ul {
+  margin: var(--a2, 0.5rem) 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--a1, 0.25rem);
+}
+#oc-demo li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--a2, 0.5rem);
+  align-items: center;
+}
+#oc-demo p {
+  margin: var(--a2, 0.5rem) 0 0;
+}
+#oc-demo [hidden] {
+  display: none;
+}
