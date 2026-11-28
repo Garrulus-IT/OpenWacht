@@ -63,6 +63,9 @@ const usage = `Aufruf: openwacht-zentrale <befehl> [optionen]
 Befehle:
   installieren Zentrale einrichten oder aktualisieren (root, mehrfach ausführbar; ruft das Debian-Paket auf)
   einrichtungslink  neuen Link für den Einrichtungsassistenten im Browser ausgeben (root)
+  dienst       Betrieb ohne systemd (Docker, Windows): Schlüssel anlegen, migrieren, starten (-daten <ordner>)
+  dienst-einrichten  Windows: Zentrale als Dienst OpenWacht-Zentrale einrichten (Administrator)
+  dienst-entfernen   Windows: Dienst OpenWacht-Zentrale entfernen
   https-umstieg  ältere Installation (Reverse Proxy) auf HTTPS der Zentrale umstellen (root, -adressen)
   wiederherstellen  Datenbank aus einer Sicherung zurückholen (root; -datei, -ersetzen)
   zweitinstanz  kalte Zweitinstanz (root; -einrichten -quelle <Ordner>, -lauf, -status, -umschalten)
@@ -135,6 +138,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdInstall(ctx, args[1:], stdout)
 	case "einrichtungslink":
 		err = cmdSetupLink(ctx, args[1:], stdout)
+	case "dienst":
+		err = dienstStarten(ctx, args[1:], stdout)
+	case "dienst-einrichten":
+		err = cmdDienstEinrichten(ctx, args[1:], stdout)
+	case "dienst-entfernen":
+		err = cmdDienstEntfernen(ctx, args[1:], stdout)
 	case "sichern":
 		err = cmdBackup(ctx, args[1:], stdout)
 	case "intern-postgres":

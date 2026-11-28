@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# OpenWacht mit Docker Compose (1.0.14, Handbuch Kapitel 1):
+#   1. Passwörter in .env eintragen (Vorlage: env.beispiel)
+#   2. docker compose up -d
+#   3. docker compose logs zentrale   → Link zum Einrichtungsassistenten
+#
+# Oberfläche auf Port 443 des Docker-Hosts, Agent-Port 8444.
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${OPENWACHT_PG_ADMIN:?in .env setzen}
+      OPENWACHT_PG_EIGENTUEMER: ${OPENWACHT_PG_EIGENTUEMER:?in .env setzen}
+      OPENWACHT_PG_ZENTRALE: ${OPENWACHT_PG_ZENTRALE:?in .env setzen}
+    volumes:
+      - datenbank:/var/lib/postgresql/data
+      - ./postgres-init.sh:/docker-entrypoint-initdb.d/openwacht.sh:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "openwacht"]
+      interval: 5s
+      retries: 30
+
+  zentrale:
+    image: openwacht-zentrale:${OPENWACHT_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      OPENWACHT_DB_EIGENTUEMER: "host=postgres user=openwacht_owner password=${OPENWACHT_PG_EIGENTUEMER} dbname=openwacht"
+      OPENWACHT_DB: "host=postgres user=openwacht_zentrale password=${OPENWACHT_PG_ZENTRALE} dbname=openwacht"
+    ports:
+      - "443:8443"
+      - "8444:8444"
+    volumes:
+      - daten:/var/lib/openwacht
+
+volumes:
+  datenbank:
+  daten:

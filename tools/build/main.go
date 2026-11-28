@@ -96,6 +96,7 @@ func run(args []string) error {
 	out := fs.String("out", "dist", "Ausgabeordner (darin je Betriebssystem ein Ordner: linux, windows …)")
 	noWeb := fs.Bool("ohne-web", false, "Web-Oberfläche nicht bauen (vorhandenen Stand einbetten)")
 	msiNew := fs.Bool("msi-neu", false, "nach dem Authenticode-Signieren: MSI aus den (signierten) Agents neu bauen, dann SHA256SUMS neu")
+	docker := fs.Bool("docker", false, "zusätzlich dist/docker anlegen: Kontext für das Image der Zentrale (deploy/docker)")
 	pkgNew := fs.Bool("pakete-neu", false, "nach dem Signieren (MSI, .sig der Agents): Paket der Zentrale mit den Downloads neu bauen, dann SHA256SUMS neu")
 	sumsNew := fs.Bool("summen-neu", false, "nur SHA256SUMS für die dort genannten Dateien neu berechnen (nach dem Signieren der MSI)")
 	if err := fs.Parse(args); err != nil {
@@ -200,6 +201,10 @@ func run(args []string) error {
 		if err := writeChecksums(dir, append(built[o], sb)); err != nil {
 			return err
 		}
+	}
+	if *docker {
+		fmt.Printf("Docker-Kontext: %s\n", filepath.Join(*out, "docker"))
+		return writeDockerContext(*out)
 	}
 	return nil
 }
@@ -510,6 +515,11 @@ func afterSigning(out, ver string, msi, pkg bool) error {
 				return err
 			}
 			add("linux", deb)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, "docker", "Dockerfile")); err == nil && pkg {
+		if err := writeDockerContext(root); err != nil {
+			return err
 		}
 	}
 	for _, o := range systemOrdner {
