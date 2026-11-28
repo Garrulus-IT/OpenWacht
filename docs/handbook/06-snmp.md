@@ -19,6 +19,13 @@ port shows its state as shape and colour: connected, not connected, not connecte
 down (dashed). A click on a port shows status, speed, traffic with history and new errors below, and the port can be
 marked as monitored there.
 
+**Modules and stacks (from 1.0.13):** If the ports are named like those of a chassis with modules (Aruba 5400R: “A1”
+to “F24”) or like a stack (“1/1”, “2/1” …), the picture shows each module or member as a row of its own, with the
+letter or number on the left and the number of connected ports. The number on the port then counts on the module; the
+details give the port’s full name (“Port C7”). An empty slot between two populated ones appears as a blank “no module
+reported”. PoE is mapped even with several PoE groups: group 1 is slot A or member 1, group 2 slot B or member 2 and
+so on.
+
 **PoE per port:** If the device reports the POWER-ETHERNET-MIB, the port shows “PoE” when it delivers power and “PoE!”
 on a PoE fault. In the details, “PoE-Sensor für diesen Port anlegen” creates a sensor that turns critical as soon as the
 port no longer delivers power, for example for access points or cameras. OpenWacht maps PoE port n to the interface

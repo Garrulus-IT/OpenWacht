@@ -11,7 +11,7 @@ import { useMemo, useState } from "react";
 import type { Geraet, Sensor, Snmp } from "./api";
 import { Aufnehmen, type Kandidat } from "./Aufnehmen";
 import { anzeigeText, rang, type Anzeige } from "./Checks";
-import { physischePorts, portNummer } from "./PortBild";
+import { physischePorts, portBezeichnung } from "./PortBild";
 
 type Stand = Anzeige | "wartung";
 const standText: Record<Stand, string> = { ...anzeigeText, wartung: "Wartung" };
@@ -89,8 +89,8 @@ export function netz(geraete: Geraet[], quellen: Snmp[]): Netz {
     const eigen = q.geraet_id;
     for (const n of m.lldp) {
       const i = m.schnittstellen.find((x) => x.index === n.index);
-      const nr = portNummer(m.schnittstellen, n.index);
-      const hier = nr > 0 ? `Port ${nr}` : (i?.name ?? `Index ${n.index}`);
+      const nr = portBezeichnung(m.schnittstellen, n.index);
+      const hier = nr ? `Port ${nr}` : (i?.name ?? `Index ${n.index}`);
       const ziel = finde(n.name);
       knoten.add(eigen);
       if (!ziel || ziel === eigen) {
