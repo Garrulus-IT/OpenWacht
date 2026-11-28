@@ -14,7 +14,6 @@ import (
 var errLinuxOnly = errors.New("nur unter Linux")
 
 func cmdInstall(context.Context, []string, io.Writer) error            { return errLinuxOnly }
-func cmdSetupLink(context.Context, []string, io.Writer) error          { return errLinuxOnly }
 func cmdBackup(context.Context, []string, io.Writer) error             { return errLinuxOnly }
 func cmdInternPostgres(context.Context, []string, io.Writer) error     { return errLinuxOnly }
 func cmdInternSetup(context.Context, []string, io.Writer) error        { return errLinuxOnly }

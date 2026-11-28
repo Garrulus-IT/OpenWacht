@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -103,8 +104,42 @@ func TestDebReproduzierbar(t *testing.T) {
 		t.Fatal(err)
 	}
 	mt := time.Unix(1763769600, 0).UTC()
+	// Downloads: aus dem Ausgabeordner je Betriebssystem
+	root := t.TempDir()
+	for f, b := range map[string]string{
+		"windows/openwacht-agent_1.0.0_amd64.msi":     "msi",
+		"windows/openwacht-desktop_windows_amd64.exe": "exe",
+		"windows/SHA256SUMS":                          "nicht mit",
+		"linux/openwacht-agent_linux_amd64":           "agent",
+		"linux/openwacht-agent_linux_amd64.sig":       "sig",
+		"linux/openwacht-zentrale_linux_amd64":        "nicht mit",
+	} {
+		os.MkdirAll(filepath.Join(root, filepath.Dir(f)), 0o755)
+		if err := os.WriteFile(filepath.Join(root, f), []byte(b), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dl, err := downloadFiles(root, DownloadsPfad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, f := range dl {
+		got = append(got, f.path)
+	}
+	want := []string{
+		DownloadsPfad + "/linux/openwacht-agent_linux_amd64",
+		DownloadsPfad + "/linux/openwacht-agent_linux_amd64.sig",
+		DownloadsPfad + "/linux/SHA256SUMS",
+		DownloadsPfad + "/windows/openwacht-agent_1.0.0_amd64.msi",
+		DownloadsPfad + "/windows/openwacht-desktop_windows_amd64.exe",
+		DownloadsPfad + "/windows/SHA256SUMS",
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("Downloads:\n%s", strings.Join(got, "\n"))
+	}
 	read := func() []byte {
-		name, err := buildDeb(dir, "bin", "amd64", "0.21.0-dev", mt)
+		name, err := buildDeb(dir, "bin", "amd64", "0.21.0-dev", mt, root)
 		if err != nil {
 			t.Fatal(err)
 		}

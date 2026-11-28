@@ -13,7 +13,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -172,8 +174,11 @@ type pkgSpec struct {
 }
 
 // buildDeb baut openwacht-zentrale_<version>_<arch>.deb aus dem gebauten
-// Binary binName im Ordner out. Rückgabe: Dateiname.
-func buildDeb(out, binName, goarch, ver string, mtime time.Time) (string, error) {
+// Binary binName im Ordner out. root ist der Ausgabeordner mit den Ordnern je
+// Betriebssystem; was dort an Agents, MSI, Desktop-App und Agent-Paketen
+// liegt, kommt als Downloads mit (usr/share/openwacht/downloads, siehe
+// downloadFiles). Rückgabe: Dateiname.
+func buildDeb(out, binName, goarch, ver string, mtime time.Time, root string) (string, error) {
 	bin, err := os.ReadFile(filepath.Join(out, binName))
 	if err != nil {
 		return "", err
@@ -188,6 +193,11 @@ func buildDeb(out, binName, goarch, ver string, mtime time.Time) (string, error)
 		// Beschreibung der lesenden API (Handbuch Kapitel 11), auch ohne Repository
 		{"usr/share/doc/openwacht-zentrale/openapi.json", api, 0o644},
 	}
+	dl, err := downloadFiles(root, DownloadsPfad)
+	if err != nil {
+		return "", err
+	}
+	data = append(data, dl...)
 	for _, n := range deploylinux.UnitNames {
 		u, err := deploylinux.Unit(n)
 		if err != nil {
@@ -254,4 +264,46 @@ Description: %s
 	deb := arArchive([]debFile{{"debian-binary", []byte("2.0\n"), 0}, {"control.tar.gz", ctrl, 0}, {"data.tar.gz", dat, 0}}, mtime)
 	fmt.Printf("baue %-40s (Debian-Paket)\n", name)
 	return name, os.WriteFile(filepath.Join(out, name), deb, 0o644)
+}
+
+// DownloadsPfad: Downloads im Paket der Zentrale (ohne führenden Schrägstrich).
+const DownloadsPfad = "usr/share/openwacht/downloads"
+
+// downloadFiles sammelt die Dateien für die Seite „Downloads“ der Zentrale:
+// je Betriebssystem alles, was mit openwacht-agent oder openwacht-desktop
+// beginnt (Programme, MSI, .deb, .rpm, Signaturen .sig), dazu je Ordner eine
+// SHA256SUMS dieser Dateien. Die Zentrale selbst und ihr Paket gehören nicht
+// dazu. prefix ist der Zielpfad im Paket oder Image.
+func downloadFiles(root, prefix string) ([]debFile, error) {
+	var files []debFile
+	for _, o := range systemOrdner {
+		entries, err := os.ReadDir(filepath.Join(root, o))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+		var names []string
+		for _, e := range entries {
+			n := e.Name()
+			if e.Type().IsRegular() && (strings.HasPrefix(n, "openwacht-agent") || strings.HasPrefix(n, "openwacht-desktop")) {
+				names = append(names, n)
+			}
+		}
+		sort.Strings(names)
+		var sums strings.Builder
+		for _, n := range names {
+			b, err := os.ReadFile(filepath.Join(root, o, n))
+			if err != nil {
+				return nil, err
+			}
+			h := sha256.Sum256(b)
+			fmt.Fprintf(&sums, "%s  %s\n", hex.EncodeToString(h[:]), n)
+			files = append(files, debFile{prefix + "/" + o + "/" + n, b, 0o644})
+		}
+		if len(names) > 0 {
+			files = append(files, debFile{prefix + "/" + o + "/SHA256SUMS", []byte(sums.String()), 0o644})
+		}
+	}
+	return files, nil
 }

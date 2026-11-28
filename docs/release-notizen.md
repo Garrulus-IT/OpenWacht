@@ -1,5 +1,25 @@
 # Release-Notizen OpenWacht
 
+## 1.0.14
+
+- **Seite „Downloads“.** Alle Agents (Windows, Linux, macOS, FreeBSD), die MSI, die Desktop-App und die Agent-Pakete
+  liegen auf der Zentrale selbst und kommen mit jedem Update der Zentrale neu mit; herunterladen geht ohne Internet.
+  Angeboten wird nur, was zur mitgelieferten Prüfsumme passt. Für alle angemeldeten Benutzer
+  ([Kapitel 5](handbuch/05-agent.md#von-der-zentrale-laden)). Das Paket der Zentrale wird dadurch größer (rund 70 MB).
+- **Agents kommen mit dem Update der Zentrale.** Signierte Agents im Paket legt die Zentrale beim Start selbst unter
+  „Agent-Updates“ ab, ohne Hochladen von Hand. Mit „Automatisch übernehmen“ aktualisieren sich die Agents beim nächsten
+  Melden ([Kapitel 12](handbuch/12-agent-updates.md)).
+- **Docker.** Die Zentrale als Image (ohne root) mit `docker compose` und PostgreSQL 17; Vorlage in `deploy/docker`
+  ([Kapitel 1](handbuch/01-installation.md#docker-ab-1014)).
+- **Windows Server.** Die Zentrale als Windows-Dienst (`dienst-einrichten`), als ZIP mit den Downloads; Ping unter
+  Windows über IPv4 ([Kapitel 1](handbuch/01-installation.md#windows-server-ab-1014)). Noch nicht auf echtem Windows
+  Server geprüft.
+- **Befehl `dienst`** für den Betrieb ohne systemd: legt den Hauptschlüssel an, migriert, startet und zeigt den Link
+  zum Einrichtungsassistenten.
+- **Größere Pakete hochladen:** Das Update der Zentrale aus der Oberfläche und die Downloads haben 15 Minuten Zeit.
+- **Signieren:** `authenticode.ps1` baut nach dem Signieren das Paket der Zentrale neu (`-pakete-neu`), damit die
+  Downloads signiert sind; ein Release braucht sieben Signaturen.
+
 ## 1.0.13
 
 - **Vorlagensätze für Aruba:** „Aruba 2530“, „Aruba 2930“ und „Aruba 5400R“ für Switche mit ArubaOS-Switch über SNMP:

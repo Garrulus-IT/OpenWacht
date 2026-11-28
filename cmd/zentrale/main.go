@@ -63,6 +63,9 @@ const usage = `Aufruf: openwacht-zentrale <befehl> [optionen]
 Befehle:
   installieren Zentrale einrichten oder aktualisieren (root, mehrfach ausführbar; ruft das Debian-Paket auf)
   einrichtungslink  neuen Link für den Einrichtungsassistenten im Browser ausgeben (root)
+  dienst       Betrieb ohne systemd (Docker, Windows): Schlüssel anlegen, migrieren, starten (-daten <ordner>)
+  dienst-einrichten  Windows: Zentrale als Dienst OpenWacht-Zentrale einrichten (Administrator)
+  dienst-entfernen   Windows: Dienst OpenWacht-Zentrale entfernen
   https-umstieg  ältere Installation (Reverse Proxy) auf HTTPS der Zentrale umstellen (root, -adressen)
   wiederherstellen  Datenbank aus einer Sicherung zurückholen (root; -datei, -ersetzen)
   zweitinstanz  kalte Zweitinstanz (root; -einrichten -quelle <Ordner>, -lauf, -status, -umschalten)
@@ -135,6 +138,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = cmdInstall(ctx, args[1:], stdout)
 	case "einrichtungslink":
 		err = cmdSetupLink(ctx, args[1:], stdout)
+	case "dienst":
+		err = dienstStarten(ctx, args[1:], stdout)
+	case "dienst-einrichten":
+		err = cmdDienstEinrichten(ctx, args[1:], stdout)
+	case "dienst-entfernen":
+		err = cmdDienstEntfernen(ctx, args[1:], stdout)
 	case "sichern":
 		err = cmdBackup(ctx, args[1:], stdout)
 	case "intern-postgres":
@@ -800,7 +809,7 @@ func cmdServe(ctx context.Context, args []string) error {
 		CPUWarn: off(*cpuWarn), CPUCrit: off(*cpuCrit), DeadManURL: deadManURL,
 		SettingsFromDB: true, Pinned: pinned, HTTPS: httpsStore, Origins: origins, Restart: restartFn,
 		AuditFile: *auditFile, AuditSyslog: auditSys, SecurityContacts: secContacts, SecurityTxtOff: !*secTxt,
-		ZentraleUpdateDir: zentraleUpdateAblage()}, pool, key)
+		ZentraleUpdateDir: zentraleUpdateAblage(), Downloads: downloadsOrdner()}, pool, key)
 	if err != nil {
 		return err
 	}
@@ -816,6 +825,13 @@ func cmdServe(ctx context.Context, args []string) error {
 		return err
 	}
 	slog.Info("Agent-CA bereit", "fingerabdruck", srv.AgentCAFingerprint())
+	// Mitgelieferte Agents (Seite Downloads) als Agent-Updates bereitstellen;
+	// ein Fehler hier hält die Zentrale nicht auf.
+	if n, err := srv.MitgelieferteAgentUpdates(ctx); err != nil {
+		slog.Warn("Mitgelieferte Agent-Updates", "fehler", err)
+	} else if n > 0 {
+		slog.Info("Mitgelieferte Agent-Updates abgelegt", "anzahl", n)
+	}
 
 	hs := &http.Server{
 		Handler:           srv.Handler(),
@@ -1089,4 +1105,25 @@ func names0(names []string, fallback string) string {
 		return names[0]
 	}
 	return fallback
+}
+
+// downloadsOrdner: Ordner der Seite „Downloads“ (1.0.14). Reihenfolge:
+// OPENWACHT_DOWNLOADS, der Ordner downloads neben dem Programm (Windows,
+// Docker), /usr/share/openwacht/downloads (Debian-Paket). Leer, wenn keiner
+// davon da ist.
+func downloadsOrdner() string {
+	if d := os.Getenv("OPENWACHT_DOWNLOADS"); d != "" {
+		return d
+	}
+	var kandidaten []string
+	if exe, err := os.Executable(); err == nil {
+		kandidaten = append(kandidaten, filepath.Join(filepath.Dir(exe), "downloads"))
+	}
+	kandidaten = append(kandidaten, "/usr/share/openwacht/downloads")
+	for _, d := range kandidaten {
+		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
+			return d
+		}
+	}
+	return ""
 }

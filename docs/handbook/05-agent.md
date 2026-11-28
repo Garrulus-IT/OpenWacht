@@ -29,10 +29,10 @@ the computer straight away and starts the service. As root:
 ```bash
 # Debian, Ubuntu
 OPENWACHT_ZENTRALE=https://openwacht.beispiel.example:8444 OPENWACHT_TOKEN=owa1.… \
-  apt install ./openwacht-agent_1.0.12_amd64.deb
+  apt install ./openwacht-agent_1.0.14_amd64.deb
 # RHEL, Rocky, Alma, SUSE
 OPENWACHT_ZENTRALE=https://openwacht.beispiel.example:8444 OPENWACHT_TOKEN=owa1.… \
-  dnf install ./openwacht-agent-1.0.12-1.x86_64.rpm
+  dnf install ./openwacht-agent-1.0.14-1.x86_64.rpm
 ```
 
 Do not type the token on the command line if the shell history records it; read it in protected first and check it
@@ -42,7 +42,7 @@ briefly (a complete token has **92 characters** and starts with `owa1.`):
 read -rs OPENWACHT_TOKEN
 echo "${#OPENWACHT_TOKEN} ${OPENWACHT_TOKEN:0:5}"     # expected: 92 owa1.
 OPENWACHT_ZENTRALE=https://openwacht.beispiel.example:8444 OPENWACHT_TOKEN="$OPENWACHT_TOKEN" \
-  apt install ./openwacht-agent_1.0.12_amd64.deb
+  apt install ./openwacht-agent_1.0.14_amd64.deb
 unset OPENWACHT_TOKEN
 ```
 
@@ -97,7 +97,7 @@ Permissions that are not ticked change nothing during an update; withdrawing sti
 **Silent installation:**
 
 ```powershell
-msiexec /i openwacht-agent_1.0.12_amd64.msi /qn ZENTRALE=https://openwacht.beispiel.example:8444 TOKEN=owa1.…
+msiexec /i openwacht-agent_1.0.14_amd64.msi /qn ZENTRALE=https://openwacht.beispiel.example:8444 TOKEN=owa1.…
 ```
 
 - `TOKEN` is a hidden property: it does not appear in the installation log (`/l*v`), nor does the setup’s command line.
@@ -151,6 +151,13 @@ Start-Service openwacht-agent
 ```
 
 ### Download from the central server
+
+**Page “Downloads” (from 1.0.14):** all agents (Windows, Linux, macOS, FreeBSD), the MSI, the desktop app and the agent
+packages are on the central server itself and come with every update of the central server; downloading works without
+internet. Only what matches the included `SHA256SUMS` is offered; the page shows the checksum. All signed-in users see
+the page.
+
+For single computers without a browser there is also the command with a token:
 
 The central server only delivers the agent at the agent port (`/agent/v1/download/…`) to whoever has a valid
 registration token (it is not consumed by this), and only packages signed with the offline keys (chapter 12). The

@@ -28,10 +28,10 @@ Rechner auch gleich und startet den Dienst. Als root:
 ```bash
 # Debian, Ubuntu
 OPENWACHT_ZENTRALE=https://openwacht.beispiel.example:8444 OPENWACHT_TOKEN=owa1.… \
-  apt install ./openwacht-agent_1.0.13_amd64.deb
+  apt install ./openwacht-agent_1.0.14_amd64.deb
 # RHEL, Rocky, Alma, SUSE
 OPENWACHT_ZENTRALE=https://openwacht.beispiel.example:8444 OPENWACHT_TOKEN=owa1.… \
-  dnf install ./openwacht-agent-1.0.13-1.x86_64.rpm
+  dnf install ./openwacht-agent-1.0.14-1.x86_64.rpm
 ```
 
 Das Token nicht in die Befehlszeile tippen, wenn die Shell-Historie mitschreibt, sondern vorher geschützt einlesen und
@@ -41,7 +41,7 @@ kurz prüfen (ein vollständiges Token hat **92 Zeichen** und beginnt mit `owa1.
 read -rs OPENWACHT_TOKEN
 echo "${#OPENWACHT_TOKEN} ${OPENWACHT_TOKEN:0:5}"     # erwartet: 92 owa1.
 OPENWACHT_ZENTRALE=https://openwacht.beispiel.example:8444 OPENWACHT_TOKEN="$OPENWACHT_TOKEN" \
-  apt install ./openwacht-agent_1.0.13_amd64.deb
+  apt install ./openwacht-agent_1.0.14_amd64.deb
 unset OPENWACHT_TOKEN
 ```
 
@@ -97,7 +97,7 @@ bzw. `sammler -aus`. Still: `msiexec /x <Datei> OW_REG_LOESCHEN=1 /qn` entfernt 
 **Stille Installation:**
 
 ```powershell
-msiexec /i openwacht-agent_1.0.13_amd64.msi /qn ZENTRALE=https://openwacht.beispiel.example:8444 TOKEN=owa1.…
+msiexec /i openwacht-agent_1.0.14_amd64.msi /qn ZENTRALE=https://openwacht.beispiel.example:8444 TOKEN=owa1.…
 ```
 
 - `TOKEN` ist eine versteckte Eigenschaft: Sie erscheint nicht im Installationsprotokoll (`/l*v`), die Befehlszeile der
@@ -149,6 +149,13 @@ Start-Service openwacht-agent
 ```
 
 ### Von der Zentrale laden
+
+**Seite „Downloads“ (ab 1.0.14):** Alle Agents (Windows, Linux, macOS, FreeBSD), die MSI, die Desktop-App und die
+Agent-Pakete liegen auf der Zentrale selbst und kommen mit jedem Update der Zentrale neu mit; herunterladen geht ohne
+Internet. Angeboten wird nur, was zur mitgelieferten `SHA256SUMS` passt; die Seite zeigt die Prüfsumme. Die Seite sehen
+alle angemeldeten Benutzer.
+
+Für einzelne Rechner ohne Browser gibt es dazu den Befehl mit Token:
 
 Die Zentrale liefert den Agent am Agent-Port (`/agent/v1/download/…`) nur an, wer ein gültiges Registrierungs-Token
 hat (es wird dabei nicht verbraucht), und nur Pakete, die mit den Offline-Schlüsseln signiert sind (Kapitel 12). Der

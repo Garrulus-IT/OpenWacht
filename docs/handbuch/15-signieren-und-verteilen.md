@@ -86,14 +86,18 @@ Je Release auf dem Windows-PC des Herausgebers, im Wurzelverzeichnis des Reposit
 2. SimplySign Desktop anmelden.
 3. `.\tools\signieren\authenticode.ps1 -Fingerabdruck <SHA-1 des Zertifikats>`. Das Skript signiert Agent und
    Desktop-App (amd64, arm64) mit Zeitstempel von Certum, baut die MSI aus den signierten Agents neu
-   (`-msi-neu`), signiert die MSI, berechnet `SHA256SUMS` neu (`-summen-neu`) und prüft jede Datei mit
+   (`-msi-neu`), signiert die MSI, baut das Paket der Zentrale mit den signierten Downloads und das ZIP für Windows
+   Server neu, berechnet `SHA256SUMS` neu (`-pakete-neu`, ab 1.0.14) und prüft jede Datei mit
    `Get-AuthenticodeSignature` (gültig, dieses Zertifikat, mit Zeitstempel). Es warnt, wenn der Fingerabdruck nicht in
    `internal/update/authenticode.txt` steht oder das Zertifikat in weniger als 30 Tagen abläuft. Am 28.11.2026 zum ersten
    Mal mit dem echten Zertifikat gelaufen (1.0.12): alle sechs Dateien gültig, mit Zeitstempel.
-4. Offline `SHA256SUMS` mit dem Update-Schlüssel signieren (Schritt 6 unten).
+4. Offline die Agents mit dem Update-Schlüssel signieren (`tools/signieren -version`, Schritt 6 unten), dann
+   `go run ./tools/build -pakete-neu`: Das Paket der Zentrale bringt die `.sig` mit, und die Zentrale legt die Agents
+   nach ihrem Update selbst unter „Agent-Updates“ ab ([Kapitel 12](12-agent-updates.md)).
+5. Offline `SHA256SUMS` in `dist\linux` und `dist\windows` mit dem Update-Schlüssel signieren (Schritt 6 unten).
 
-Ein Certum-Open-Source-Zertifikat erlaubt laut Certum bis zu 5000 Signaturen im Monat; ein Release braucht sechs
-(4 Programme, 2 MSI).
+Ein Certum-Open-Source-Zertifikat erlaubt laut Certum bis zu 5000 Signaturen im Monat; ein Release braucht sieben
+(4 Programme, 2 MSI, ab 1.0.14 die Zentrale für Windows Server).
 
 ## Ablauf je Release (allgemein, z. B. unter Linux mit osslsigncode)
 

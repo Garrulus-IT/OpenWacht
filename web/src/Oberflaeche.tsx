@@ -23,6 +23,7 @@ import { Schnellsuche } from "./Schnellsuche";
 import { RandHinweise, TON_VORGABE, TonDialog } from "./Ton";
 import { Topologie } from "./Topologie";
 import { Zertifikate } from "./Zertifikate";
+import { Downloads } from "./Downloads";
 import type { HinweiseTon } from "./api";
 import { quellenLeeren } from "./quelle";
 import { baumReihe, bereichFuer, wurzeln } from "./bereich";
@@ -76,6 +77,8 @@ const symbolPfad: Record<NavPunkt["id"], string> = {
   wartung: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l4 4",
   verwaltung: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M16 3a4 4 0 0 1 0 8M17 14a7 7 0 0 1 5 7",
   // Rad mit acht Speichen statt Zahnrad: nur 0°, 45° und 90°
+  // Pfeil nach unten in eine Schale
+  downloads: "M12 3v12M7 10l5 5 5-5M4 15v5h16v-5",
   einstellungen: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1",
 };
 
@@ -387,6 +390,8 @@ export function Oberflaeche({ ich, onAbmelden, onAbgelaufen, thema, onThema }: P
             <SnmpProfile key={bereich.mandant.id} bereich={bereich} melden={melden} />
           ) : ort.reiter === "einstellungen" ? (
             <Einstellungen ich={ich} melden={melden} />
+          ) : ort.reiter === "downloads" ? (
+            <Downloads />
           ) : ort.reiter === "zertifikate" ? (
             <Zertifikate bereich={bereich} onOeffnen={(geraet) => wechseln({ reiter: "hosts", geraet })} />
           ) : ort.reiter === "topologie" ? (

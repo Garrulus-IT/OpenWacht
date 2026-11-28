@@ -19,7 +19,7 @@ import { useCallback, useEffect, useState } from "react";
 import { mitBasis, ohneBasis } from "./basis";
 
 export type Reiter =
-  "dashboard" | "hosts" | "topologie" | "zertifikate" | "alarme" | "berichte" | "vorlagen" | "snmpprofile" | "anzeigen" | "wartung" | "verwaltung" | "einstellungen";
+  "dashboard" | "hosts" | "topologie" | "zertifikate" | "alarme" | "berichte" | "vorlagen" | "snmpprofile" | "anzeigen" | "wartung" | "verwaltung" | "downloads" | "einstellungen";
 export type VerwaltungsReiter = "mandanten" | "benutzer" | "tokens" | "updates" | "api" | "anmeldung";
 export type AlarmReiter = "aktiv" | "protokoll" | "kanaele";
 export type GeraetReiter = "uebersicht" | "sensoren";
@@ -48,6 +48,7 @@ export const seitenPfad: Record<Reiter, string> = {
   anzeigen: "/wandanzeigen",
   wartung: "/wartung",
   verwaltung: "/verwaltung",
+  downloads: "/downloads",
   einstellungen: "/einstellungen",
 };
 
@@ -63,6 +64,7 @@ export const seitenTitel: Record<Reiter, string> = {
   anzeigen: "Wandanzeigen",
   wartung: "Wartung",
   verwaltung: "Benutzer und Mandanten",
+  downloads: "Downloads",
   einstellungen: "Einstellungen",
 };
 
@@ -100,6 +102,7 @@ export const navGruppen: { titel: string; punkte: NavPunkt[] }[] = [
     titel: "Verwaltung",
     punkte: [
       { id: "verwaltung", text: "Benutzer und Mandanten" },
+      { id: "downloads", text: "Downloads" },
       { id: "einstellungen", text: "Einstellungen", betreiber: true },
     ],
   },

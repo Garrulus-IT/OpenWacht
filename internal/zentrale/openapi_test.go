@@ -42,6 +42,8 @@ var openAPINichtBeschrieben = map[string]string{
 	"/api/v1/sensor-vorlagen":                 "Formular der Oberfläche",
 	"/api/v1/trapregeln":                      "Verwaltung (Trap-Regeln); Zustände stehen unter /snmp/{id}/traps",
 	"/api/v1/mandanten/{id}/rezertifizierung": "nur Admins (CSV/PDF)",
+	"/api/v1/downloads":                       "Seite „Downloads“ der Oberfläche",
+	"/api/v1/downloads/{os}/{name}":           "Datei der Seite „Downloads“ (kein JSON)",
 }
 
 type openAPIDoc struct {

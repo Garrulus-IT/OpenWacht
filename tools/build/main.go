@@ -95,7 +95,9 @@ func run(args []string) error {
 	ver := fs.String("version", "", "Versionsnummer, z. B. 0.1.0 (Standard: Inhalt der Datei VERSION)")
 	out := fs.String("out", "dist", "Ausgabeordner (darin je Betriebssystem ein Ordner: linux, windows …)")
 	noWeb := fs.Bool("ohne-web", false, "Web-Oberfläche nicht bauen (vorhandenen Stand einbetten)")
-	msiNew := fs.Bool("msi-neu", false, "nach dem Authenticode-Signieren: MSI aus den (signierten) Agents im Ausgabeordner neu bauen, dann SHA256SUMS neu")
+	msiNew := fs.Bool("msi-neu", false, "nach dem Authenticode-Signieren: MSI aus den (signierten) Agents neu bauen, dann SHA256SUMS neu")
+	docker := fs.Bool("docker", false, "zusätzlich dist/docker anlegen: Kontext für das Image der Zentrale (deploy/docker)")
+	pkgNew := fs.Bool("pakete-neu", false, "nach dem Signieren (MSI, .sig der Agents): Paket der Zentrale mit den Downloads neu bauen, dann SHA256SUMS neu")
 	sumsNew := fs.Bool("summen-neu", false, "nur SHA256SUMS für die dort genannten Dateien neu berechnen (nach dem Signieren der MSI)")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -110,8 +112,8 @@ func run(args []string) error {
 	if !safeValue.MatchString(*ver) {
 		return fmt.Errorf("ungültige Version %q", *ver)
 	}
-	if *msiNew || *sumsNew {
-		return afterSigning(*out, *ver, *msiNew)
+	if *msiNew || *sumsNew || *pkgNew {
+		return afterSigning(*out, *ver, *msiNew, *pkgNew)
 	}
 	targets, err := parseTargets(*ziele)
 	if err != nil {
@@ -164,18 +166,37 @@ func run(args []string) error {
 			}
 			built[t.os] = append(built[t.os], pkgs...)
 		}
-		if slices.Contains(zentraleTargets, t) {
+		if slices.Contains(zentraleTargets, t) || slices.Contains(windowsZentraleTargets, t) {
 			name, err := build(dir, "zentrale", "openwacht-zentrale", t, *ver, commit)
 			if err != nil {
 				return err
 			}
 			built[t.os] = append(built[t.os], name)
-			deb, err := buildDeb(dir, name, t.arch, *ver, mtime)
-			if err != nil {
-				return fmt.Errorf("Debian-Paket für %s: %w", t, err)
-			}
-			built[t.os] = append(built[t.os], deb)
 		}
+	}
+	// Das Paket der Zentrale bringt die Downloads mit (Agents, MSI,
+	// Desktop-App, Agent-Pakete), darum erst nach allen anderen Zielen.
+	for _, t := range targets {
+		if !slices.Contains(zentraleTargets, t) {
+			continue
+		}
+		dir := filepath.Join(*out, t.os)
+		deb, err := buildDeb(dir, outputName("openwacht-zentrale", t), t.arch, *ver, mtime, *out)
+		if err != nil {
+			return fmt.Errorf("Debian-Paket für %s: %w", t, err)
+		}
+		built[t.os] = append(built[t.os], deb)
+	}
+	for _, t := range targets {
+		if !slices.Contains(windowsZentraleTargets, t) {
+			continue
+		}
+		dir := filepath.Join(*out, t.os)
+		z, err := buildWindowsZip(dir, outputName("openwacht-zentrale", t), t.arch, *ver, mtime, *out)
+		if err != nil {
+			return fmt.Errorf("ZIP der Zentrale für %s: %w", t, err)
+		}
+		built[t.os] = append(built[t.os], z)
 	}
 	systeme := make([]string, 0, len(built))
 	for o := range built {
@@ -191,6 +212,10 @@ func run(args []string) error {
 		if err := writeChecksums(dir, append(built[o], sb)); err != nil {
 			return err
 		}
+	}
+	if *docker {
+		fmt.Printf("Docker-Kontext: %s\n", filepath.Join(*out, "docker"))
+		return writeDockerContext(*out)
 	}
 	return nil
 }
@@ -422,7 +447,7 @@ func buildWeb() error {
 
 // isPackage: Pakete und Installer (keine Go-Binaries für die Stückliste).
 func isPackage(name string) bool {
-	for _, ext := range []string{".deb", ".rpm", ".msi"} {
+	for _, ext := range []string{".deb", ".rpm", ".msi", ".zip"} {
 		if strings.HasSuffix(name, ext) {
 			return true
 		}
@@ -430,45 +455,109 @@ func isPackage(name string) bool {
 	return false
 }
 
-// afterSigning: Schritte nach dem Authenticode-Signieren (Handbuch Kapitel 15).
-// Mit msi: MSI aus den signierten Agents neu bauen. Danach SHA256SUMS für
-// alle Dateien, die schon drinstehen (plus neue MSI), neu berechnen. Die
-// Signatur von SHA256SUMS (tools/signieren) kommt erst danach.
-func afterSigning(out, ver string, msi bool) error {
-	// -out dist oder -out dist/windows: die Windows-Dateien liegen in dist/windows.
-	if _, err := os.Stat(filepath.Join(out, "SHA256SUMS")); err != nil {
-		if _, err := os.Stat(filepath.Join(out, "windows", "SHA256SUMS")); err == nil {
-			out = filepath.Join(out, "windows")
+// afterSigning: Schritte nach dem Signieren (Handbuch Kapitel 15). out ist
+// der Ausgabeordner (dist) oder einer seiner Ordner je Betriebssystem.
+//   - msi: MSI aus den Authenticode-signierten Agents neu bauen;
+//   - pkg: Paket der Zentrale mit den Downloads (jetzt signiert, mit .sig) neu bauen;
+//   - immer: SHA256SUMS je Betriebssystem neu (bisherige Dateien, neue MSI,
+//     Pakete und Signaturdateien .sig).
+//
+// Die Signatur von SHA256SUMS (tools/signieren) kommt erst danach.
+func afterSigning(out, ver string, msi, pkg bool) error {
+	root := out
+	if slices.Contains(systemOrdner, filepath.Base(filepath.Clean(out))) {
+		if _, err := os.Stat(filepath.Join(out, "SHA256SUMS")); err == nil {
+			root = filepath.Dir(filepath.Clean(out))
 		}
 	}
-	old, err := os.ReadFile(filepath.Join(out, "SHA256SUMS"))
-	if err != nil {
-		return fmt.Errorf("SHA256SUMS im Ausgabeordner: %w", err)
+	mtime := commitTime()
+	names := map[string][]string{}
+	for _, o := range systemOrdner {
+		old, err := os.ReadFile(filepath.Join(root, o, "SHA256SUMS"))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		} else if err != nil {
+			return err
+		}
+		for _, l := range strings.Split(strings.TrimSpace(string(old)), "\n") {
+			if f := strings.Fields(l); len(f) == 2 {
+				names[o] = append(names[o], f[1])
+			}
+		}
+		// Signaturen der Agent-Updates (tools/signieren -version) gehören dazu.
+		sigs, _ := filepath.Glob(filepath.Join(root, o, "openwacht-agent_*.sig"))
+		for _, sg := range sigs {
+			if n := filepath.Base(sg); !slices.Contains(names[o], n) {
+				names[o] = append(names[o], n)
+			}
+		}
 	}
-	var names []string
-	for _, l := range strings.Split(strings.TrimSpace(string(old)), "\n") {
-		if f := strings.Fields(l); len(f) == 2 {
-			names = append(names, f[1])
+	if len(names) == 0 {
+		return fmt.Errorf("keine SHA256SUMS unter %s (erst go run ./tools/build)", root)
+	}
+	add := func(o, n string) {
+		if !slices.Contains(names[o], n) {
+			names[o] = append(names[o], n)
 		}
 	}
 	if msi {
-		mtime := commitTime()
+		dir := filepath.Join(root, "windows")
 		for _, t := range msiTargets {
 			exe := outputName("openwacht-agent", t)
-			if _, err := os.Stat(filepath.Join(out, exe)); err != nil {
+			if _, err := os.Stat(filepath.Join(dir, exe)); err != nil {
 				continue
 			}
-			name, err := buildMSI(out, exe, t.arch, ver, mtime)
+			name, err := buildMSI(dir, exe, t.arch, ver, mtime)
 			if err != nil {
 				return err
 			}
-			if !slices.Contains(names, name) {
-				names = append(names, name)
-			}
+			add("windows", name)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(out, "SHA256SUMS.sig")); err == nil {
-		fmt.Println("Hinweis: SHA256SUMS.sig gilt für die alten Prüfsummen; nach diesem Schritt neu signieren (tools/signieren).")
+	if pkg {
+		dir := filepath.Join(root, "linux")
+		for _, t := range zentraleTargets {
+			bin := outputName("openwacht-zentrale", t)
+			if _, err := os.Stat(filepath.Join(dir, bin)); err != nil {
+				continue
+			}
+			deb, err := buildDeb(dir, bin, t.arch, ver, mtime, root)
+			if err != nil {
+				return err
+			}
+			add("linux", deb)
+		}
+		wdir := filepath.Join(root, "windows")
+		for _, t := range windowsZentraleTargets {
+			exe := outputName("openwacht-zentrale", t)
+			if _, err := os.Stat(filepath.Join(wdir, exe)); err != nil {
+				continue
+			}
+			z, err := buildWindowsZip(wdir, exe, t.arch, ver, mtime, root)
+			if err != nil {
+				return err
+			}
+			add("windows", z)
+		}
 	}
-	return writeChecksums(out, names)
+	if _, err := os.Stat(filepath.Join(root, "docker", "Dockerfile")); err == nil && pkg {
+		if err := writeDockerContext(root); err != nil {
+			return err
+		}
+	}
+	for _, o := range systemOrdner {
+		if names[o] == nil {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(root, o, "SHA256SUMS.sig")); err == nil {
+			fmt.Printf("Hinweis: %s/SHA256SUMS.sig gilt für die alten Prüfsummen; nach diesem Schritt neu signieren (tools/signieren).\n", o)
+		}
+		if err := writeChecksums(filepath.Join(root, o), names[o]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
+
+// systemOrdner: Ordner je Betriebssystem im Ausgabeordner.
+var systemOrdner = []string{"linux", "windows", "darwin", "freebsd"}

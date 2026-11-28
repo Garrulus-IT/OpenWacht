@@ -46,6 +46,9 @@ Commit; wer diese Datei tauschen kann, kann Agents mit eigenen Updates versorgen
    `go run ./tools/signieren -schluessel ~/openwacht-update.key -version 1.0.0 openwacht-agent_linux_amd64 openwacht-agent_windows_amd64.exe`
    (es entsteht je Datei eine `.sig`).
 2. **Verwaltung → Agent-Updates** (Betreiber): Binary und `.sig` hochladen. Die Zentrale prüft die Signatur.
+   **Ab 1.0.14 entfällt das** für die Agents, die mit der Zentrale kommen: Liegen die signierten Agents samt `.sig` im
+   Paket der Zentrale (Seite „Downloads“), legt die Zentrale sie beim Start selbst unter „Agent-Updates“ ab, geprüft
+   wie beim Hochladen (Audit `agent_update.mitgeliefert`). Hochladen von Hand bleibt für Zwischenstände.
 3. Agents auswählen, Version wählen, „Für N Agents freigeben“ (Admins des Mandanten).
 
 Beim nächsten Melden lädt der Agent das Paket, prüft Signatur, Prüfsumme, Plattform und Version (keine Rückstufung)
