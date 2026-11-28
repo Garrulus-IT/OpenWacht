@@ -3,3 +3,4 @@
 # höchstens drei (aktuell, Nachfolger vor dem Ablauf). Leer = Download des
 # Windows-Agents von der Zentrale aus. Änderungen nur per eigenem Pull Request
 # vom Herausgeber (wie schluessel.pub, siehe Handbuch Kapitel 15).
+2AC32559F124E5A3C9FF56A04F17A8897D591669

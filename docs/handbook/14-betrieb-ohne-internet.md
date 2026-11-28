@@ -34,12 +34,12 @@ sudo apt install apt-utils debian-archive-keyring     # once
 sh deploy/offline/paket-bauen.sh -dist dist
 
 # Result
-ls dist/openwacht-offline_1.0.10_debian-13_amd64.tar*
+ls dist/linux/openwacht-offline_1.0.13_debian-13_amd64.tar*
 ```
 
 The script
 
-1. checks the package `openwacht-zentrale_*.deb` and the bill of materials against `dist/SHA256SUMS`,
+1. checks the package `openwacht-zentrale_*.deb` and the bill of materials against `dist/linux/SHA256SUMS`,
 2. downloads, with its own empty apt directory (changes nothing on the build computer), **PostgreSQL and all
    dependencies** from `trixie`, `trixie-updates` and `trixie-security`; apt checks the signatures of the Debian archive,
 3. adds package index, `installieren.sh`, `LIESMICH.txt` (with all package versions), bill of materials and
@@ -79,13 +79,13 @@ does not cover joining a real domain, nor Debian 13.
 context; an update signature does not count for it):
 
 ```bash
-tar -xOf dist/openwacht-offline_1.0.10_debian-13_amd64.tar openwacht-offline_1.0.10_debian-13_amd64/SHA256SUMS >SHA256SUMS
+tar -xOf dist/linux/openwacht-offline_1.0.13_debian-13_amd64.tar openwacht-offline_1.0.13_debian-13_amd64/SHA256SUMS >SHA256SUMS
 go run ./tools/signieren -schluessel ~/openwacht-update.key -summen SHA256SUMS      # offline
-sh deploy/offline/paket-bauen.sh -dist dist -signatur SHA256SUMS.sig -paket dist/openwacht-offline_1.0.10_debian-13_amd64.tar
+sh deploy/offline/paket-bauen.sh -dist dist -signatur SHA256SUMS.sig -paket dist/linux/openwacht-offline_1.0.13_debian-13_amd64.tar
 ```
 
-The last step puts `SHA256SUMS.sig` into the package, checks it with `dist/openwacht-zentrale_linux_amd64` and repacks.
-`dist/SHA256SUMS` from `tools/build` can be signed the same way. The signature can also be checked without OpenWacht:
+The last step puts `SHA256SUMS.sig` into the package, checks it with `dist/linux/openwacht-zentrale_linux_amd64` and repacks.
+`dist/linux/SHA256SUMS` from `tools/build` can be signed the same way. The signature can also be checked without OpenWacht:
 signed are the bytes `openwacht-sha256sums v1\n` followed by the content of `SHA256SUMS` (Ed25519,
 `openssl pkeyutl -verify -rawin`).
 

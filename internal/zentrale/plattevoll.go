@@ -24,9 +24,11 @@ type fullDaysCache struct {
 	m  map[string]map[string]int // "agent|snmp\x00id" → Einhängepunkt → Tage
 }
 
-// fullDaysFor: Tage bis voll je Platte einer Quelle (kind "agent" oder "snmp");
-// nil, wenn keine Platte steigt.
-func (s *Server) fullDaysFor(kind, id string) map[string]int {
+// refreshFullDays lädt die Prognose neu, wenn sie älter als fullDaysMaxAge
+// ist. Vor der Transaktion eines Durchlaufs aufrufen, nie darin:
+// loadFullDays braucht eine eigene Verbindung aus dem Pool, und wer dabei eine
+// hält, kann bei kleinem Pool auf sich selbst warten.
+func (s *Server) refreshFullDays() {
 	c := &s.fullDays
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -41,6 +43,14 @@ func (s *Server) fullDaysFor(kind, id string) map[string]int {
 			c.at = s.now().Add(-fullDaysMaxAge + time.Minute) // in einer Minute erneut
 		}
 	}
+}
+
+// fullDaysFor: Tage bis voll je Platte einer Quelle (kind "agent" oder "snmp");
+// nil, wenn keine Platte steigt. Liest nur den Stand von refreshFullDays.
+func (s *Server) fullDaysFor(kind, id string) map[string]int {
+	c := &s.fullDays
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.m[kind+"\x00"+id]
 }
 

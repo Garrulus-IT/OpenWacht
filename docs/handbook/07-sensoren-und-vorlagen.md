@@ -91,6 +91,12 @@ from text):
   “unbekannt” (“Zahl aus Text noch nicht gelesen”, number from text not read yet).
 - Does not work together with a table column, a rate or “Wert gleich Text” (value equals text).
 
+**Durations (from 1.0.11):** If an SNMP OID sensor measures a duration, it shows it as hours, minutes and seconds
+(“26 Std. 14 Min. 5 Sek.”), and the message states the threshold the same way. Durations are the system uptime
+(`1.3.6.1.2.1.25.1.1.0` and `1.3.6.1.2.1.1.3.0`, reported by the device in hundredths of a second) without factor and
+unit, and every sensor with the unit “s”. Thresholds are still entered in the sensor's own number: for the system uptime
+in hundredths of a second (26 hours = 9 360 000), with factor 0.01 and unit “s” in seconds (93 600).
+
 **Show the device’s text (from 1.0.10):** some values are text and should be visible as text, such as the firmware
 version. With the tick “Text des Geräts anzeigen” (show the device’s text) on the sensor, the central server stores the
 last read text of this one OID (at most 50 characters, without control characters) and shows it as measurement.
@@ -132,6 +138,9 @@ servers, one for the NetScaler and one for LANCOM switches. Each sensor is calle
 origin.
 
 ![Template sets](../handbuch/bilder/sensor-vorlagensaetze.webp)
+
+**On the device (from 1.0.12):** In a device's “Sensoren” tab, **“+ Vorlagensatz”** creates a set directly for this
+device, without going via the Sensor templates page. For several devices at once: Hosts → “Mehrere bearbeiten”.
 
 | Set | Sensors | Permission on the computer |
 | --- | --- | --- |

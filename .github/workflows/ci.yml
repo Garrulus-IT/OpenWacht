@@ -108,7 +108,7 @@ jobs:
         if: github.event_name != 'pull_request' && github.event_name != 'schedule'
         run: go run ./tools/build -ziele alle
       # Die Binaries für die Inbetriebnahme. Der Build ist reproduzierbar: Wer denselben
-      # Commit selbst baut, muss dieselben Prüfsummen (dist/SHA256SUMS) erhalten.
+      # Commit selbst baut, muss dieselben Prüfsummen (dist/*/SHA256SUMS, je Betriebssystem) erhalten.
       - name: Binaries als Artefakt ablegen
         if: github.event_name != 'pull_request' && github.event_name != 'schedule'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

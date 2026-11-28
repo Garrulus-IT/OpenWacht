@@ -30,7 +30,7 @@ sudo locale-gen && sudo update-locale LANG=de_DE.UTF-8
 
 ```bash
 sudo apt install postgresql
-sudo apt install ./openwacht-zentrale_1.0.10_amd64.deb
+sudo apt install ./openwacht-zentrale_1.0.12_amd64.deb
 ```
 
 **Recommended on a new machine:** recreate the still empty cluster once, with checksums for the data pages (damaged
@@ -52,8 +52,8 @@ The offline package contains the central server **and** PostgreSQL with all depe
 is described in [chapter 14](14-betrieb-ohne-internet.md#building-the-offline-package).
 
 ```bash
-tar xf openwacht-offline_1.0.10_debian-13_amd64.tar
-cd openwacht-offline_1.0.10_debian-13_amd64
+tar xf openwacht-offline_1.0.12_debian-13_amd64.tar
+cd openwacht-offline_1.0.12_debian-13_amd64
 sudo sh installieren.sh -pruefen -abdruck <identifier>   # only check, change nothing
 sudo sh installieren.sh -abdruck <identifier>            # first installation
 sudo sh installieren.sh                                  # update of an existing installation

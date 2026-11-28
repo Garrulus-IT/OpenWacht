@@ -9,6 +9,10 @@
 //	go run ./tools/build -version 0.1.0      # Versionsnummer setzen (sonst aus VERSION)
 //	go run ./tools/build -ohne-web           # Oberfläche nicht neu bauen
 //
+// Ergebnis je Betriebssystem in einem eigenen Ordner (dist/linux,
+// dist/windows, dist/darwin, dist/freebsd), jeder mit eigener SHA256SUMS und
+// Stückliste.
+//
 // Für jede Zielplattform der Zentrale entsteht zusätzlich ein Debian-Paket
 // openwacht-zentrale_<version>_<arch>.deb (siehe deb.go), dazu bei jedem Lauf
 // die Stückliste openwacht-<version>.cdx.json (CycloneDX, tools/sbom).
@@ -89,7 +93,7 @@ func run(args []string) error {
 	fs := flag.NewFlagSet("build", flag.ContinueOnError)
 	ziele := fs.String("ziele", "stufe1", `"stufe1", "alle" oder kommagetrennte Liste wie "linux/amd64,linux/armv7"`)
 	ver := fs.String("version", "", "Versionsnummer, z. B. 0.1.0 (Standard: Inhalt der Datei VERSION)")
-	out := fs.String("out", "dist", "Ausgabeordner")
+	out := fs.String("out", "dist", "Ausgabeordner (darin je Betriebssystem ein Ordner: linux, windows …)")
 	noWeb := fs.Bool("ohne-web", false, "Web-Oberfläche nicht bauen (vorhandenen Stand einbetten)")
 	msiNew := fs.Bool("msi-neu", false, "nach dem Authenticode-Signieren: MSI aus den (signierten) Agents im Ausgabeordner neu bauen, dann SHA256SUMS neu")
 	sumsNew := fs.Bool("summen-neu", false, "nur SHA256SUMS für die dort genannten Dateien neu berechnen (nach dem Signieren der MSI)")
@@ -121,60 +125,74 @@ func run(args []string) error {
 		}
 	}
 
-	if err := os.MkdirAll(*out, 0o755); err != nil {
-		return err
-	}
-	var built []string
+	// Je Betriebssystem ein Ordner (dist/linux, dist/windows …), jeder für
+	// sich vollständig: eigene SHA256SUMS mit Dateinamen ohne Pfad (so prüft
+	// sie auch die Zentrale beim Update) und eigene Stückliste.
+	built := map[string][]string{}
 	for _, t := range targets {
-		name, err := build(*out, "agent", "openwacht-agent", t, *ver, commit)
+		dir := filepath.Join(*out, t.os)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+		name, err := build(dir, "agent", "openwacht-agent", t, *ver, commit)
 		if err != nil {
 			return err
 		}
-		built = append(built, name)
+		built[t.os] = append(built[t.os], name)
 		if slices.Contains(msiTargets, t) {
 			if _, err := msiVersion(*ver); err != nil {
 				fmt.Printf("kein MSI für %s: %v\n", t, err)
 			} else {
-				msi, err := buildMSI(*out, name, t.arch, *ver, mtime)
+				msi, err := buildMSI(dir, name, t.arch, *ver, mtime)
 				if err != nil {
 					return fmt.Errorf("MSI für %s: %w", t, err)
 				}
-				built = append(built, msi)
+				built[t.os] = append(built[t.os], msi)
 			}
 		}
 		if slices.Contains(desktopTargets, t) {
-			name, err := buildWith(*out, "desktop", "openwacht-desktop", t, *ver, commit, "-H windowsgui")
+			name, err := buildWith(dir, "desktop", "openwacht-desktop", t, *ver, commit, "-H windowsgui")
 			if err != nil {
 				return err
 			}
-			built = append(built, name)
+			built[t.os] = append(built[t.os], name)
 		}
 		if slices.Contains(agentPackageTargets, t) {
-			pkgs, err := buildAgentPackages(*out, name, t.arch, *ver, mtime)
+			pkgs, err := buildAgentPackages(dir, name, t.arch, *ver, mtime)
 			if err != nil {
 				return fmt.Errorf("Agent-Pakete für %s: %w", t, err)
 			}
-			built = append(built, pkgs...)
+			built[t.os] = append(built[t.os], pkgs...)
 		}
 		if slices.Contains(zentraleTargets, t) {
-			name, err := build(*out, "zentrale", "openwacht-zentrale", t, *ver, commit)
+			name, err := build(dir, "zentrale", "openwacht-zentrale", t, *ver, commit)
 			if err != nil {
 				return err
 			}
-			built = append(built, name)
-			deb, err := buildDeb(*out, name, t.arch, *ver, mtime)
+			built[t.os] = append(built[t.os], name)
+			deb, err := buildDeb(dir, name, t.arch, *ver, mtime)
 			if err != nil {
 				return fmt.Errorf("Debian-Paket für %s: %w", t, err)
 			}
-			built = append(built, deb)
+			built[t.os] = append(built[t.os], deb)
 		}
 	}
-	sb, err := writeSBOM(*out, built, *ver, commit, mtime)
-	if err != nil {
-		return err
+	systeme := make([]string, 0, len(built))
+	for o := range built {
+		systeme = append(systeme, o)
 	}
-	built = append(built, sb)
-	return writeChecksums(*out, built)
+	sort.Strings(systeme)
+	for _, o := range systeme {
+		dir := filepath.Join(*out, o)
+		sb, err := writeSBOM(dir, built[o], *ver, commit, mtime)
+		if err != nil {
+			return err
+		}
+		if err := writeChecksums(dir, append(built[o], sb)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // writeSBOM schreibt die Stückliste (CycloneDX, tools/sbom) neben
@@ -305,8 +323,10 @@ func buildWith(out, pkg, prog string, t target, ver, commit, extra string) (stri
 		var icons [][]byte
 		if pkg == "desktop" {
 			manifest = desktopManifest(ver) // Fenster: moderne Steuerelemente, DPI
+		}
+		if pkg == "desktop" || pkg == "agent" {
 			var err error
-			if icons, err = desktopIcons(); err != nil { // Bildzeichen als Programmsymbol
+			if icons, err = desktopIcons(); err != nil { // Bildzeichen als Programmsymbol (Explorer, Dienste)
 				return "", err
 			}
 		}
@@ -415,6 +435,12 @@ func isPackage(name string) bool {
 // alle Dateien, die schon drinstehen (plus neue MSI), neu berechnen. Die
 // Signatur von SHA256SUMS (tools/signieren) kommt erst danach.
 func afterSigning(out, ver string, msi bool) error {
+	// -out dist oder -out dist/windows: die Windows-Dateien liegen in dist/windows.
+	if _, err := os.Stat(filepath.Join(out, "SHA256SUMS")); err != nil {
+		if _, err := os.Stat(filepath.Join(out, "windows", "SHA256SUMS")); err == nil {
+			out = filepath.Join(out, "windows")
+		}
+	}
 	old, err := os.ReadFile(filepath.Join(out, "SHA256SUMS"))
 	if err != nil {
 		return fmt.Errorf("SHA256SUMS im Ausgabeordner: %w", err)

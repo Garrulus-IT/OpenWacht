@@ -20,7 +20,7 @@ import { useQuelle } from "./quelle";
 import { vor } from "./zeit";
 import { lesen, restText } from "./Zertifikate";
 import type { Ort } from "./navigation";
-import type { Widget } from "./widgets";
+import type { Widget } from "./widgetModell";
 
 export const Q = {
   sensoren: "/api/v1/sensoren",

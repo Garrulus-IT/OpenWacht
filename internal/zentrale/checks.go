@@ -497,6 +497,8 @@ func (s *Server) runCheck(ctx context.Context, c claimedCheck) {
 	spec, err := checks.Parse(c.kind, c.target)
 	if err != nil {
 		res = checks.Result{Status: checks.Unknown, Message: "Ziel ungültig: " + err.Error()}
+	} else if s.cfg.Simulation != nil {
+		res = s.cfg.Simulation.Check(ctx, c.id, c.kind, spec)
 	} else {
 		rctx, cancel := context.WithTimeout(ctx, time.Minute)
 		res = s.runnerFor(c.tenant).Run(rctx, c.kind, spec)

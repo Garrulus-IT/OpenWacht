@@ -3,6 +3,7 @@
 package zentrale
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"io/fs"
@@ -14,7 +15,7 @@ import (
 // uiHandler liefert die eingebettete SPA aus. Dateien unter /assets/ tragen
 // einen Inhalts-Hash im Namen und dürfen lange gecacht werden; alle anderen
 // Pfade ohne Dateiendung bekommen index.html (Routing im Browser).
-func uiHandler(files fs.FS) http.Handler {
+func uiHandler(files fs.FS, base string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			writeError(w, http.StatusMethodNotAllowed, "Methode nicht erlaubt.")
@@ -49,6 +50,16 @@ func uiHandler(files fs.FS) http.Handler {
 			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		} else {
 			w.Header().Set("Cache-Control", "no-cache")
+		}
+		if p == "index.html" {
+			// Adressen der Dateien und Basis-Pfad einsetzen (basis.go).
+			raw, err := io.ReadAll(f)
+			if err != nil {
+				http.Error(w, "Datei nicht lesbar", http.StatusInternalServerError)
+				return
+			}
+			http.ServeContent(w, r, p, st.ModTime(), bytes.NewReader(indexWithBase(base, raw)))
+			return
 		}
 		rs, ok := f.(io.ReadSeeker)
 		if !ok {

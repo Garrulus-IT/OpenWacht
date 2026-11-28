@@ -137,7 +137,7 @@ func (s *Setup) Handler() http.Handler {
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "Die Einrichtung ist noch nicht abgeschlossen.")
 	})
-	ui := uiHandler(s.ui)
+	ui := uiHandler(s.ui, "") // Einrichtung läuft immer ohne Basis-Pfad
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// Nur die Seite des Assistenten und ihre Dateien; alles andere führt dorthin.
 		if r.URL.Path != "/einrichtung" && !strings.HasPrefix(r.URL.Path, "/assets/") && r.URL.Path != "/thema.js" &&

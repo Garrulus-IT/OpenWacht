@@ -34,12 +34,12 @@ sudo apt install apt-utils debian-archive-keyring     # einmalig
 sh deploy/offline/paket-bauen.sh -dist dist
 
 # Ergebnis
-ls dist/openwacht-offline_1.0.13_debian-13_amd64.tar*
+ls dist/linux/openwacht-offline_1.0.13_debian-13_amd64.tar*
 ```
 
 Das Skript
 
-1. prüft das Paket `openwacht-zentrale_*.deb` und die Stückliste gegen `dist/SHA256SUMS`,
+1. prüft das Paket `openwacht-zentrale_*.deb` und die Stückliste gegen `dist/linux/SHA256SUMS`,
 2. lädt mit einem eigenen, leeren apt-Verzeichnis (ändert nichts am Bau-Rechner) **PostgreSQL und alle
    Abhängigkeiten** aus `trixie`, `trixie-updates` und `trixie-security`; apt prüft dabei die Signaturen des
    Debian-Archivs,
@@ -78,13 +78,13 @@ echten Domäne deckt der Test nicht ab, ebenso wenig Debian 13.
 Update-Schlüssel signiert (eigener Kontext, eine Update-Signatur gilt dafür nicht):
 
 ```bash
-tar -xOf dist/openwacht-offline_1.0.13_debian-13_amd64.tar openwacht-offline_1.0.13_debian-13_amd64/SHA256SUMS >SHA256SUMS
+tar -xOf dist/linux/openwacht-offline_1.0.13_debian-13_amd64.tar openwacht-offline_1.0.13_debian-13_amd64/SHA256SUMS >SHA256SUMS
 go run ./tools/signieren -schluessel ~/openwacht-update.key -summen SHA256SUMS      # offline
-sh deploy/offline/paket-bauen.sh -dist dist -signatur SHA256SUMS.sig -paket dist/openwacht-offline_1.0.13_debian-13_amd64.tar
+sh deploy/offline/paket-bauen.sh -dist dist -signatur SHA256SUMS.sig -paket dist/linux/openwacht-offline_1.0.13_debian-13_amd64.tar
 ```
 
-Der letzte Schritt legt `SHA256SUMS.sig` ins Paket, prüft sie mit `dist/openwacht-zentrale_linux_amd64` und packt neu.
-Ebenso lässt sich `dist/SHA256SUMS` aus `tools/build` signieren. Die Signatur lässt sich auch ohne OpenWacht prüfen:
+Der letzte Schritt legt `SHA256SUMS.sig` ins Paket, prüft sie mit `dist/linux/openwacht-zentrale_linux_amd64` und packt neu.
+Ebenso lässt sich `dist/linux/SHA256SUMS` aus `tools/build` signieren. Die Signatur lässt sich auch ohne OpenWacht prüfen:
 signiert sind die Bytes `openwacht-sha256sums v1\n` gefolgt vom Inhalt von `SHA256SUMS` (Ed25519,
 `openssl pkeyutl -verify -rawin`).
 

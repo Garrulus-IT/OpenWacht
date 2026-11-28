@@ -1,0 +1,104 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+/* Startseite der Klick-Demo nach dem Corporate Design (Werte aus
+   web/src/tokens.css von OpenWacht). */
+@font-face {
+  font-family: "D-DIN";
+  src: url("./schriften/D-DIN.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "D-DIN";
+  src: url("./schriften/D-DIN-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+:root {
+  --marke: #0b6a8a;
+  --marke-tief: #0a4f68;
+  --marke-hauch: #dcedf3;
+  --grund: #eef2f6;
+  --flaeche: #ffffff;
+  --tinte: #14202e;
+  --leise: #526172;
+  --linie: #c9d3de;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --marke: #45c3e6;
+    --marke-tief: #86d9f0;
+    --marke-hauch: #123447;
+    --grund: #0a121c;
+    --flaeche: #111c29;
+    --tinte: #dfe8f2;
+    --leise: #94a6ba;
+    --linie: #2a3a4d;
+    color-scheme: dark;
+  }
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--grund);
+  color: var(--tinte);
+  font: 1rem/1.5 "D-DIN", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.panel {
+  box-sizing: border-box;
+  width: min(36rem, calc(100% - 2rem));
+  margin: 2rem 1rem;
+  padding: 1.5rem;
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-top: 3px solid var(--marke);
+  border-radius: 6px;
+}
+.marke-kopf {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+.zeichen {
+  width: 40px;
+  height: 40px;
+  display: block;
+  background: url(favicon.svg) center / contain no-repeat;
+}
+.wortmarke {
+  font-weight: 400;
+}
+h1 {
+  font-size: 1.5625rem;
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+}
+p {
+  margin: 0 0 0.75rem;
+}
+.hinweis {
+  background: var(--marke-hauch);
+  border-left: 4px solid var(--marke);
+  border-radius: 3px;
+  padding: 0.5rem 0.75rem;
+}
+.stand {
+  font-weight: 700;
+  color: var(--marke-tief);
+}
+.fuss {
+  font-size: 0.8125rem;
+  color: var(--leise);
+  margin: 1.5rem 0 0;
+}
+a {
+  color: var(--marke-tief);
+}
+a:focus-visible {
+  outline: 2px solid var(--marke);
+  outline-offset: 2px;
+}

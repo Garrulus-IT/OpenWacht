@@ -56,23 +56,38 @@ After issuance:
 Signed files remain valid after expiry if a **timestamp** was set when signing (always sign with a timestamp, see
 below).
 
+## Current certificate
+
+| Field | Value |
+| --- | --- |
+| Holder | Open Source Developer Philipp Heller |
+| Issuer | Certum Code Signing 2021 CA |
+| Serial number | `0B40CD58EEC9B7BBACD977DA0830C782` |
+| Valid | 28.11.2026 to 28.11.2027 |
+| Fingerprint (SHA-1) | `2AC32559F124E5A3C9FF56A04F17A8897D591669` |
+| Fingerprint (SHA-256) | `51356A57E8BDB4D0741C0AA990BCDDBF66E98A01B067AE01EAF53FDCFE6D181C` |
+
+On Windows, `Get-AuthenticodeSignature <file>` shows the fingerprint in `SignerCertificate.Thumbprint`.
+
 ## Procedure per release on Windows with SimplySign (from 1.0.6)
 
 Certum SimplySign keeps the key in the cloud. After sign-in (code from the SimplySign app on the phone), **SimplySign
 Desktop** mounts it as a virtual card; the certificate is then under “Personal certificates”, and `signtool` signs via
 the fingerprint. Set up once: SimplySign Desktop, Windows SDK (`winget install Microsoft.WindowsSDK.10.0.26100`,
-contains `signtool.exe`), Go and Git, clone the repository.
+contains `signtool.exe`), Go, Git and Node.js (`winget install OpenJS.NodeJS.LTS`, for the interface), clone the
+repository.
 
 Per release on the publisher’s Windows PC, in the root directory of the repository, at the state of the release tag:
 
-1. Prepare the output folder `dist`: unpack the CI artefact or build it yourself (`go run ./tools/build -ziele alle`;
+1. Prepare the output folder `dist` (from 1.0.13 the Windows files are in `dist\windows`): unpack the CI artefact or build it yourself (`go run ./tools/build -ziele alle`;
    the build is reproducible, the checksums must be identical).
 2. Sign in to SimplySign Desktop.
 3. `.\tools\signieren\authenticode.ps1 -Fingerabdruck <SHA-1 of the certificate>`. The script signs agent and desktop
    app (amd64, arm64) with a timestamp from Certum, rebuilds the MSI from the signed agents (`-msi-neu`), signs the MSI,
    recomputes `SHA256SUMS` (`-summen-neu`) and checks every file with `Get-AuthenticodeSignature` (valid, this
    certificate, with timestamp). It warns if the fingerprint is not in `internal/update/authenticode.txt` or the
-   certificate expires in less than 30 days.
+   certificate expires in less than 30 days. First run with the real certificate on 28.11.2026 (1.0.12): all six files
+   valid, with timestamp.
 4. Sign `SHA256SUMS` offline with the update key (step 6 below).
 
 According to Certum, a Certum open source certificate allows up to 5000 signatures per month; a release needs six
@@ -92,32 +107,33 @@ go run ./tools/build -ziele alle
 for a in amd64 arm64; do
   osslsigncode sign -pkcs11module <module.so> -pkcs11cert 'pkcs11:…' -key 'pkcs11:…' \
     -h sha256 -n "OpenWacht-Agent" -t <timestamp service of the CA> \
-    -in dist/openwacht-agent_windows_$a.exe -out dist/openwacht-agent_windows_$a.exe.signiert &&
-  mv dist/openwacht-agent_windows_$a.exe.signiert dist/openwacht-agent_windows_$a.exe
+    -in dist/windows/openwacht-agent_windows_$a.exe -out dist/windows/openwacht-agent_windows_$a.exe.signiert &&
+  mv dist/windows/openwacht-agent_windows_$a.exe.signiert dist/windows/openwacht-agent_windows_$a.exe
 done
 
 # 3. rebuild the MSI from the signed programs, new checksums
 go run ./tools/build -msi-neu
 
-# 4. sign the MSI (as step 2, files dist/openwacht-agent_<version>_<arch>.msi)
+# 4. sign the MSI (as step 2, files dist/windows/openwacht-agent_<version>_<arch>.msi)
 
 # 5. new checksums (the MSIs changed through the signature)
 go run ./tools/build -summen-neu
 
 # 6. offline: update signatures for the agents and signature of the checksums (chapters 12 and 14)
-go run ./tools/signieren -schluessel ~/openwacht-update.key -version <version> dist/openwacht-agent_linux_* dist/openwacht-agent_windows_*.exe
-go run ./tools/signieren -schluessel ~/openwacht-update.key -summen dist/SHA256SUMS
+go run ./tools/signieren -schluessel ~/openwacht-update.key -version <version> dist/linux/openwacht-agent_linux_* dist/windows/openwacht-agent_windows_*.exe
+go run ./tools/signieren -schluessel ~/openwacht-update.key -summen dist/linux/SHA256SUMS
+go run ./tools/signieren -schluessel ~/openwacht-update.key -summen dist/windows/SHA256SUMS
 ```
 
-Check: `osslsigncode verify -in dist/openwacht-agent_<version>_amd64.msi` or on Windows
+Check: `osslsigncode verify -in dist/windows/openwacht-agent_<version>_amd64.msi` or on Windows
 `Get-AuthenticodeSignature .\openwacht-agent_<version>_amd64.msi` (status `Valid`). `-msi-neu` builds the MSI
 reproducibly: whoever has the signed program gets the same unsigned MSI.
 
-`authenticode.ps1` has not yet run with the real certificate (as of 1.0.6). Tested (22 Nov 2026, sandbox):
+`authenticode.ps1` first ran with the real certificate on 28 Nov 2026 (SimplySign, 1.0.12) and signed all six files. Tested (22 Nov 2026, sandbox):
 `osslsigncode` 2.8 signs and verifies MSI and program with a test certificate; the content of the MSI stays the same.
-**Not tested:** installation on real Windows (no environment), signing with SimplySign, behaviour of SAC with the
-purchased certificate. Before the first use on real Windows, check: installation of the MSI, start of the service,
-permissions of the program directory and the agent’s report in the interface.
+The signed MSI installed on real Windows on 28 Nov 2026. **Not yet checked:** behaviour of SAC with the purchased
+certificate. Before use at customers, check: start of the service, permissions of the program directory and the
+agent’s report in the interface.
 
 ## What the signature achieves and what not
 

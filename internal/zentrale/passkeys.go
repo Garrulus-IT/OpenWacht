@@ -251,13 +251,13 @@ func (s *Server) handlePasskeyDelete(w http.ResponseWriter, r *http.Request) {
 // --- Anmeldung mit Passkey (zweiter Schritt) -------------------------------------
 
 func (s *Server) pendingSession(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
-	c, err := r.Cookie(pendingCookie)
+	c, err := r.Cookie(s.ck(pendingCookie))
 	if err == nil {
 		if th, ok := hashToken(c.Value); ok {
 			return th, true
 		}
 	}
-	clearCookie(w, pendingCookie)
+	s.clearCookie(w, pendingCookie)
 	writeError(w, http.StatusUnauthorized, "Die Anmeldung ist abgelaufen. Bitte erneut anmelden.")
 	return nil, false
 }
@@ -288,7 +288,7 @@ func (s *Server) handlePasskeyLoginOptions(w http.ResponseWriter, r *http.Reques
 	}
 	var pe *pgconn.PgError
 	if errors.As(err, &pe) && pe.Code == "28000" {
-		clearCookie(w, pendingCookie)
+		s.clearCookie(w, pendingCookie)
 		writeError(w, http.StatusUnauthorized, "Die Anmeldung ist abgelaufen. Bitte erneut anmelden.")
 		return
 	}
@@ -337,7 +337,7 @@ func (s *Server) handlePasskeyLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	var userID string
 	if err := s.pool.QueryRow(ctx, `SELECT openwacht.webauthn_pending_user($1)::text`, th).Scan(&userID); err != nil || userID == "" {
-		clearCookie(w, pendingCookie)
+		s.clearCookie(w, pendingCookie)
 		writeError(w, http.StatusUnauthorized, "Die Anmeldung ist abgelaufen. Bitte erneut anmelden.")
 		return
 	}
@@ -345,7 +345,7 @@ func (s *Server) handlePasskeyLogin(w http.ResponseWriter, r *http.Request) {
 	if s.sourceLocked(ctx, userID, src) {
 		s.pool.Exec(ctx, `SELECT openwacht.session_delete($1)`, th)
 		s.auditAuth(ctx, userID, "anmeldung.gesperrt", nil, false)
-		clearCookie(w, pendingCookie)
+		s.clearCookie(w, pendingCookie)
 		writeError(w, http.StatusUnauthorized, msgLoginFailed)
 		return
 	}
@@ -395,7 +395,7 @@ func (s *Server) handlePasskeyLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.pool.Exec(ctx, `SELECT openwacht.session_delete($1)`, th)
-	clearCookie(w, pendingCookie)
+	s.clearCookie(w, pendingCookie)
 	s.auditAuth(ctx, userID, "anmeldung.passkey", nil, false)
 	s.finishLogin(w, r, userID, nil)
 }
