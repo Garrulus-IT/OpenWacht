@@ -2,6 +2,14 @@
 
 ## Unveröffentlicht
 
+- **Bauergebnis je Betriebssystem in einem Ordner.** `tools/build` legt die Dateien nach `dist/linux`, `dist/windows`,
+  `dist/darwin` und `dist/freebsd`, jeder Ordner mit eigener `SHA256SUMS` (Dateinamen ohne Pfad, wie bisher) und
+  eigener Stückliste. Signiert wird je Ordner; `authenticode.ps1` nimmt `dist\windows`, `paket-bauen.sh` findet
+  `dist/linux` selbst.
+- **Windows-Agent mit Programmsymbol** (wie die Desktop-App).
+- **Bau unter Windows:** `web/src/widgets.ts` heißt `widgetModell.ts`; neben `Widgets.tsx` brach der Bau der
+  Oberfläche unter Windows ab.
+
 - **Alarmdurchlauf ohne zweite Verbindung.** Der Durchlauf las die Platten-Prognose und die sammelnden Kanäle über eine
   zweite Verbindung aus dem Pool, während er die erste in seiner Transaktion hielt. Bei kleinem oder ausgelastetem Pool
   wartete er dabei auf sich selbst (die Prognose brach nach 30 Sekunden ab). Die Prognose wird jetzt vor der Transaktion

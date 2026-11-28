@@ -12,13 +12,13 @@
 # Voraussetzungen: SimplySign Desktop angemeldet (Zertifikat im Speicher
 # „Eigene Zertifikate“), Windows SDK (signtool.exe), Go und Git.
 #
-#   .\tools\signieren\authenticode.ps1 -Fingerabdruck <40 Hexziffern> [-Ordner dist]
+#   .\tools\signieren\authenticode.ps1 -Fingerabdruck <40 Hexziffern> [-Ordner dist\windows]
 
 param(
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^[0-9A-Fa-f]{40}$')]
     [string]$Fingerabdruck,
-    [string]$Ordner = "dist",
+    [string]$Ordner = "dist\windows",
     # Zeitstempeldienst von Certum (RFC 3161): Signaturen bleiben nach Ablauf des Zertifikats gültig.
     [string]$Zeitstempel = "http://time.certum.pl"
 )

@@ -51,7 +51,7 @@ go run ./tools/build -ziele alle         # zusätzlich armv7, macOS, FreeBSD
 go run ./tools/build -version 0.1.0      # andere Versionsnummer als in VERSION
 ```
 
-Die Binaries landen in `dist/`, zusammen mit der Stückliste `openwacht-<version>.cdx.json` und `SHA256SUMS`.
+Die Binaries landen je Betriebssystem in einem Ordner (`dist/linux`, `dist/windows`, `dist/darwin`, `dist/freebsd`), jeder mit eigener Stückliste `openwacht-<version>.cdx.json` und `SHA256SUMS`.
 
 ### Datenbanktests
 

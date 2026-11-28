@@ -6,8 +6,8 @@
 # einem beliebigen Linux mit apt) und packt alles, was eine Zentrale auf
 # Debian 13 ohne Internet braucht, in eine einzige Datei:
 #
-#   - das Paket openwacht-zentrale_<version>_<arch>.deb (aus dist/, geprüft
-#     gegen dist/SHA256SUMS),
+#   - das Paket openwacht-zentrale_<version>_<arch>.deb (aus dist/linux/, geprüft
+#     gegen dist/linux/SHA256SUMS),
 #   - PostgreSQL und alle Abhängigkeiten als .deb aus dem Debian-Spiegel
 #     (vollständige Hülle, auch Grundpakete, damit es auf jedem Debian 13
 #     passt; installiert wird später nur, was fehlt),
@@ -25,7 +25,8 @@
 #   sh deploy/offline/paket-bauen.sh -dist dist
 #
 # Optionen:
-#   -dist <ordner>     Ordner mit dem .deb und SHA256SUMS (Standard: dist)
+#   -dist <ordner>     Ordner mit dem .deb und SHA256SUMS (Standard: dist; liegt darin
+#                      ein Ordner linux mit SHA256SUMS, gilt der)
 #   -arch <arch>       amd64 (Standard) oder arm64
 #   -aus <ordner>      Ausgabeordner (Standard: wie -dist)
 #   -quellen <datei>   eigene sources.list statt des Debian-13-Spiegels
@@ -82,6 +83,8 @@ while [ $# -gt 0 ]; do
 	*) fehler "unbekannte Option $1" ;;
 	esac
 done
+# Ab 1.0.13 legt tools/build die Linux-Dateien nach dist/linux.
+if [ ! -f "$dist/SHA256SUMS" ] && [ -f "$dist/linux/SHA256SUMS" ]; then dist=$dist/linux; fi
 [ -n "$aus" ] || aus=$dist
 
 # Nur signieren: fertiges Paket um SHA256SUMS.sig ergänzen.
