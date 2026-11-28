@@ -5,7 +5,7 @@ package desktop
 // Dashboard wie in der Weboberfläche (1.0.7): dasselbe Layout je Benutzer
 // (/api/v1/dashboard/layout), dieselben Widgets, dasselbe Raster. Hier stehen
 // das Modell, das Packen des Rasters und die Daten der Widgets; gezeichnet
-// wird in cmd/desktop. Die Regeln entsprechen web/src/widgets.ts und
+// wird in cmd/desktop. Die Regeln entsprechen web/src/widgetModell.ts und
 // internal/zentrale/dashboard_layout.go.
 //
 // Das Layout gehört zum Konto. Mit einem API-Token gibt es keines; die App

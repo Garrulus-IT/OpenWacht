@@ -119,7 +119,9 @@ func TestAgentDownload(t *testing.T) {
 		t.Errorf("Token verbraucht: %d", left)
 	}
 
-	// Windows nur mit Authenticode-Fingerabdruck
+	// Windows nur mit Authenticode-Fingerabdruck (eigene Liste, unabhängig
+	// vom Inhalt von internal/update/authenticode.txt)
+	vServer.cfg.Authenticode = "# kein Fingerabdruck\n"
 	if st, body := download(t, "windows/amd64", tok); st != 404 || !strings.Contains(body, "Authenticode") {
 		t.Errorf("Windows ohne Fingerabdruck: %d %s", st, body)
 	}
