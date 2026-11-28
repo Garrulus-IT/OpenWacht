@@ -41,7 +41,7 @@ import {
   type Widget,
   type WidgetRoh,
   type WidgetTyp,
-} from "./widgets";
+} from "./widgetModell";
 import type { Zeitraum } from "./Verlauf";
 
 interface Props {
