@@ -32,6 +32,15 @@ at most 64 characters each, and only the current state without history. If the n
 it is shown as such. Phones and PCs can report themselves via LLDP too: their device name then appears as well. If an
 agent queries the device as a collector, it needs version 1.0.11 for this.
 
+**Adding neighbours (from 1.0.12):** If a neighbour is already a device in OpenWacht, a click on its name opens that
+device. If it is not yet, “+ Ins Monitoring aufnehmen” (add to monitoring) appears next to it (for operators and
+admins). It opens a short form: the name from LLDP, the address from the management address the neighbour reports via
+LLDP (if it reports one), plus two ticks, both on by default: “Hängt ab von <switch>” (depends on) and “Ping-Sensor
+anlegen” (create ping sensor; only with an address). The device goes into the switch's tenant and group; it then opens,
+and there you set up agent, SNMP or further sensors. If the address is not in the network release, OpenWacht still
+creates the device and reports that the ping sensor is missing. The polling reads the management address from 1.0.12
+(via a collector with agent 1.0.12).
+
 **Speed and “since when” (from 1.0.11):** A port that is connected but negotiated less than 1 Gbit/s carries a triangle
 instead of the circle in the picture. This is a hint, not an alert: printers and phones often manage only 100 Mbit/s; on
 a PC or access point it points to a bad cable. The details also show since when the port has been in its state, if the

@@ -139,6 +139,9 @@ origin.
 
 ![Template sets](../handbuch/bilder/sensor-vorlagensaetze.webp)
 
+**On the device (from 1.0.12):** In a device's “Sensoren” tab, **“+ Vorlagensatz”** creates a set directly for this
+device, without going via the Sensor templates page. For several devices at once: Hosts → “Mehrere bearbeiten”.
+
 | Set | Sensors | Permission on the computer |
 | --- | --- | --- |
 | **Swyx** | services SwyxServer, ConfigDataStore, LinkManager; server active; trunks logged in; trunk logged out (one trunk is enough for critical); channel usage (warning 80 %, critical 95 %); calls; user licences in percent (warning 90 %, critical 98 %); SIP devices | `-arten "dienst,leistungsindikator" -indikatoren "SwyxServer,SwyxWare Trunk"` |
@@ -156,7 +159,7 @@ origin.
 | **Citrix Cloud Connector** | services Agent System, WatchDog, Agent Discovery, AD Provider, Credential Provider, WebRelay, Message Broker, Remote Broker Provider (`XaXdCloudProxy`), STA, Config Synchronizer, High Availability (Local Host Cache), Remote HCL, Cloud Gateway, Monitor; VDA registration on port 80 | `-arten dienst` |
 | **Citrix Provisioning** | services Stream Service, SOAP Server, API, TFTP, PXE, Two-Stage Boot; SOAP port 54321 | `-arten dienst` |
 | **NetScaler** | via SNMP: CPU (80 %/95 %), memory (80 %/90 %), HA state, virtual servers down (critical from 1), services down (warning from 1), **shortest remaining validity of all certificates** (warning 30, critical 14 days), number of certificates; management certificate | none; SNMPv3 on the device ([chapter 6](06-snmp.md)) |
-| **LANCOM 3000** (from 1.0.8) | via SNMP, for switches of the GS-3000 series with LCOS SX 4.x: temperature 1 (80/90 °C), temperatures 2 and 3 (60/70 °C), fan (critical below 300 RPM), CPU over 10 s (85 %/95 %), PoE power in W, PoE budget, PoE supply on, PoE ports in error (warning from 1), PoE ports with power, from 1.0.10 LLDP neighbours (warning when none is left; set the threshold to the usual number) and the firmware version as text, from 1.0.11 “STP letzter Wechsel” (last STP change; warning in the first 10 minutes after a change in the spanning tree). The temperature thresholds are a default: look at your own values first, then adjust | none; SNMPv3 on the device ([chapter 6](06-snmp.md)) |
+| **LANCOM 3000** (from 1.0.8) | via SNMP, for switches of the GS-3000 series with LCOS SX 4.x: temperature 1 (80/90 °C), temperatures 2 and 3 (60/70 °C), fan (critical below 300 RPM), CPU over 10 s (85 %/95 %), PoE power in W, PoE budget, PoE supply on, PoE ports in error (warning from 1), PoE ports with power, from 1.0.10 LLDP neighbours (warning when none is left; set the threshold to the usual number) and the firmware version as text. The temperature thresholds are a default: look at your own values first, then adjust | none; SNMPv3 on the device ([chapter 6](06-snmp.md)) |
 
 ![Swyx sensors on a device](../handbuch/bilder/host-sensoren-swyx.webp)
 

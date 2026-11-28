@@ -29,10 +29,10 @@ the computer straight away and starts the service. As root:
 ```bash
 # Debian, Ubuntu
 OPENWACHT_ZENTRALE=https://openwacht.beispiel.example:8444 OPENWACHT_TOKEN=owa1.… \
-  apt install ./openwacht-agent_1.0.11_amd64.deb
+  apt install ./openwacht-agent_1.0.12_amd64.deb
 # RHEL, Rocky, Alma, SUSE
 OPENWACHT_ZENTRALE=https://openwacht.beispiel.example:8444 OPENWACHT_TOKEN=owa1.… \
-  dnf install ./openwacht-agent-1.0.11-1.x86_64.rpm
+  dnf install ./openwacht-agent-1.0.12-1.x86_64.rpm
 ```
 
 Do not type the token on the command line if the shell history records it; read it in protected first and check it
@@ -42,7 +42,7 @@ briefly (a complete token has **92 characters** and starts with `owa1.`):
 read -rs OPENWACHT_TOKEN
 echo "${#OPENWACHT_TOKEN} ${OPENWACHT_TOKEN:0:5}"     # expected: 92 owa1.
 OPENWACHT_ZENTRALE=https://openwacht.beispiel.example:8444 OPENWACHT_TOKEN="$OPENWACHT_TOKEN" \
-  apt install ./openwacht-agent_1.0.11_amd64.deb
+  apt install ./openwacht-agent_1.0.12_amd64.deb
 unset OPENWACHT_TOKEN
 ```
 
@@ -97,7 +97,7 @@ Permissions that are not ticked change nothing during an update; withdrawing sti
 **Silent installation:**
 
 ```powershell
-msiexec /i openwacht-agent_1.0.11_amd64.msi /qn ZENTRALE=https://openwacht.beispiel.example:8444 TOKEN=owa1.…
+msiexec /i openwacht-agent_1.0.12_amd64.msi /qn ZENTRALE=https://openwacht.beispiel.example:8444 TOKEN=owa1.…
 ```
 
 - `TOKEN` is a hidden property: it does not appear in the installation log (`/l*v`), nor does the setup’s command line.
