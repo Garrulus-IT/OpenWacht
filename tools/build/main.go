@@ -166,7 +166,7 @@ func run(args []string) error {
 			}
 			built[t.os] = append(built[t.os], pkgs...)
 		}
-		if slices.Contains(zentraleTargets, t) {
+		if slices.Contains(zentraleTargets, t) || slices.Contains(windowsZentraleTargets, t) {
 			name, err := build(dir, "zentrale", "openwacht-zentrale", t, *ver, commit)
 			if err != nil {
 				return err
@@ -186,6 +186,17 @@ func run(args []string) error {
 			return fmt.Errorf("Debian-Paket für %s: %w", t, err)
 		}
 		built[t.os] = append(built[t.os], deb)
+	}
+	for _, t := range targets {
+		if !slices.Contains(windowsZentraleTargets, t) {
+			continue
+		}
+		dir := filepath.Join(*out, t.os)
+		z, err := buildWindowsZip(dir, outputName("openwacht-zentrale", t), t.arch, *ver, mtime, *out)
+		if err != nil {
+			return fmt.Errorf("ZIP der Zentrale für %s: %w", t, err)
+		}
+		built[t.os] = append(built[t.os], z)
 	}
 	systeme := make([]string, 0, len(built))
 	for o := range built {
@@ -436,7 +447,7 @@ func buildWeb() error {
 
 // isPackage: Pakete und Installer (keine Go-Binaries für die Stückliste).
 func isPackage(name string) bool {
-	for _, ext := range []string{".deb", ".rpm", ".msi"} {
+	for _, ext := range []string{".deb", ".rpm", ".msi", ".zip"} {
 		if strings.HasSuffix(name, ext) {
 			return true
 		}
@@ -515,6 +526,18 @@ func afterSigning(out, ver string, msi, pkg bool) error {
 				return err
 			}
 			add("linux", deb)
+		}
+		wdir := filepath.Join(root, "windows")
+		for _, t := range windowsZentraleTargets {
+			exe := outputName("openwacht-zentrale", t)
+			if _, err := os.Stat(filepath.Join(wdir, exe)); err != nil {
+				continue
+			}
+			z, err := buildWindowsZip(wdir, exe, t.arch, ver, mtime, root)
+			if err != nil {
+				return err
+			}
+			add("windows", z)
 		}
 	}
 	if _, err := os.Stat(filepath.Join(root, "docker", "Dockerfile")); err == nil && pkg {
