@@ -121,9 +121,9 @@ func TestFuerSpeichern(t *testing.T) {
 	}
 }
 
-// TestWidgetArtenWieImWeb: Arten, Titel und Startgrößen stimmen mit web/src/widgets.ts überein.
+// TestWidgetArtenWieImWeb: Arten, Titel und Startgrößen stimmen mit web/src/widgetModell.ts überein.
 func TestWidgetArtenWieImWeb(t *testing.T) {
-	b, err := os.ReadFile("../../web/src/widgets.ts")
+	b, err := os.ReadFile("../../web/src/widgetModell.ts")
 	if err != nil {
 		t.Fatal(err)
 	}
