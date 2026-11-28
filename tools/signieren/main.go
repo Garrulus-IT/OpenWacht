@@ -8,16 +8,17 @@
 //	go run ./tools/signieren -neu -schluessel /pfad/update.key
 //	    erzeugt ein Schlüsselpaar; die Zeile „ed25519:…“ kommt nach
 //	    internal/update/schluessel.pub.
-//	go run ./tools/signieren -schluessel /pfad/update.key -version 0.23.0 dist/openwacht-agent_linux_amd64 …
+//	go run ./tools/signieren -schluessel /pfad/update.key -version 0.23.0 dist/linux/openwacht-agent_linux_amd64 …
 //	    schreibt je Datei <datei>.sig. OS und Architektur aus dem Dateinamen.
-//	go run ./tools/signieren -schluessel /pfad/reserve.key -version 0.40.0 -widerrufen <kennung> dist/openwacht-agent_…
+//	go run ./tools/signieren -schluessel /pfad/reserve.key -version 0.40.0 -widerrufen <kennung> dist/linux/openwacht-agent_…
 //	    wie oben; die Signaturen erklären den Schlüssel <kennung> für widerrufen
 //	    (nur mit dem Reserve-Schlüssel, oder mit dem aktiven gegen einen auslaufenden).
 //	go run ./tools/signieren -zeigen -schluessel /pfad/update.key
 //	    zeigt nur den öffentlichen Teil und die Kennung (z. B. um eine
 //	    Sicherungskopie zu prüfen); der private Schlüssel wird nie ausgegeben.
-//	go run ./tools/signieren -schluessel /pfad/update.key -summen dist/SHA256SUMS
-//	    signiert die Prüfsummen eines Releases bzw. Offline-Pakets (dist/SHA256SUMS.sig).
+//	go run ./tools/signieren -schluessel /pfad/update.key -summen dist/linux/SHA256SUMS
+//	    signiert die Prüfsummen eines Releases bzw. Offline-Pakets (dist/linux/SHA256SUMS.sig;
+//	    je Betriebssystem ein Ordner mit eigener SHA256SUMS, jede einzeln signieren).
 package main
 
 import (
