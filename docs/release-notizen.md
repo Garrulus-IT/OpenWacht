@@ -1,5 +1,16 @@
 # Release-Notizen OpenWacht
 
+## 1.0.13
+
+- **Vorlagensätze für Aruba:** „Aruba 2530“, „Aruba 2930“ und „Aruba 5400R“ für Switche mit ArubaOS-Switch über SNMP:
+  CPU, freier Speicher, Zustand von Lüftern, Netzteilen und Temperatur, PoE über alle Karten oder Stack-Mitglieder,
+  LLDP-Nachbarn und Firmware; 2930 und 5400R mit Temperatur, 5400R mit Netzteilen
+  ([Kapitel 7](handbuch/07-sensoren-und-vorlagen.md)). Die OIDs stammen aus der Doku von HPE; bitte an den eigenen
+  Geräten prüfen.
+- **Bild der Ports für Chassis und Stacks:** Ein Chassis mit Karten (5400R, Slots A bis F) und ein Stack (2930) zeigen
+  jede Karte oder jedes Mitglied als eigene Zeile; die Ports heißen wie am Gerät („C7“, „2/14“), ein freier Slot
+  erscheint als Blende. PoE erscheint im Bild jetzt auch bei mehreren PoE-Gruppen ([Kapitel 6](handbuch/06-snmp.md)).
+
 ## 1.0.12
 
 - **LLDP-Nachbarn ins Monitoring aufnehmen.** Im Bild der Ports (Einzelheiten eines Ports) und im Netzbild der Seite
