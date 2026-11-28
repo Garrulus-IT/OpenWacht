@@ -692,12 +692,12 @@ func (w *collectWindow) keep(waiting map[string][]pending) {
 }
 
 // collectingChannels: welche der Kanäle sammeln (Schalter, nur Mail und SMS).
-func (s *Server) collectingChannels(ctx context.Context, ids []string) (map[string]bool, error) {
+func (s *Server) collectingChannels(ctx context.Context, tx pgx.Tx, ids []string) (map[string]bool, error) {
 	out := map[string]bool{}
 	if s.cfg.AlertCollect < 0 || len(ids) == 0 {
 		return out, nil
 	}
-	rows, err := s.pool.Query(ctx, `SELECT id::text FROM openwacht.alert_channels_collecting($1::uuid[])`, ids)
+	rows, err := tx.Query(ctx, `SELECT id::text FROM openwacht.alert_channels_collecting($1::uuid[])`, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -795,6 +795,7 @@ func suppressed(ev alarm.Event, inMaintenance bool) bool {
 // alertRoundR: ein Durchlauf; liefert, an wie viele Kanäle gesendet wurde und
 // bei wie vielen der Versand scheiterte.
 func (s *Server) alertRoundR(ctx context.Context) (sent, failed int, err error) {
+	s.refreshFullDays() // eigene Verbindung, darum vor der Transaktion
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return 0, 0, err
@@ -881,7 +882,7 @@ func (s *Server) alertRoundR(ctx context.Context) (sent, failed int, err error) 
 	// Sammeln (1.0.1): Mail und SMS warten ab dem ersten Ereignis AlertCollect
 	// und schicken dann alles in einer Nachricht.
 	s.collect.keep(byChannel)
-	collecting, err := s.collectingChannels(ctx, order)
+	collecting, err := s.collectingChannels(ctx, tx, order)
 	if err != nil {
 		return 0, 0, err
 	}
