@@ -26,6 +26,22 @@ export class ApiError extends Error {
   }
 }
 
+// Hörer für erfolgreiche Aufrufe (1.0.12, Bestätigungen nach Aktionen).
+type ErfolgsHoerer = (method: string, path: string, body: unknown, antwort: unknown) => void;
+let erfolg: ErfolgsHoerer | null = null;
+export function setErfolgsHoerer(f: ErfolgsHoerer | null) {
+  erfolg = f;
+}
+
+function gemeldet<T>(method: string, path: string, body: unknown, antwort: T): T {
+  try {
+    erfolg?.(method, path, body, antwort);
+  } catch {
+    // Eine Anzeige darf den Aufruf nie scheitern lassen.
+  }
+  return antwort;
+}
+
 export async function api<T = unknown>(method: string, path: string, body?: unknown, extra?: { raw: Blob | FormData; headers: Record<string, string> }): Promise<T> {
   const headers: Record<string, string> = { ...(extra?.headers ?? {}) };
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -42,7 +58,7 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
   } catch {
     throw new ApiError(0, "Die Zentrale ist nicht erreichbar. Netzwerk prüfen und erneut versuchen.");
   }
-  if (res.status === 204) return undefined as T;
+  if (res.status === 204) return gemeldet(method, path, body, undefined as T);
   let data: Record<string, unknown> = {};
   try {
     data = await res.json();
@@ -53,7 +69,7 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
     const msg = typeof data.fehler === "string" ? data.fehler : `Unerwartete Antwort der Zentrale (${res.status}).`;
     throw new ApiError(res.status, msg, data);
   }
-  return data as T;
+  return gemeldet(method, path, body, data as T);
 }
 
 // --- Typen der API --------------------------------------------------------

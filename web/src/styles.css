@@ -5738,3 +5738,172 @@ td > .kenn-marke:first-child {
   z-index: 15;
   box-shadow: 0 4px 14px var(--schatten);
 }
+
+/* Rückmeldung nach Aktionen (1.0.12): kurz unten, nachtblau wie die
+   Frontplatte, in beiden Darstellungen gleich. */
+.rueckmeldung-ort {
+  position: fixed;
+  bottom: var(--a5);
+  left: 50%;
+  z-index: 40;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.rueckmeldung {
+  display: flex;
+  align-items: center;
+  gap: var(--a2);
+  padding: 0.55rem 1rem 0.55rem 0.75rem;
+  color: var(--nacht-tinte);
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--nacht);
+  border: 1px solid #2c4564;
+  border-radius: 999px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 8%),
+    0 8px 24px rgb(0 0 0 / 30%);
+  animation: rueckmeldung-ein 180ms ease-out;
+}
+
+.rueckmeldung-haken {
+  width: 1.1rem;
+  height: 1.1rem;
+  background: #4cc38f;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.rueckmeldung-haken::after {
+  position: absolute;
+  top: 0.22rem;
+  left: 0.38rem;
+  width: 0.28rem;
+  height: 0.5rem;
+  border: solid var(--nacht);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  content: "";
+}
+
+@keyframes rueckmeldung-ein {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rueckmeldung {
+    animation: none;
+  }
+}
+
+.such-zuletzt {
+  color: var(--marke);
+}
+
+/* Mehrere Geräte bearbeiten (1.0.12) */
+.mehrfach {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a3);
+}
+
+.mehrfach-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--a2) var(--a4);
+}
+
+.mehrfach-filter {
+  flex: 1 1 18rem;
+  max-width: 28rem;
+}
+
+.mehrfach-liste {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  gap: var(--a1) var(--a2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mehrfach-geraet {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: var(--a2);
+  padding: var(--a2) var(--a3);
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.mehrfach-geraet:hover {
+  border-color: var(--marke);
+}
+
+.mehrfach-geraet.markiert {
+  border-color: var(--marke);
+  box-shadow: inset 3px 0 0 var(--marke);
+  background: var(--marke-hauch);
+}
+
+.mehrfach-geraet input {
+  grid-row: span 2;
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--marke);
+}
+
+.mehrfach-geraet .signal {
+  grid-row: span 2;
+  margin-top: 0;
+}
+
+.mehrfach-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mehrfach-zusatz {
+  grid-column: 3;
+  overflow: hidden;
+  color: var(--leise);
+  font-size: var(--s-1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mehrfach-leiste .mehrfach-rechts {
+  display: flex;
+  gap: var(--a2);
+  align-items: center;
+  margin-left: auto;
+}
+
+/* Durchsicht der Gestaltung (1.0.12) */
+.hash-klein {
+  font-size: var(--s-1);
+  letter-spacing: 0.01em;
+}
+
+/* Sensortabelle am Gerät: Zustand nicht in schmale Spalten zwängen,
+   Kennfarbe kompakt */
+.sensoren-tabelle td:nth-child(4) {
+  min-width: 11rem;
+}
+
+.sensoren-tabelle td:last-child select {
+  max-width: 8.5rem;
+}

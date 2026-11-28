@@ -14,6 +14,16 @@
   das erste Feld hat den Fokus. Esc schließt den Bereich, danach steht der Blick wieder beim Knopf, der ihn geöffnet
   hat; ebenso nach „Anlegen“ oder „Abbrechen“. Fehlermeldungen bleiben beim Rollen oben unter der Kopfleiste sichtbar.
   Nur direkt nach einem Klick oder einer Taste; was durch Aktualisieren erscheint, bewegt nichts.
+- **Vorlagensatz direkt am Gerät:** Im Reiter „Sensoren“ legt „+ Vorlagensatz“ einen Satz für dieses Gerät an.
+- **Mehrere Geräte bearbeiten:** Unter Hosts „Mehrere bearbeiten“: Geräte markieren und für alle zusammen eine Vorlage
+  oder einen Vorlagensatz anwenden, eine Wartung setzen oder beenden oder sie einer Gruppe zuordnen
+  ([Kapitel 4](handbuch/04-hosts.md#mehrere-geräte-bearbeiten)).
+- **Bestätigung nach Aktionen:** Unten erscheint kurz, was passiert ist („Sensor angelegt“, „Wartung für 3 Geräte
+  gesetzt“).
+- **Warnung vor ungespeicherten Eingaben** beim Wechsel der Seite und beim Schließen des Fensters.
+- **Schnellsuche:** Ohne Suchbegriff stehen die zuletzt geöffneten Geräte oben (nur in diesem Browser gemerkt).
+- **Kleinigkeiten:** „Host hinzufügen“ ist als Hauptaktion hervorgehoben; Laufzeiten ohne „0 Std.“ vorweg; der Zustand in
+  der Sensortabelle am Gerät bricht seltener um; der Hash im Audit-Log ist kleiner gesetzt.
 - **API:** `POST /api/v1/mandanten/{id}/geraete` nimmt `abhaengig_von` an (Elterngerät im selben Mandanten).
 - **Vorlagensatz „LANCOM 3000“** ohne den Sensor „STP letzter Wechsel“ aus 1.0.11. Ein schon angelegter Sensor dieses
   Namens bleibt am Gerät; wer ihn nicht will, löscht ihn im Reiter „Sensoren“.

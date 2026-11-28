@@ -18,6 +18,8 @@
 const frist = 2000; // ms nach Klick oder Taste, in denen ein neuer Bereich als Folge gilt
 
 let letzteAktion = 0;
+// letzteEingabe: wie letzteAktion, wird aber nicht verbraucht (für Bestätigungen)
+let letzteEingabe = 0;
 let ausloeser: HTMLElement | null = null;
 const herkunft = new WeakMap<Element, HTMLElement>();
 let aktiv = false;
@@ -80,8 +82,51 @@ function geschlossen(el: Element) {
   if (r.top < kopfHoehe() || r.bottom > window.innerHeight) zurueck.scrollIntoView({ block: "center", behavior: sanft() });
 }
 
+// kurzNachAktion: Der Benutzer hat vor höchstens ms Millisekunden geklickt oder
+// eine Taste gedrückt (Bestätigungen nach Aktionen).
+export function kurzNachAktion(ms: number) {
+  return Date.now() - letzteEingabe < ms;
+}
+
+// --- Ungespeicherte Eingaben ---------------------------------------------------
+// Ein Bereich mit Eingaben, die noch nicht abgeschickt sind. Abschicken oder
+// Schließen des Bereichs (Abbrechen) gilt als bewusste Entscheidung.
+const geaendert = new Set<Element>();
+
+function eingabe(e: Event) {
+  if (!e.isTrusted) return;
+  const t = e.target;
+  if (!(t instanceof HTMLInputElement || t instanceof HTMLSelectElement || t instanceof HTMLTextAreaElement)) return;
+  if (t instanceof HTMLInputElement && (t.type === "search" || t.dataset.ohneWarnung !== undefined)) return;
+  const ein = t.closest(".einschub");
+  if (ein) geaendert.add(ein);
+}
+
+function abgeschickt(e: Event) {
+  const ein = e.target instanceof Element ? e.target.closest(".einschub") : null;
+  if (ein) geaendert.delete(ein);
+}
+
+// ungespeichert: Es gibt einen offenen Bereich mit nicht abgeschickten Eingaben.
+export function ungespeichert() {
+  for (const el of [...geaendert]) {
+    if (!el.isConnected) geaendert.delete(el);
+  }
+  return geaendert.size > 0;
+}
+
+// weiterTrotzUngespeichert fragt nach, bevor eine Seite mit offenen Eingaben
+// verlassen wird. true = weiter.
+export function weiterTrotzUngespeichert() {
+  if (!ungespeichert()) return true;
+  if (!window.confirm("Es gibt Eingaben, die noch nicht gespeichert sind. Trotzdem wechseln? Die Eingaben gehen dann verloren.")) return false;
+  geaendert.clear();
+  return true;
+}
+
 function merken(t: EventTarget | null) {
   letzteAktion = Date.now();
+  letzteEingabe = letzteAktion;
   const el = t instanceof Element ? t.closest<HTMLElement>("button, a, summary, [role='button']") : null;
   if (el) ausloeser = el;
 }
@@ -113,6 +158,12 @@ export function fuehrungEinschalten() {
     true,
   );
   document.addEventListener("keydown", schliessen);
+  document.addEventListener("input", eingabe, true);
+  document.addEventListener("change", eingabe, true);
+  document.addEventListener("submit", abgeschickt, true);
+  window.addEventListener("beforeunload", (e) => {
+    if (ungespeichert()) e.preventDefault();
+  });
   new MutationObserver((liste) => {
     if (!frisch()) return;
     let erledigt = false;

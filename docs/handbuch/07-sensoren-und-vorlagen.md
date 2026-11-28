@@ -138,6 +138,9 @@ Satz als Herkunft.
 
 ![Vorlagensätze](bilder/sensor-vorlagensaetze.webp)
 
+**Am Gerät (ab 1.0.12):** Im Reiter „Sensoren“ eines Geräts legt **„+ Vorlagensatz“** einen Satz direkt für dieses Gerät
+an, ohne Umweg über die Seite Sensor-Vorlagen. Für mehrere Geräte auf einmal: Hosts → „Mehrere bearbeiten“.
+
 | Satz | Sensoren | Freigabe am Rechner |
 | --- | --- | --- |
 | **Swyx** | Dienste SwyxServer, ConfigDataStore, LinkManager; Server aktiv; Leitungen angemeldet; Leitung abgemeldet (eine Leitung reicht für kritisch); Kanalauslastung (Warnung 80 %, kritisch 95 %); Gespräche; Benutzerlizenzen in Prozent (Warnung 90 %, kritisch 98 %); SIP-Geräte | `-arten "dienst,leistungsindikator" -indikatoren "SwyxServer,SwyxWare Trunk"` |

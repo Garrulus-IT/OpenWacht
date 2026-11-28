@@ -28,6 +28,9 @@ import { quellenLeeren } from "./quelle";
 import { baumReihe, bereichFuer, wurzeln } from "./bereich";
 import { adresse, navGruppen, seitenTitel, useOrt, type NavPunkt, type Ort } from "./navigation";
 import type { Thema } from "./thema";
+import { Rueckmeldungen } from "./Rueckmeldung";
+import { weiterTrotzUngespeichert } from "./fuehrung";
+import { zuletztMerken } from "./zuletzt";
 
 interface Props {
   ich: Ich;
@@ -187,12 +190,19 @@ export function Oberflaeche({ ich, onAbmelden, onAbgelaufen, thema, onThema }: P
 
   const wechseln = useCallback(
     (o: Partial<Ort>) => {
+      // offene Eingaben nur nach Rückfrage verwerfen (1.0.12)
+      if (!weiterTrotzUngespeichert()) return;
       setFehler("");
       setMenue(false);
       gehe(o);
     },
     [gehe, setFehler],
   );
+
+  // zuletzt geöffnete Geräte für die Schnellsuche (1.0.12)
+  useEffect(() => {
+    if (ort.reiter === "hosts" && ort.geraet) zuletztMerken(ort.geraet);
+  }, [ort.reiter, ort.geraet]);
 
   const titel = seitenTitel[ort.reiter];
   useEffect(() => {
@@ -400,6 +410,7 @@ export function Oberflaeche({ ich, onAbmelden, onAbgelaufen, thema, onThema }: P
           )}
         </main>
       </div>
+      <Rueckmeldungen />
     </div>
   );
 }
