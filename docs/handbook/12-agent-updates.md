@@ -46,7 +46,10 @@ whoever can swap this file can supply agents with their own updates.
    `go run ./tools/signieren -schluessel ~/openwacht-update.key -version 1.0.0 openwacht-agent_linux_amd64 openwacht-agent_windows_amd64.exe`
    (a `.sig` is created per file).
 2. **Verwaltung → Agent-Updates** (Administration → Agent updates; operator): upload binary and `.sig`. The central
-   server checks the signature.
+   server checks the signature. **From 1.0.14 this is not needed** for the agents that come with the central server:
+   if the signed agents with their `.sig` are in the central server package (page “Downloads”), the central server
+   stores them under “Agent-Updates” itself at start, checked as on upload (audit `agent_update.mitgeliefert`).
+   Uploading by hand remains for interim versions.
 3. Select agents, choose the version, “Für N Agents freigeben” (release for N agents; admins of the tenant).
 
 At its next report, the agent downloads the package, checks signature, checksum, platform and version (no downgrade)

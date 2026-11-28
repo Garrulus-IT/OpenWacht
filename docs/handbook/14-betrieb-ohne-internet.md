@@ -34,7 +34,7 @@ sudo apt install apt-utils debian-archive-keyring     # once
 sh deploy/offline/paket-bauen.sh -dist dist
 
 # Result
-ls dist/linux/openwacht-offline_1.0.13_debian-13_amd64.tar*
+ls dist/linux/openwacht-offline_1.0.14_debian-13_amd64.tar*
 ```
 
 The script
@@ -79,9 +79,9 @@ does not cover joining a real domain, nor Debian 13.
 context; an update signature does not count for it):
 
 ```bash
-tar -xOf dist/linux/openwacht-offline_1.0.13_debian-13_amd64.tar openwacht-offline_1.0.13_debian-13_amd64/SHA256SUMS >SHA256SUMS
+tar -xOf dist/linux/openwacht-offline_1.0.14_debian-13_amd64.tar openwacht-offline_1.0.14_debian-13_amd64/SHA256SUMS >SHA256SUMS
 go run ./tools/signieren -schluessel ~/openwacht-update.key -summen SHA256SUMS      # offline
-sh deploy/offline/paket-bauen.sh -dist dist -signatur SHA256SUMS.sig -paket dist/linux/openwacht-offline_1.0.13_debian-13_amd64.tar
+sh deploy/offline/paket-bauen.sh -dist dist -signatur SHA256SUMS.sig -paket dist/linux/openwacht-offline_1.0.14_debian-13_amd64.tar
 ```
 
 The last step puts `SHA256SUMS.sig` into the package, checks it with `dist/linux/openwacht-zentrale_linux_amd64` and repacks.

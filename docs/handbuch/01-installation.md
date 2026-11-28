@@ -30,7 +30,7 @@ sudo locale-gen && sudo update-locale LANG=de_DE.UTF-8
 
 ```bash
 sudo apt install postgresql
-sudo apt install ./openwacht-zentrale_1.0.13_amd64.deb
+sudo apt install ./openwacht-zentrale_1.0.14_amd64.deb
 ```
 
 **Empfohlen bei einer neuen Maschine:** den noch leeren Cluster einmal neu anlegen, mit Prüfsummen für die Datenseiten
@@ -52,8 +52,8 @@ Das Offline-Paket enthält die Zentrale **und** PostgreSQL mit allen Abhängigke
 in [Kapitel 14](14-betrieb-ohne-internet.md#offline-paket-bauen).
 
 ```bash
-tar xf openwacht-offline_1.0.13_debian-13_amd64.tar
-cd openwacht-offline_1.0.13_debian-13_amd64
+tar xf openwacht-offline_1.0.14_debian-13_amd64.tar
+cd openwacht-offline_1.0.14_debian-13_amd64
 sudo sh installieren.sh -pruefen -abdruck <kennung>   # nur prüfen, nichts ändern
 sudo sh installieren.sh -abdruck <kennung>            # erste Installation
 sudo sh installieren.sh                               # Update einer bestehenden Installation
@@ -216,6 +216,73 @@ Dienste wieder. Einzelheiten zur Rücksicherung: [Kapitel 13](13-sicherung.md).
 - **Linux:** neues `.deb` bzw. `.rpm` installieren; Registrierung und Freigaben bleiben.
 - **Selbst-Update:** Mit signierten Paketen holen sich ausgewählte Agents die neue Version beim nächsten Melden selbst
   ([Kapitel 12](12-agent-updates.md)).
+- **Mitgeliefert (ab 1.0.14):** Das Paket der Zentrale bringt die Agents mit. Nach dem Update stehen sie unter
+  „Downloads“ zum Herunterladen und, wenn sie signiert sind, unter „Agent-Updates“ bereit; mit „Automatisch übernehmen“
+  aktualisieren sich die Agents beim nächsten Melden ([Kapitel 12](12-agent-updates.md)).
+
+## Docker (ab 1.0.14)
+
+Die Zentrale gibt es als Image mit allem, was sie braucht (Zentrale, Downloads, Zertifikate der Zertifizierungsstellen,
+Zeitzonen); es läuft ohne root. PostgreSQL läuft als eigener Container daneben. Vorlage: `deploy/docker`.
+
+```bash
+# Image bauen (aus dem Repository, nach go run ./tools/build -ziele alle -docker)
+docker build -t openwacht-zentrale:1.0.14 dist/docker
+
+# Betrieb: compose.yaml, postgres-init.sh und env.beispiel aus deploy/docker in einen Ordner
+cp env.beispiel .env        # drei eigene Passwörter eintragen
+docker compose up -d
+docker compose logs zentrale   # Link zum Einrichtungsassistenten
+```
+
+- **Ports:** Oberfläche auf 443 des Docker-Hosts (im Container 8443), Agent-Port 8444. Im Link des Assistenten stehen
+  die Adressen des Containers; im Browser die Adresse des Docker-Hosts nehmen.
+- **Daten:** Datenbank im Volume `datenbank`, Hauptschlüssel und `zentrale.env` im Volume `daten`
+  (`/var/lib/openwacht`). Ohne den Hauptschlüssel ist eine Sicherung der Datenbank unlesbar.
+- **Neuer Link zum Assistenten:** `docker compose exec zentrale openwacht-zentrale einrichtungslink`.
+- **Update:** neues Image, `OPENWACHT_VERSION` in `.env` anpassen, `docker compose up -d`. Beim Start migriert die
+  Zentrale selbst. Das Update aus der Oberfläche gibt es nur mit dem Debian-Paket.
+- **Sicherung:** `docker compose exec postgres pg_dump -U postgres -Fc openwacht > openwacht.dump`, dazu den
+  Hauptschlüssel aus dem Volume `daten`. Die tägliche Sicherung des Debian-Pakets gibt es im Container nicht.
+- **Ping:** Docker erlaubt Ping ohne root (`net.ipv4.ping_group_range`); ein Host mit älterem Docker braucht
+  `sysctls: net.ipv4.ping_group_range: "0 2147483647"` am Dienst `zentrale`.
+- **Noch nicht:** Trap-Dienst (SNMP-Traps), kalte Zweitinstanz.
+
+## Windows Server (ab 1.0.14)
+
+Die Zentrale läuft auch als Windows-Dienst, mit PostgreSQL auf demselben oder einem anderen Server. Die Datei
+`openwacht-zentrale_<version>_windows_amd64.zip` enthält die Zentrale, die Downloads und eine Kurzanleitung
+(`LIESMICH.txt`).
+
+1. **PostgreSQL** 16 oder neuer installieren (Installer von postgresql.org). Rollen und Datenbank anlegen, in `psql`
+   als `postgres`:
+   ```sql
+   CREATE ROLE openwacht_app NOLOGIN;
+   CREATE ROLE openwacht_owner LOGIN PASSWORD '<Passwort 1>';
+   CREATE ROLE openwacht_zentrale LOGIN PASSWORD '<Passwort 2>' IN ROLE openwacht_app;
+   CREATE ROLE openwacht_traps NOLOGIN;
+   CREATE DATABASE openwacht OWNER openwacht_owner ENCODING 'UTF8' TEMPLATE template0;
+   REVOKE ALL ON DATABASE openwacht FROM PUBLIC;
+   GRANT CONNECT ON DATABASE openwacht TO openwacht_owner, openwacht_zentrale;
+   ```
+2. **Zentrale:** den Ordner `OpenWacht` aus dem ZIP nach `C:\Program Files\OpenWacht` kopieren.
+3. **Einstellungen:** `C:\ProgramData\OpenWacht\zentrale.env` aus `zentrale.env.beispiel` anlegen und die beiden
+   Verbindungen eintragen. Der Ordner sollte nur für Administratoren und SYSTEM lesbar sein.
+4. **Dienst**, in einer PowerShell als Administrator:
+   ```powershell
+   & "C:\Program Files\OpenWacht\openwacht-zentrale.exe" dienst-einrichten
+   Start-Service OpenWacht-Zentrale
+   ```
+   Der Dienst läuft als LocalSystem, startet verzögert nach PostgreSQL und nach einem Fehler neu. Er legt den
+   Hauptschlüssel `C:\ProgramData\OpenWacht\schluessel` an, migriert die Datenbank und startet die Oberfläche auf
+   Port 443, den Agent-Port auf 8444 (Firewall freigeben).
+5. **Einrichtung:** Den Link zum Assistenten schreibt der Dienst nach `C:\ProgramData\OpenWacht\zentrale.log`; neuer
+   Link: `openwacht-zentrale.exe einrichtungslink`.
+
+**Update:** Dienst anhalten, Ordner aus dem neuen ZIP ersetzen, Dienst starten. **Entfernen:**
+`openwacht-zentrale.exe dienst-entfernen` (Daten und Datenbank bleiben). **Noch nicht unter Windows:** Trap-Dienst,
+tägliche Sicherung (Aufgabenplanung mit `pg_dump`), Update aus der Oberfläche, kalte Zweitinstanz. Ping geht unter
+Windows nur über IPv4. Stand 1.0.14: nur gebaut, nicht auf echtem Windows Server geprüft.
 
 ## Deinstallieren
 
