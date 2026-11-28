@@ -56,6 +56,19 @@ After issuance:
 Signed files remain valid after expiry if a **timestamp** was set when signing (always sign with a timestamp, see
 below).
 
+## Current certificate
+
+| Field | Value |
+| --- | --- |
+| Holder | Open Source Developer Philipp Heller |
+| Issuer | Certum Code Signing 2021 CA |
+| Serial number | `0B40CD58EEC9B7BBACD977DA0830C782` |
+| Valid | 28.11.2026 to 28.11.2027 |
+| Fingerprint (SHA-1) | `2AC32559F124E5A3C9FF56A04F17A8897D591669` |
+| Fingerprint (SHA-256) | `51356A57E8BDB4D0741C0AA990BCDDBF66E98A01B067AE01EAF53FDCFE6D181C` |
+
+On Windows, `Get-AuthenticodeSignature <file>` shows the fingerprint in `SignerCertificate.Thumbprint`.
+
 ## Procedure per release on Windows with SimplySign (from 1.0.6)
 
 Certum SimplySign keeps the key in the cloud. After sign-in (code from the SimplySign app on the phone), **SimplySign

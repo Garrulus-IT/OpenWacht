@@ -58,6 +58,19 @@ Nach der Ausstellung:
 Signierte Dateien bleiben nach Ablauf gültig, wenn beim Signieren ein **Zeitstempel** gesetzt wurde (immer mit
 Zeitstempel signieren, siehe unten).
 
+## Aktuelles Zertifikat
+
+| Feld | Wert |
+| --- | --- |
+| Inhaber | Open Source Developer Philipp Heller |
+| Aussteller | Certum Code Signing 2021 CA |
+| Seriennummer | `0B40CD58EEC9B7BBACD977DA0830C782` |
+| Gültig | 28.11.2026 bis 28.11.2027 |
+| Fingerabdruck (SHA-1) | `2AC32559F124E5A3C9FF56A04F17A8897D591669` |
+| Fingerabdruck (SHA-256) | `51356A57E8BDB4D0741C0AA990BCDDBF66E98A01B067AE01EAF53FDCFE6D181C` |
+
+Unter Windows zeigt `Get-AuthenticodeSignature <datei>` den Fingerabdruck in `SignerCertificate.Thumbprint`.
+
 ## Ablauf je Release unter Windows mit SimplySign (ab 1.0.6)
 
 Certum SimplySign hält den Schlüssel in der Cloud. **SimplySign Desktop** bindet ihn nach der Anmeldung (Code aus der
