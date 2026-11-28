@@ -77,6 +77,10 @@ type Config struct {
 	ZentraleUpdateDir string
 	// Authenticode: nur für Tests (Inhalt wie internal/update/authenticode.txt)
 	Authenticode string
+	// Downloads: Ordner mit Agents, MSI, Desktop-App und Agent-Paketen für
+	// die Seite „Downloads“ (1.0.14, Debian-Paket: /usr/share/openwacht/downloads,
+	// downloads.go). Leer = Seite ohne Dateien.
+	Downloads string
 	// AgentRegistrationsPerMinutePerIP begrenzt Registrierungsversuche.
 	AgentRegistrationsPerMinutePerIP int
 
@@ -249,14 +253,15 @@ func (c *Config) checkHostLimits() error {
 
 // Server ist die Zentrale.
 type Server struct {
-	cfg     Config
-	base    string        // Basis-Pfad aus BaseURL, "" für die Wurzel (basis.go)
-	collect collectWindow // 1.0.1: Sammelfenster je Mail-/SMS-Kanal
-	pool    *pgxpool.Pool
-	key     []byte // Hauptschlüssel aus der Schlüsseldatei
-	csrfKey []byte // abgeleitet, nur für CSRF-Token
-	boxKey  []byte // abgeleitet, nur für Geheimnisse in der Datenbank
-	trapKey []byte // abgeleitet, nur für die Zugangsdaten des Trap-Dienstes
+	cfg       Config
+	downloads downloadPruefung // Prüfsummen der Downloads (downloads.go)
+	base      string           // Basis-Pfad aus BaseURL, "" für die Wurzel (basis.go)
+	collect   collectWindow    // 1.0.1: Sammelfenster je Mail-/SMS-Kanal
+	pool      *pgxpool.Pool
+	key       []byte // Hauptschlüssel aus der Schlüsseldatei
+	csrfKey   []byte // abgeleitet, nur für CSRF-Token
+	boxKey    []byte // abgeleitet, nur für Geheimnisse in der Datenbank
+	trapKey   []byte // abgeleitet, nur für die Zugangsdaten des Trap-Dienstes
 	// abgeleitet (Etappe 30): Quelle einer Anmeldung als HMAC, Wiederherstellungscodes
 	sourceKey   []byte
 	recoveryKey []byte
@@ -466,6 +471,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("PUT /api/v1/einstellungen/anmeldung", protected(s.handleMFAPolicyPut))
 	mux.Handle("GET /api/v1/verzeichnisse", protected(s.handleDirList))
 	mux.Handle("GET /api/v1/api-tokens", protected(s.handleAPITokenList))
+	mux.Handle("GET /api/v1/downloads", protected(s.handleDownloadsList))
+	mux.Handle("GET /api/v1/downloads/{os}/{name}", protected(s.handleDownloadFile))
 	mux.Handle("GET /api/v1/agent-updates", protected(s.handleAgentUpdatesGet))
 	mux.Handle("POST /api/v1/agent-updates", protected(s.handleAgentUpdateUpload))
 	mux.Handle("DELETE /api/v1/agent-updates/{id}", protected(s.handleAgentUpdateDelete))

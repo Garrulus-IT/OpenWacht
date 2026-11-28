@@ -114,6 +114,11 @@ func (s *Server) handleZentraleUpdateUpload(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusUnsupportedMediaType, "Erwartet wird multipart/form-data.")
 		return
 	}
+	// Das Paket bringt seit 1.0.14 die Downloads mit (rund 70 MB): mehr Zeit
+	// als die 30 Sekunden des Servers für langsame Leitungen.
+	rc := http.NewResponseController(w)
+	_ = rc.SetReadDeadline(time.Now().Add(15 * time.Minute))
+	_ = rc.SetWriteDeadline(time.Now().Add(16 * time.Minute))
 	r.Body = http.MaxBytesReader(w, r.Body, zuMaxGesamt)
 	mr := multipart.NewReader(r.Body, params["boundary"])
 	tmp, err := os.CreateTemp(dir, ".paket-*")

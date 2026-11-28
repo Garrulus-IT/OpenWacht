@@ -78,9 +78,10 @@ if ($LASTEXITCODE -ne 0) { throw "MSI neu bauen fehlgeschlagen." }
 $msi = Get-ChildItem $Ordner -Filter "openwacht-agent_*.msi" | Select-Object -ExpandProperty FullName
 Signieren $msi
 
-# 4. Prüfsummen neu (die MSI haben sich durch die Signatur geändert)
-& go run ./tools/build -out $Ordner -summen-neu
-if ($LASTEXITCODE -ne 0) { throw "SHA256SUMS neu berechnen fehlgeschlagen." }
+# 4. Paket der Zentrale mit den signierten Downloads neu, Prüfsummen neu
+#    (die MSI haben sich durch die Signatur geändert)
+& go run ./tools/build -out $Ordner -pakete-neu
+if ($LASTEXITCODE -ne 0) { throw "Paket der Zentrale und SHA256SUMS neu bauen fehlgeschlagen." }
 
 # 5. Prüfen: gültig, richtiges Zertifikat, mit Zeitstempel
 $fehler = 0
@@ -95,4 +96,4 @@ foreach ($d in @($programme) + @($msi)) {
     }
 }
 if ($fehler) { throw "$fehler Datei(en) nicht richtig signiert." }
-Write-Host "Fertig. Jetzt offline SHA256SUMS signieren: go run ./tools/signieren -schluessel <datei> -summen $Ordner\SHA256SUMS"
+Write-Host "Fertig. Weiter offline (Handbuch Kapitel 15): Agents mit -version signieren, go run ./tools/build -pakete-neu, dann SHA256SUMS in dist\linux und dist\windows signieren."
