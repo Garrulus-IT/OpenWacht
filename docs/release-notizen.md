@@ -1,5 +1,33 @@
 # Release-Notizen OpenWacht
 
+## 1.0.12
+
+- **LLDP-Nachbarn ins Monitoring aufnehmen.** Im Bild der Ports (Einzelheiten eines Ports) und im Netzbild der Seite
+  Topologie lässt sich ein Nachbar, der noch kein Gerät in OpenWacht ist, per Klick aufnehmen: Name und Adresse kommen
+  aus LLDP, das neue Gerät landet in Mandant und Gruppe des Switches, auf Wunsch mit dem Switch als Elterngerät und
+  einem Ping-Sensor; danach öffnet es sich. Ist der Nachbar schon ein Gerät, öffnet ein Klick auf seinen Namen dieses
+  Gerät ([Kapitel 6](handbuch/06-snmp.md)).
+- **Verwaltungsadresse der Nachbarn.** Die SNMP-Abfrage liest zusätzlich die Adresse, die ein Nachbar per LLDP meldet
+  (IPv4 bevorzugt, sonst IPv6). Über einen Sammler braucht das den Agent 1.0.12.
+- **Die Oberfläche führt nach einer Aktion.** Öffnet ein Knopf einen Bereich außerhalb des sichtbaren Teils (etwa
+  „Anwenden“ bei einer Vorlage oder einem Vorlagensatz, „Host hinzufügen“, „Bearbeiten“), rollt die Seite dorthin, und
+  das erste Feld hat den Fokus. Esc schließt den Bereich, danach steht der Blick wieder beim Knopf, der ihn geöffnet
+  hat; ebenso nach „Anlegen“ oder „Abbrechen“. Fehlermeldungen bleiben beim Rollen oben unter der Kopfleiste sichtbar.
+  Nur direkt nach einem Klick oder einer Taste; was durch Aktualisieren erscheint, bewegt nichts.
+- **Vorlagensatz direkt am Gerät:** Im Reiter „Sensoren“ legt „+ Vorlagensatz“ einen Satz für dieses Gerät an.
+- **Mehrere Geräte bearbeiten:** Unter Hosts „Mehrere bearbeiten“: Geräte markieren und für alle zusammen eine Vorlage
+  oder einen Vorlagensatz anwenden, eine Wartung setzen oder beenden oder sie einer Gruppe zuordnen
+  ([Kapitel 4](handbuch/04-hosts.md#mehrere-geräte-bearbeiten)).
+- **Bestätigung nach Aktionen:** Unten erscheint kurz, was passiert ist („Sensor angelegt“, „Wartung für 3 Geräte
+  gesetzt“).
+- **Warnung vor ungespeicherten Eingaben** beim Wechsel der Seite und beim Schließen des Fensters.
+- **Schnellsuche:** Ohne Suchbegriff stehen die zuletzt geöffneten Geräte oben (nur in diesem Browser gemerkt).
+- **Kleinigkeiten:** „Host hinzufügen“ ist als Hauptaktion hervorgehoben; Laufzeiten ohne „0 Std.“ vorweg; der Zustand in
+  der Sensortabelle am Gerät bricht seltener um; der Hash im Audit-Log ist kleiner gesetzt.
+- **API:** `POST /api/v1/mandanten/{id}/geraete` nimmt `abhaengig_von` an (Elterngerät im selben Mandanten).
+- **Vorlagensatz „LANCOM 3000“** ohne den Sensor „STP letzter Wechsel“ aus 1.0.11. Ein schon angelegter Sensor dieses
+  Namens bleibt am Gerät; wer ihn nicht will, löscht ihn im Reiter „Sensoren“.
+
 ## 1.0.11
 
 - **Netzbild auf der Seite Topologie.** Über den Bäumen der Abhängigkeiten zeigt die Seite, welche Geräte miteinander

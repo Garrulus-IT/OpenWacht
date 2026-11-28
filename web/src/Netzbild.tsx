@@ -9,6 +9,7 @@
 
 import { useMemo, useState } from "react";
 import type { Geraet, Sensor, Snmp } from "./api";
+import { Aufnehmen, type Kandidat } from "./Aufnehmen";
 import { anzeigeText, rang, type Anzeige } from "./Checks";
 import { physischePorts, portNummer } from "./PortBild";
 
@@ -34,6 +35,7 @@ export interface Kante {
 export interface Fremder {
   name: string;
   port: string;
+  adresse?: string;
 }
 
 export interface Netz {
@@ -45,7 +47,10 @@ export interface Netz {
 // netz baut aus den LLDP-Nachbarn der Quellen die Verbindungen. Ein Nachbar
 // gilt als Gerät aus OpenWacht, wenn sein Name eindeutig zum Namen eines
 // Geräts oder zum Namen passt, den ein Gerät per SNMP von sich meldet.
-export function netz(geraete: Geraet[], quellen: Snmp[]): Netz {
+// finder: ordnet einen LLDP-Namen einem Gerät zu, über den Gerätenamen oder
+// den Namen, den das Gerät per SNMP von sich meldet. undefined = unbekannt,
+// null = mehrdeutig.
+export function finder(geraete: Geraet[], quellen: Snmp[]) {
   const sichtbar = new Set(geraete.map((g) => g.id));
   const nachName = new Map<string, string | null>();
   const merke = (name: string | undefined, id: string) => {
@@ -57,6 +62,12 @@ export function netz(geraete: Geraet[], quellen: Snmp[]): Netz {
   };
   for (const g of geraete) merke(g.name, g.id);
   for (const q of quellen) if (sichtbar.has(q.geraet_id)) merke(q.messwerte?.system?.name, q.geraet_id);
+  return (name: string | undefined) => (name ? nachName.get(schluessel(name)) : undefined);
+}
+
+export function netz(geraete: Geraet[], quellen: Snmp[]): Netz {
+  const sichtbar = new Set(geraete.map((g) => g.id));
+  const finde = finder(geraete, quellen);
 
   // Je Gerätepaar: die eigenen Ports, die jede Seite meldet, und wie jede
   // Seite den Port der anderen nennt. Melden beide Seiten, gelten die eigenen
@@ -80,10 +91,10 @@ export function netz(geraete: Geraet[], quellen: Snmp[]): Netz {
       const i = m.schnittstellen.find((x) => x.index === n.index);
       const nr = portNummer(m.schnittstellen, n.index);
       const hier = nr > 0 ? `Port ${nr}` : (i?.name ?? `Index ${n.index}`);
-      const ziel = n.name ? nachName.get(schluessel(n.name)) : undefined;
+      const ziel = finde(n.name);
       knoten.add(eigen);
       if (!ziel || ziel === eigen) {
-        fremde.set(eigen, [...(fremde.get(eigen) ?? []), { name: n.name || n.port || "unbekannt", port: hier }]);
+        fremde.set(eigen, [...(fremde.get(eigen) ?? []), { name: n.name || n.port || "unbekannt", port: hier, adresse: n.adresse }]);
         continue;
       }
       knoten.add(ziel);
@@ -197,8 +208,18 @@ function Schild({ x, y, text }: { x: number; y: number; text: string }) {
   );
 }
 
-export function Netzbild(props: { geraete: Geraet[]; quellen: Snmp[]; sensoren: Sensor[]; onOeffnen: (id: string) => void }) {
+export function Netzbild(props: {
+  geraete: Geraet[];
+  quellen: Snmp[];
+  sensoren: Sensor[];
+  onOeffnen: (id: string) => void;
+  // darf: Geräte im Mandanten anlegen (Operator oder Admin)
+  darf: (mandantId: string) => boolean;
+  melden: (e: unknown) => void;
+}) {
   const { geraete, quellen, sensoren } = props;
+  // gerade geöffnetes „Ins Monitoring aufnehmen“: Switch und Nachbar
+  const [aufnahme, setAufnahme] = useState<{ sw: string; k: Kandidat } | null>(null);
   // Gerät unter der Maus oder im Fokus: Seine Verbindungen treten hervor.
   const [aktiv, setAktiv] = useState<string | null>(null);
   const bild = useMemo(() => {
@@ -329,12 +350,45 @@ export function Netzbild(props: { geraete: Geraet[]; quellen: Snmp[]; sensoren: 
                 {liste
                   .slice()
                   .sort((a, b) => a.port.localeCompare(b.port, "de", { numeric: true }))
-                  .map((f, k) => (
-                    <li key={k} className="netzbild-chip">
-                      {f.name} <span className="klein">{f.port}</span>
-                    </li>
-                  ))}
+                  .map((f, k) => {
+                    const offen = aufnahme?.sw === g.id && aufnahme.k.port === f.port && aufnahme.k.name === f.name;
+                    return (
+                      <li key={k}>
+                        {props.darf(g.mandant_id) ? (
+                          <button
+                            type="button"
+                            className={`netzbild-chip netzbild-chip-knopf${offen ? " netzbild-chip-offen" : ""}`}
+                            aria-expanded={offen}
+                            title={`${f.name} ins Monitoring aufnehmen`}
+                            onClick={() => setAufnahme(offen ? null : { sw: g.id, k: { name: f.name, port: f.port, adresse: f.adresse } })}
+                          >
+                            <span className="netzbild-chip-plus" aria-hidden="true">
+                              +
+                            </span>
+                            {f.name} <span className="klein">{f.port}</span>
+                          </button>
+                        ) : (
+                          <span className="netzbild-chip">
+                            {f.name} <span className="klein">{f.port}</span>
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
               </ul>
+              {aufnahme?.sw === g.id && (
+                <Aufnehmen
+                  key={aufnahme.k.port + aufnahme.k.name}
+                  k={aufnahme.k}
+                  sw={g}
+                  melden={props.melden}
+                  onAbbrechen={() => setAufnahme(null)}
+                  onFertig={(id) => {
+                    setAufnahme(null);
+                    props.onOeffnen(id);
+                  }}
+                />
+              )}
             </div>
           ))}
         </details>

@@ -564,7 +564,7 @@ function AuditPanel(props: {
           <>
             <dt>Letzter Hash</dt>
             <dd>
-              <code className="umbruch">{g.letzter_hash}</code>
+              <code className="umbruch hash-klein">{g.letzter_hash}</code>
             </dd>
           </>
         )}

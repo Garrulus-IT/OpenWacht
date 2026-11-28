@@ -447,7 +447,7 @@ var builtinSets = []vorlagenSatz{
 		}),
 	// 1.0.8: LANCOM-Switche der Serie GS-3000 (gemessen an einem GS-3628XUP mit LCOS SX 4.30). Temperatur, Lüfter und CPU
 	// liefert diese Firmware als Text, deshalb „Zahl aus Text“.
-	newSet("satz-lancom-3000", "LANCOM 3000", "LANCOM-Switche der Serie GS-3000 mit LCOS SX 4.x über SNMPv3: Temperaturen, Lüfter, CPU, PoE, LLDP-Nachbarn, Spanning Tree und Firmware. "+
+	newSet("satz-lancom-3000", "LANCOM 3000", "LANCOM-Switche der Serie GS-3000 mit LCOS SX 4.x über SNMPv3: Temperaturen, Lüfter, CPU, PoE, LLDP-Nachbarn und Firmware. "+
 		"Die Schwellen der Temperaturen sind eine Vorbelegung; an die eigenen Geräte anpassen. Braucht eine SNMP-Abfrage am Gerät.",
 		[]satzEintrag{
 			{"LANCOM: Temperatur 1", "snmp_oid",
@@ -479,10 +479,6 @@ var builtinSets = []vorlagenSatz{
 				"Ports, die gerade ein Gerät versorgen (nur Anzeige)", 300},
 			{"LANCOM: Firmware", "snmp_oid", `{"oid":"1.3.6.1.4.1.2356.14.1.1.1.10.0","text_zeigen":true}`,
 				"lcsSystemInfoFirmwareVersion: zeigt die Version als Text (nur Anzeige)", 3600},
-			{"LANCOM: STP letzter Wechsel", "snmp_oid",
-				`{"oid":"1.3.6.1.2.1.17.2.3.0","faktor":0.01,"einheit":"s","warnung_unter":600}`,
-				"dot1dStpTimeSinceTopologyChange: Zeit seit dem letzten Wechsel im Spanning Tree; Warnung in den ersten " +
-					"10 Minuten danach. Häufige Wechsel deuten auf eine Schleife oder einen flatternden Link", 300},
 			{"LANCOM: LLDP-Nachbarn", "snmp_oid",
 				`{"oid":"1.0.8802.1.1.2.1.4.1.1.4","zusammenfassung":"anzahl","warnung_unter":1}`,
 				"lldpRemTable: Zahl der Nachbarn, die sich per LLDP melden; Warnung, wenn keiner mehr da ist. " +
