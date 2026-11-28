@@ -25,6 +25,18 @@ port no longer delivers power, for example for access points or cameras. OpenWac
 with index n; this is correct for common switches with one PoE group. With several groups (stack), PoE is left out of
 the picture. If an agent queries the device as a collector, it needs version 1.0.10 for this.
 
+**Neighbour per port (from 1.0.11):** If the device reports its neighbours via LLDP, the details of a port show under
+“Nachbar (LLDP)” (neighbour) the neighbour's name and its port, for example “sw-keller, Port GigabitEthernet 1/24”; the
+same text appears in the tooltip when the mouse rests on the port. Only these two values are read from the LLDP table,
+at most 64 characters each, and only the current state without history. If the neighbour's port ID is a MAC address,
+it is shown as such. Phones and PCs can report themselves via LLDP too: their device name then appears as well. If an
+agent queries the device as a collector, it needs version 1.0.11 for this.
+
+**Speed and “since when” (from 1.0.11):** A port that is connected but negotiated less than 1 Gbit/s carries a triangle
+instead of the circle in the picture. This is a hint, not an alert: printers and phones often manage only 100 Mbit/s; on
+a PC or access point it points to a bad cable. The details also show since when the port has been in its state, if the
+device reports the time of the last change.
+
 **Restart:** The uptime comes from `hrSystemUptime` (uptime of the computer); only if a device does not provide it, from
 `sysUpTime`. The latter only counts the SNMP service and also jumps back when only the service restarts. A restart
 (15 minutes warning) is only reported if the device had been running for **at least 27 hours before**. Planned nightly

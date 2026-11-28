@@ -78,6 +78,22 @@ number below. The page only shows what you also see under Hosts.
 
 ![Topology](../handbuch/bilder/topologie.webp)
 
+**Network picture (from 1.0.11):** Above the trees, the page shows which devices are connected to each other. The
+picture builds itself from the neighbours that devices with SNMP polling report via LLDP; there is nothing to set up,
+LLDP only has to be switched on at the switches.
+
+- Every device appears as a card with its state; a click opens it under Hosts. The device with the most connections is
+  at the top, the others in levels below it.
+- Every line is a reported connection, with the port at both ends. A thick line stands for several connections between
+  the same devices (for example a bundle).
+- A neighbour is assigned to a device if its LLDP name matches the device's name in OpenWacht or the name the device
+  reports about itself via SNMP. Case and domain do not count (“SW-Keller.intern.example” matches “sw-keller”); with
+  several matches nothing is assigned.
+- Neighbours without a device in OpenWacht (access points, phones, other switches) appear below the picture per device
+  as grey tags with the port, without a click. The device's card shows their number.
+- The network picture does not replace the dependencies: which alerts rest when a device fails is still decided by
+  “depends on”.
+
 ## Certificates
 
 **Zertifikate** in the sidebar lists all “TLS-Zertifikat” (TLS certificate) sensors in the chosen area: address, device,

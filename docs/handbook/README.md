@@ -2,7 +2,7 @@
 
 OpenWacht monitors servers, network devices and services for several tenants (for example sites, departments or
 customers) from one central server. It runs entirely in your own network, even without any internet access. This
-handbook describes version 1.0.10. It is the English translation of the German handbook in `docs/handbuch/`; the
+handbook describes version 1.0.11. It is the English translation of the German handbook in `docs/handbuch/`; the
 screenshots show the German interface, which is the only interface language in 1.0.
 
 ![Dashboard](../handbuch/bilder/dashboard.webp)
