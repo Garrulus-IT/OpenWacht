@@ -167,7 +167,9 @@ func (f *Fake) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			select {
 			case <-time.After(delay):
 			case <-r.Context().Done():
-				return
+				// Verbindung abbrechen statt still mit 200 zu antworten:
+				// sonst kann ein Client, der gerade aufgibt, Erfolg lesen.
+				panic(http.ErrAbortHandler)
 			}
 		}
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
