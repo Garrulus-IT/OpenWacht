@@ -5,6 +5,7 @@ package snmp
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -25,6 +26,9 @@ type LLDPNeighbor struct {
 	Name string `json:"name,omitempty"`
 	// Port: lldpRemPortDesc, sonst lldpRemPortId (Text oder MAC-Adresse)
 	Port string `json:"port,omitempty"`
+	// Adresse (1.0.12): Verwaltungsadresse des Nachbarn (IPv4 bevorzugt,
+	// sonst IPv6) aus lldpRemManAddrTable, zum Vorbelegen beim Aufnehmen
+	Adresse string `json:"adresse,omitempty"`
 }
 
 const (
@@ -37,7 +41,43 @@ const (
 	oidLldpRemPortId   = "1.0.8802.1.1.2.1.4.1.1.7"
 	oidLldpRemPortDesc = "1.0.8802.1.1.2.1.4.1.1.8"
 	oidLldpRemSysName  = "1.0.8802.1.1.2.1.4.1.1.9"
+	// lldpRemManAddrIfSubtype: Die Adresse steht im Index der Zeile.
+	oidLldpRemManAddrIfSubtype = "1.0.8802.1.1.2.1.4.2.1.3"
 )
+
+// lldpManAddr liest aus dem Index einer Zeile von lldpRemManAddrTable
+// (Zeitmarke.Port.Index.Art.[Länge.]Bytes) den Schlüssel der Nachbarzeile
+// und die Adresse. Art 1 = IPv4, 2 = IPv6; andere Arten fallen weg.
+func lldpManAddr(index string) (key string, addr netip.Addr, ok bool) {
+	parts := strings.Split(index, ".")
+	if len(parts) < 5 {
+		return "", netip.Addr{}, false
+	}
+	n := map[string]int{"1": 4, "2": 16}[parts[3]]
+	if n == 0 {
+		return "", netip.Addr{}, false
+	}
+	rest := parts[4:]
+	if len(rest) == n+1 && rest[0] == strconv.Itoa(n) {
+		rest = rest[1:] // Länge vorangestellt (OCTET STRING ohne IMPLIED)
+	}
+	if len(rest) != n {
+		return "", netip.Addr{}, false
+	}
+	b := make([]byte, n)
+	for i, p := range rest {
+		v, err := strconv.Atoi(p)
+		if err != nil || v < 0 || v > 255 {
+			return "", netip.Addr{}, false
+		}
+		b[i] = byte(v)
+	}
+	addr, ok = netip.AddrFromSlice(b)
+	if !ok || addr.IsUnspecified() || addr.IsMulticast() {
+		return "", netip.Addr{}, false
+	}
+	return strings.Join(parts[:3], "."), addr.Unmap(), true
+}
 
 // lldpText: Text eines LLDP-Felds; eine MAC-Adresse (6 Bytes, nicht
 // druckbar) wird als aa:bb:cc:dd:ee:ff geschrieben.
@@ -101,6 +141,19 @@ func (s *session) lldp(snap *Snapshot) {
 		}
 		loc = nil
 	}
+	// Verwaltungsadressen: freiwillig, IPv4 vor IPv6
+	addrs := map[string]netip.Addr{}
+	if rows, err := s.walk(oidLldpRemManAddrIfSubtype, MaxLLDPNeighbors); err == nil || errors.Is(err, ErrTooMuch) {
+		for _, r := range rows {
+			key, a, ok := lldpManAddr(r.index)
+			if !ok {
+				continue
+			}
+			if old, ok := addrs[key]; !ok || (!old.Is4() && a.Is4()) {
+				addrs[key] = a
+			}
+		}
+	}
 	byIndex := map[int]bool{}
 	byName := map[string]int{}
 	for _, it := range snap.Interfaces {
@@ -134,6 +187,9 @@ func (s *session) lldp(snap *Snapshot) {
 		if v, ok := ids[idx]; ok && n.Port == "" {
 			n.Port = lldpText(v)
 		}
+		if a, ok := addrs[idx]; ok {
+			n.Adresse = a.String()
+		}
 		if n.Name == "" && n.Port == "" {
 			continue
 		}
@@ -150,6 +206,11 @@ func validateLLDP(list []LLDPNeighbor) error {
 		if n.Index < 0 || n.Index > 1<<30 || n.Name == "" && n.Port == "" ||
 			clean(n.Name, MaxLLDPText) != n.Name || clean(n.Port, MaxLLDPText) != n.Port {
 			return fmt.Errorf("lldp[%d]: unplausibel", i)
+		}
+		if n.Adresse != "" {
+			if a, err := netip.ParseAddr(n.Adresse); err != nil || a.String() != n.Adresse || a.Zone() != "" {
+				return fmt.Errorf("lldp[%d].adresse: unplausibel", i)
+			}
 		}
 	}
 	return nil

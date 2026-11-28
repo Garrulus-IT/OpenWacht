@@ -9,6 +9,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { api, meldungMitWert, type Agent, type Check, type Geraet, type KennfarbeEintrag, type Sensor, type Vorlage, type VorlagenSatz } from "./api";
 import { KennMarke, kennStil, type Kennfarbe } from "./kennfarbe";
 import { anzeige, anzeigeText, CheckFormular, istAgentArt, typText, zielText } from "./Checks";
+import { AnwendenAuf } from "./SensorVorlagen";
 
 export interface VorlagenListe {
   eingebaut: Vorlage[];
@@ -117,7 +118,7 @@ export function SensorenReiter(props: {
   const { g, agent } = props;
   const { liste } = useVorlagen(true, props.melden);
   const kennfarben = useKennfarben(props.melden);
-  const [schritt, setSchritt] = useState<"" | "wahl" | "formular">("");
+  const [schritt, setSchritt] = useState<"" | "wahl" | "formular" | "satz">("");
   const [wahl, setWahl] = useState("");
   const [bearbeite, setBearbeite] = useState<Check | null>(null);
   // Löschen mit Bestätigung: ein Sensor oder alle einer Herkunft (0.99.2)
@@ -231,11 +232,28 @@ export function SensorenReiter(props: {
             : "Ohne Agent: nur Sensoren, die die Zentrale misst."}
         </p>
         {props.darf && schritt === "" && !bearbeite && (
-          <button className="knopf knopf-haupt" onClick={() => setSchritt("wahl")}>
-            + Sensor
-          </button>
+          <span className="kopf-knoepfe">
+            <button className="knopf" onClick={() => setSchritt("satz")}>
+              + Vorlagensatz
+            </button>
+            <button className="knopf knopf-haupt" onClick={() => setSchritt("wahl")}>
+              + Sensor
+            </button>
+          </span>
         )}
       </div>
+
+      {schritt === "satz" && (
+        <AnwendenAuf
+          geraete={[g]}
+          nurSaetze
+          melden={props.melden}
+          onFertig={() => {
+            setSchritt("");
+            props.onGeaendert();
+          }}
+        />
+      )}
 
       {schritt === "wahl" && (
         <div className="einschub">

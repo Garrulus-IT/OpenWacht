@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type Geraet, type Mandant, type Sensor, type SensorStatus } from "./api";
 import { navGruppen, type Ort, type Reiter } from "./navigation";
+import { zuletztLesen } from "./zuletzt";
 
 type Treffer =
   | { art: "geraet"; id: string; text: string; sub: string; mandant: string; status?: SensorStatus }
@@ -16,6 +17,7 @@ type Treffer =
   | { art: "seite"; id: Reiter; text: string; sub: string };
 
 const ART: Record<Treffer["art"], string> = { geraet: "Gerät", sensor: "Sensor", mandant: "Mandant", seite: "Seite" };
+// Ohne Suchbegriff: zuerst die zuletzt geöffneten Geräte (1.0.12), dann Seiten.
 const MAX = 12;
 // Schlimmster Zustand zuerst, wenn die Übereinstimmung gleich gut ist.
 const RANG: Record<string, number> = { crit: 0, warn: 1, unknown: 2, neu: 3, pause: 4, ok: 5 };
@@ -121,8 +123,16 @@ export function Schnellsuche(props: {
     return out;
   }, [daten, props.mandanten, props.betreiber, pfad]);
 
+  const zuletzt = useMemo(() => zuletztLesen(), []);
   const treffer = useMemo(() => {
     const leer = q.trim() === "";
+    if (leer) {
+      const geraete = zuletzt
+        .map((id) => alle.find((t) => t.art === "geraet" && t.id === id))
+        .filter((t): t is Treffer => !!t)
+        .slice(0, 5);
+      return [...geraete, ...alle.filter((t) => t.art === "seite")].slice(0, MAX);
+    }
     return alle
       .map((t, i) => ({ t, i, g: leer ? (t.art === "seite" ? 0 : -1) : guete(q, t.text, t.sub) }))
       .filter((x) => x.g >= 0)
@@ -134,7 +144,8 @@ export function Schnellsuche(props: {
       )
       .slice(0, MAX)
       .map((x) => x.t);
-  }, [alle, q]);
+  }, [alle, q, zuletzt]);
+  const istZuletzt = (t: Treffer) => q.trim() === "" && t.art === "geraet";
 
   useEffect(() => setAuswahl(0), [q]);
 
@@ -213,7 +224,7 @@ export function Schnellsuche(props: {
               <span className="such-name">{t.text}</span>
               {t.sub && <span className="such-sub">{t.sub}</span>}
             </span>
-            <span className="such-art">{ART[t.art]}</span>
+            <span className={`such-art${istZuletzt(t) ? " such-zuletzt" : ""}`}>{istZuletzt(t) ? "Zuletzt" : ART[t.art]}</span>
           </li>
         ))}
         {treffer.length === 0 && (

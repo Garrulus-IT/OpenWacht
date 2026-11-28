@@ -38,7 +38,8 @@ type geraetIn struct {
 	// Ändern, bleibt die Gruppe, wie sie ist.
 	GruppeID *string `json:"gruppe_id"`
 	// Abhängigkeit (Etappe 24): Elterngerät im selben Mandanten; "" = keins,
-	// fehlt das Feld, bleibt sie, wie sie ist.
+	// fehlt das Feld, bleibt sie, wie sie ist. Ab 1.0.12 auch beim Anlegen
+	// (Aufnehmen eines LLDP-Nachbarn mit dem Switch als Elterngerät).
 	AbhaengigVon *string `json:"abhaengig_von"`
 }
 
@@ -199,16 +200,41 @@ func (s *Server) handleDeviceCreate(w http.ResponseWriter, r *http.Request) {
 				return 0, nil, err
 			}
 		}
+		var parent *string
+		if in.AbhaengigVon != nil && *in.AbhaengigVon != "" {
+			if parent, err = parentInTenant(ctx, tx, *in.AbhaengigVon, tid); err != nil {
+				return 0, nil, err
+			}
+		}
 		var id string
-		if err := tx.QueryRow(ctx, `INSERT INTO openwacht.devices (tenant_id, name, address, group_id) VALUES ($1, $2, $3, $4)
-			RETURNING id::text`, tid, name, addr, group).Scan(&id); err != nil {
+		if err := tx.QueryRow(ctx, `INSERT INTO openwacht.devices (tenant_id, name, address, group_id, parent_id) VALUES ($1, $2, $3, $4, $5)
+			RETURNING id::text`, tid, name, addr, group, parent).Scan(&id); err != nil {
 			return 0, nil, groupError(err) // ohne Recht: 42501 → 403
 		}
-		if err := audit(ctx, tx, &tid, "geraet.angelegt", map[string]any{"id": id, "name": name, "adresse": addr, "gruppe_id": group}); err != nil {
+		details := map[string]any{"id": id, "name": name, "adresse": addr, "gruppe_id": group}
+		if parent != nil {
+			details["abhaengig_von"] = parent
+		}
+		if err := audit(ctx, tx, &tid, "geraet.angelegt", details); err != nil {
 			return 0, nil, err
 		}
 		return http.StatusCreated, map[string]any{"id": id}, nil
 	})
+}
+
+// parentInTenant prüft ein Elterngerät: gültige ID, sichtbar und im Mandanten.
+func parentInTenant(ctx context.Context, tx pgx.Tx, parent, tenant string) (*string, error) {
+	if !uuidPattern.MatchString(parent) {
+		return nil, badRequest("Ungültiges Elterngerät.")
+	}
+	var ok bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM openwacht.devices WHERE id = $1 AND tenant_id = $2)`, parent, tenant).Scan(&ok); err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, badRequest("Das Elterngerät muss im selben Mandanten liegen.")
+	}
+	return &parent, nil
 }
 
 func (s *Server) handleDeviceUpdate(w http.ResponseWriter, r *http.Request) {
@@ -237,18 +263,9 @@ func (s *Server) handleDeviceUpdate(w http.ResponseWriter, r *http.Request) {
 		if in.AbhaengigVon != nil {
 			var parent *string
 			if *in.AbhaengigVon != "" {
-				if !uuidPattern.MatchString(*in.AbhaengigVon) {
-					return 0, nil, badRequest("Ungültiges Elterngerät.")
-				}
-				var ok bool
-				if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM openwacht.devices WHERE id = $1 AND tenant_id = $2)`,
-					*in.AbhaengigVon, tenant).Scan(&ok); err != nil {
+				if parent, err = parentInTenant(ctx, tx, *in.AbhaengigVon, tenant); err != nil {
 					return 0, nil, err
 				}
-				if !ok {
-					return 0, nil, badRequest("Das Elterngerät muss im selben Mandanten liegen.")
-				}
-				parent = in.AbhaengigVon
 			}
 			if _, err := tx.Exec(ctx, `UPDATE openwacht.devices SET parent_id = $2 WHERE id = $1`, id, parent); err != nil {
 				return 0, nil, err

@@ -13,7 +13,7 @@
 import { useMemo } from "react";
 import type { Geraet, Mandant, Sensor, Snmp } from "./api";
 import { anzeigeText, rang, type Anzeige } from "./Checks";
-import type { Bereich } from "./bereich";
+import { darfPflegen, type Bereich } from "./bereich";
 import { Netzbild } from "./Netzbild";
 import { useQuelle } from "./quelle";
 import { Q } from "./Widgets";
@@ -124,7 +124,15 @@ function Kind({ k, onOeffnen }: { k: Knoten; onOeffnen: (id: string) => void }) 
   );
 }
 
-export function Topologie({ bereich, onOeffnen }: { bereich: Bereich; onOeffnen: (id: string) => void }) {
+export function Topologie({
+  bereich,
+  onOeffnen,
+  melden,
+}: {
+  bereich: Bereich;
+  onOeffnen: (id: string) => void;
+  melden: (e: unknown) => void;
+}) {
   const qg = useQuelle<{ geraete: Geraet[] }>(Q.geraete, 30_000);
   const qs = useQuelle<{ sensoren: Sensor[] }>(Q.sensoren, 30_000);
   // Netzbild (1.0.11): LLDP-Nachbarn aus den SNMP-Abfragen; fehlen sie, bleibt es bei den Bäumen.
@@ -171,7 +179,14 @@ export function Topologie({ bereich, onOeffnen }: { bereich: Bereich; onOeffnen:
             Das Netzbild zeigt, welche Geräte miteinander verbunden sind, so wie sie es per LLDP melden, mit den Ports an
             beiden Enden. Eine dicke Linie steht für mehrere Verbindungen. Ein Klick öffnet das Gerät.
           </p>
-          <Netzbild geraete={imBereich} quellen={quellen} sensoren={qs.daten?.sensoren ?? []} onOeffnen={onOeffnen} />
+          <Netzbild
+            geraete={imBereich}
+            quellen={quellen}
+            sensoren={qs.daten?.sensoren ?? []}
+            onOeffnen={onOeffnen}
+            darf={(m) => darfPflegen(bereich, m)}
+            melden={melden}
+          />
         </>
       ) : (
         <p className="leer">

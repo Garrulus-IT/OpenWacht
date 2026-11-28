@@ -1,0 +1,87 @@
+# 6. SNMP, access profiles and CSV import
+
+## SNMP on a device
+
+On the device, choose “SNMP einrichten” (set up SNMP) in the action menu (or under “Host hinzufügen” → “Per SNMP”):
+address, port (161), interval, version and credentials or a **profile**.
+
+- **v1/v2c:** community. It is transmitted in plain text; the interface marks this.
+- **v3:** only **authPriv** with SHA-1/SHA-2 and AES-128/192/256. MD5 and DES are deliberately not supported.
+
+Fixed values are read (no MIB files): name, uptime (restart), CPU, memory, disks, interfaces with traffic,
+temperatures, toner, UPS and RAID on Synology. “Interface down” only alerts for ports marked as monitored. If a device
+does not answer for three intervals, it becomes “antwortet nicht” (not responding).
+
+**Port picture (from 1.0.10):** If a device has at least eight physical ports, a picture like the front panel appears
+above the interface table: two rows, odd ports at the top, even ports at the bottom, uplinks set apart on the right.
+The number counts the physical ports in the device’s order; the device’s own name for the port is in the details. Each
+port shows its state as shape and colour: connected, not connected, not connected and monitored (red), administratively
+down (dashed). A click on a port shows status, speed, traffic with history and new errors below, and the port can be
+marked as monitored there.
+
+**PoE per port:** If the device reports the POWER-ETHERNET-MIB, the port shows “PoE” when it delivers power and “PoE!”
+on a PoE fault. In the details, “PoE-Sensor für diesen Port anlegen” creates a sensor that turns critical as soon as the
+port no longer delivers power, for example for access points or cameras. OpenWacht maps PoE port n to the interface
+with index n; this is correct for common switches with one PoE group. With several groups (stack), PoE is left out of
+the picture. If an agent queries the device as a collector, it needs version 1.0.10 for this.
+
+**Restart:** The uptime comes from `hrSystemUptime` (uptime of the computer); only if a device does not provide it, from
+`sysUpTime`. The latter only counts the SNMP service and also jumps back when only the service restarts. A restart
+(15 minutes warning) is only reported if the device had been running for **at least 27 hours before**. Planned nightly
+restarts, for example of Citrix workers or terminal servers, therefore stay silent; whether a planned restart was
+missed is checked by the sensor “Neustart verpasst” (restart missed). The same limit applies to Proxmox, NetApp,
+XenServer and FRITZ!Box.
+
+![SNMP sensors of a switch](../handbuch/bilder/host-sensoren.webp)
+
+Credentials are stored encrypted in the database and bound to device, address and port; if you change the address, you
+have to enter them again (not with profiles, see below).
+
+## Access profiles
+
+**Einrichten → SNMP-Profile** (Set up → SNMP profiles; admins only): create version and credentials once, use them on
+any number of devices.
+
+![SNMP profiles](../handbuch/bilder/snmp-profile.webp)
+
+- A profile applies to its tenant and everything below. Admins of a sub-tenant do not see their parents’ profiles
+  (their device then shows “Profil eines übergeordneten Mandanten”, profile of a parent tenant).
+- **Changing credentials:** edit the profile and enter the new data. All devices with the profile take it over
+  immediately, in one transaction (including the trap service). Change the devices themselves first, otherwise they no
+  longer answer.
+- **Detaching a device:** “Eigene Zugangsdaten” (own credentials) in the SNMP form. **Deleting a profile:** the devices
+  keep their copy.
+- Note: profiles are not bound to an address (otherwise they would not be reusable). An admin can attach a profile to
+  any device within the network allow-list.
+
+## Importing devices from CSV
+
+**Hosts → Importieren** (Hosts → Import; admins and operators), choose a file or paste text. From Excel, save as
+“CSV UTF-8”.
+
+```text
+name;adresse;gruppe;profil;vorlage
+switch-og1;10.20.0.21;Hauptsitz/Keller;Switche Hauptsitz;
+nas-archiv;10.20.0.30;Hauptsitz;;std-ping
+```
+
+- Header line required, only `name` must be in it; separator `;` or `,`; at most 500 lines, 256 KiB.
+- If Excel saved every line as **one** field in quotes (happens when finished CSV lines were pasted into column A), the
+  import recognises this and reads the content of the fields. Simpler: copy the text directly into the field “Text
+  einfügen” (paste text) or save the file as UTF-8 in an editor.
+- `gruppe` (group) as a path `Hauptsitz/Keller`; the groups must already exist.
+- `profil` (profile): name of an SNMP profile (admins only). The central server then polls via SNMP on port 161 every
+  60 s.
+- `vorlage` (template): name of a sensor template or ID of a built-in one (`std-ping`). No agent templates.
+- **Prüfen** (check) shows OK or the error per line. **Anlegen** (create) only works when everything is error-free, and
+  creates everything or nothing. Names that already exist in the tenant are rejected: a second import creates nothing
+  twice.
+
+![Preview with an error (group missing)](../handbuch/bilder/import-vorschau.webp)
+
+## Traps
+
+The trap service (separate process, port 162/udp) accepts v1/v2c traps and informs as well as v3 (authPriv). Assignment
+is by the sender address of the SNMP source; unknown senders are discarded. **Trap rules** (Hosts → Trap-Regeln, admins
+only) set a state per trap OID, cleared by a counter-trap, after a time or by hand. The trap log keeps 30 days. Traps
+only work with polling switched on and not through a collector.
