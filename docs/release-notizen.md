@@ -1,5 +1,16 @@
 # Release-Notizen OpenWacht
 
+## Unveröffentlicht
+
+- **Alarmdurchlauf ohne zweite Verbindung.** Der Durchlauf las die Platten-Prognose und die sammelnden Kanäle über eine
+  zweite Verbindung aus dem Pool, während er die erste in seiner Transaktion hielt. Bei kleinem oder ausgelastetem Pool
+  wartete er dabei auf sich selbst (die Prognose brach nach 30 Sekunden ab). Die Prognose wird jetzt vor der Transaktion
+  erneuert, die Kanäle liest der Durchlauf in ihr.
+- **Unterpfad.** Zentrale und Oberfläche laufen auch unter einem Pfad wie `https://beispiel.de/openwacht/`; die
+  Basis-URL bestimmt ihn. Cookies gelten dann nur für diesen Pfad.
+- **Klick-Demo als echtes Programm** (`demo/`, siehe `demo/LIESMICH.md`): die Zentrale als WebAssembly mit PostgreSQL
+  (PGlite) im Browser, Agents und Gegenstellen simuliert.
+
 ## 1.0.12
 
 - **LLDP-Nachbarn ins Monitoring aufnehmen.** Im Bild der Ports (Einzelheiten eines Ports) und im Netzbild der Seite

@@ -7,6 +7,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "./api";
 import { rolleIn, type Bereich } from "./bereich";
+import { mitBasis } from "./basis";
 
 interface Bericht {
   mandant: string;
@@ -79,7 +80,7 @@ export function Berichte(props: { bereich: Bereich; mitUnter: boolean; melden: (
               ))}
             </select>
           </label>
-          <a className="knopf knopf-haupt" href={`/api/v1/berichte/pdf?${q}`} download>
+          <a className="knopf knopf-haupt" href={mitBasis(`/api/v1/berichte/pdf?${q}`)} download>
             Als PDF
           </a>
         </div>

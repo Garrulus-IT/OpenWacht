@@ -257,10 +257,10 @@ func (s *Server) handleSecondFactor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	expired := func() {
-		clearCookie(w, pendingCookie)
+		s.clearCookie(w, pendingCookie)
 		writeError(w, http.StatusUnauthorized, "Die Anmeldung ist abgelaufen. Bitte erneut anmelden.")
 	}
-	c, err := r.Cookie(pendingCookie)
+	c, err := r.Cookie(s.ck(pendingCookie))
 	if err != nil {
 		expired()
 		return
@@ -286,7 +286,7 @@ func (s *Server) handleSecondFactor(w http.ResponseWriter, r *http.Request) {
 	if locked {
 		s.pool.Exec(ctx, `SELECT openwacht.session_delete($1)`, th)
 		s.auditAuth(ctx, userID, "anmeldung.gesperrt", why, false)
-		clearCookie(w, pendingCookie)
+		s.clearCookie(w, pendingCookie)
 		writeError(w, http.StatusUnauthorized, msgLoginFailed)
 		return
 	}
@@ -323,7 +323,7 @@ func (s *Server) handleSecondFactor(w http.ResponseWriter, r *http.Request) {
 		extra = map[string]any{"wiederherstellungscodes_offen": left}
 	}
 	s.pool.Exec(ctx, `SELECT openwacht.session_delete($1)`, th)
-	clearCookie(w, pendingCookie)
+	s.clearCookie(w, pendingCookie)
 	s.finishLogin(w, r, userID, extra)
 }
 
@@ -336,7 +336,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.auditAuth(r.Context(), sess.UserID, "abmeldung", nil, true)
-	clearCookie(w, sessionCookie)
+	s.clearCookie(w, sessionCookie)
 	w.WriteHeader(http.StatusNoContent)
 }
 

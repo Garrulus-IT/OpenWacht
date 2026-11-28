@@ -4,6 +4,8 @@
 // über das Netz nutzt, bekommt den Quellcode der laufenden Version angeboten.
 // Der Lizenztext liegt unverändert unter /lizenzen/AGPL-3.0.txt.
 
+import { mitBasis } from "./basis";
+
 export const QUELLCODE = "https://github.com/garrulus-it/openwacht";
 
 // Adresse des Quellcodes zur laufenden Version (Tag vX.Y.Z), sonst das Repository.
@@ -15,7 +17,7 @@ export function LizenzHinweis(props: { version?: string }) {
   return (
     <p className="lizenz-hinweis">
       Freie Software unter der{" "}
-      <a href="/lizenzen/AGPL-3.0.txt" target="_blank" rel="noopener">
+      <a href={mitBasis("/lizenzen/AGPL-3.0.txt")} target="_blank" rel="noopener">
         GNU AGPL v3
       </a>{" "}
       ·{" "}

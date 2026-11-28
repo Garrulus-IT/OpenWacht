@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="de" data-basis="%BASIS%" data-groesse="%GROESSE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Klick-Demo · OpenWacht</title>
+    <link rel="icon" href="%BASIS%/_demo/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="%BASIS%/_demo/start.css" />
+    <script src="%BASIS%/_demo/start.js" defer></script>
+  </head>
+  <body>
+    <main class="panel">
+      <div class="marke-kopf"><span class="zeichen" aria-hidden="true"></span><span class="wortmarke"><b>Open</b>Wacht</span></div>
+      <h1 data-t="titel">Klick-Demo</h1>
+      <p data-t="text">
+        Hier läuft das echte Programm: derselbe Server, dieselbe Oberfläche, dieselbe Datenbank (PostgreSQL). Nur eben
+        ganz in diesem Browser. Beim ersten Mal lädt er dafür etwa %GROESSE%&nbsp;MB.
+      </p>
+      <p class="hinweis" data-t="hinweis">Was du eintippst, bleibt in diesem Browser. Nichts wird gesendet.</p>
+      <p id="stand" class="stand" role="status">Starte …</p>
+      <noscript><p>Die Demo braucht JavaScript.</p></noscript>
+      <p class="fuss">
+        <a href="https://garrulus.de/openwacht" data-t="ueber">Über OpenWacht</a> ·
+        <a href="https://garrulus.de/impressum" data-t="impressum">Impressum</a> ·
+        <a href="https://garrulus.de/datenschutz" data-t="datenschutz">Datenschutz</a>
+      </p>
+    </main>
+  </body>
+</html>
